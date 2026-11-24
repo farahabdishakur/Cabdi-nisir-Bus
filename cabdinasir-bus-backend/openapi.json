@@ -15,6 +15,20 @@
         ]
       }
     },
+    "/api/v1/health/details": {
+      "get": {
+        "operationId": "HealthController_details",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
     "/api/v1/events": {
       "get": {
         "operationId": "EventsController_stream",
@@ -178,7 +192,7 @@
           }
         },
         "responses": {
-          "204": {
+          "200": {
             "description": ""
           }
         },
@@ -2713,6 +2727,25 @@
         ]
       }
     },
+    "/api/v1/reports/integrity": {
+      "get": {
+        "operationId": "ReportsController_integrity",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/reports/daily-close": {
       "get": {
         "operationId": "ReportsController_dailyClose",
@@ -2930,7 +2963,7 @@
   "info": {
     "title": "Cabdinasir Bus API",
     "description": "",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "contact": {}
   },
   "tags": [],

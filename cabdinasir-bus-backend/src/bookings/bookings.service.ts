@@ -34,7 +34,7 @@ export class BookingsService {
   async create(user: AuthUser, dto: CreateBookingDto, idempotencyKey?: string) {
     if (idempotencyKey) {
       const prev = await this.prisma.booking.findUnique({ where: { idempotencyKey }, include });
-      if (prev) return prev;
+      if (prev) return this.ownReplay(user, prev.soldById, prev);
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -99,12 +99,18 @@ export class BookingsService {
       if (isUniqueViolation(e)) {
         if (idempotencyKey) {
           const prev = await this.prisma.booking.findUnique({ where: { idempotencyKey }, include });
-          if (prev) return prev;
+          if (prev) return this.ownReplay(user, prev.soldById, prev);
         }
         throw Errors.conflict('SEAT_TAKEN', `Seat ${dto.seatNo} is already sold`);
       }
       throw e;
     }
+  }
+
+  /** Idempotency replay: kaliya qofkii sameeyay — key qof kale lagama soo saari karo xog laan kale. */
+  private ownReplay<T>(user: AuthUser, ownerId: string, record: T): T {
+    if (ownerId !== user.id) throw Errors.conflict('IDEMPOTENCY_KEY_REUSED', 'This Idempotency-Key was used by another user');
+    return record;
   }
 
   async list(user: AuthUser, q: BookingQuery) {
@@ -149,10 +155,13 @@ export class BookingsService {
       if (!['SCHEDULED', 'BOARDING'].includes(b.trip.status)) {
         throw Errors.conflict('TRIP_DEPARTED', 'Cannot void a ticket after the vehicle departed');
       }
-      const updated = await tx.booking.update({
-        where: { id },
+      // Optimistic lock: laba void isku mar (badhan laba jeer / codsi + void toos ah) → hal kaliya, lacag celin hal mar
+      const res = await tx.booking.updateMany({
+        where: { id, status: b.status },
         data: { status: BookingStatus.VOIDED, voidReason: dto.reason, voidedById: user.id, voidedAt: new Date() },
       });
+      if (res.count !== 1) throw Errors.conflict('CONCURRENT_UPDATE', 'Ticket was changed by someone else, reload');
+      const updated = await tx.booking.findUniqueOrThrow({ where: { id } });
       const paid = b.payments.reduce((s, p) => s + p.amountUsdCents, 0);
       if (dto.refund && paid > 0) {
         const original = b.payments.find((p) => p.kind === PaymentKind.TICKET);
@@ -173,6 +182,7 @@ export class BookingsService {
       return await this.prisma.$transaction(async (tx) => {
         const b = await tx.booking.findUnique({ where: { id }, include });
         if (!b) throw Errors.notFound('Booking', id);
+        if (!isSuperAdmin(user) && user.branchId !== b.branchId) throw Errors.forbiddenBranch();
         if (b.status !== BookingStatus.CONFIRMED) throw Errors.conflict('BOOKING_NOT_ACTIVE', 'Only confirmed tickets can be transferred');
         if (!['SCHEDULED', 'BOARDING'].includes(b.trip.status)) throw Errors.conflict('TRIP_DEPARTED', 'Original trip already departed');
         const trip = await this.trips.getForUser(tx, user, dto.tripId);
@@ -193,18 +203,26 @@ export class BookingsService {
         });
         const diff = price.totalCents - b.priceCents;
         if (diff > 0 && !dto.payment) throw Errors.bad('PAYMENT_REQUIRED', 'Collect the price difference', { diffCents: diff });
+        // Lacag celin (qiimo dhimay) = lacag sanduuqa ka baxaysa → Manager kaliya
+        if (diff < 0 && user.role === Role.CASHIER) {
+          throw Errors.forbidden('A refund on transfer needs a manager (request a void or ask your manager)');
+        }
 
-        const updated = await tx.booking.update({
-          where: { id },
+        const res = await tx.booking.updateMany({
+          where: { id, status: BookingStatus.CONFIRMED, tripId: b.tripId, seatNo: b.seatNo },
           data: {
             tripId: trip.id, seatNo: dto.seatNo, priceCents: price.totalCents,
             priceBreakdown: price as unknown as Prisma.InputJsonValue,
             transferredFromTripId: b.tripId,
           },
         });
+        if (res.count !== 1) throw Errors.conflict('CONCURRENT_UPDATE', 'Ticket was changed by someone else, reload');
+        const updated = await tx.booking.findUniqueOrThrow({ where: { id } });
         if (diff !== 0) {
           const orig = b.payments.find((p) => p.kind === PaymentKind.TICKET);
-          const pay = dto.payment ?? { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined };
+          const original = { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined };
+          // celin: habkii lagu bixiyay (Zaad → Zaad); qaadis: habka macmiilku doorto
+          const pay = diff < 0 ? original : dto.payment ?? original;
           await this.cash.recordPayment(tx, user, b.branchId, PaymentKind.TRANSFER_DIFF, diff, pay, { bookingId: id });
         }
         await tx.seatHold.deleteMany({ where: { tripId: trip.id, seatNo: dto.seatNo } });

@@ -19,6 +19,7 @@ class Env {
   @IsOptional() @IsIn(['true', 'false']) JOBS_ENABLED?: string;
   @IsOptional() @IsIn(['true', 'false']) THROTTLE_DISABLED?: string;
   @IsOptional() @IsIn(['true', 'false']) SWAGGER_ENABLED?: string;
+  @IsOptional() @IsString() TRUST_PROXY?: string;
 }
 
 export function validateEnv(raw: Record<string, unknown>) {

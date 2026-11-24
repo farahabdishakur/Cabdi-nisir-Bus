@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsUUID, Matches } from 'class-validator';
 import { toCsv } from '../common/csv';
-import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
+import { CurrentUser, MANAGERS, Roles } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { ReportsService } from './reports.service';
 
@@ -34,7 +34,6 @@ function send(res: Response, q: RangeDto, name: string, data: unknown, rows: () 
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
-  @Roles(...STAFF)
   @Get('dashboard')
   dashboard(@CurrentUser() u: AuthUser, @Query() q: RangeDto) {
     return this.reports.dashboard(u, q.branchId);

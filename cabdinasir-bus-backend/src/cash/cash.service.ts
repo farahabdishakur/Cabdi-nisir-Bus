@@ -20,11 +20,16 @@ export class CashService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Sanduuqa furan ee karraaniga — lacag lama qaadan karo la'aantiis (BUSINESS_RULES §7.2). */
+  /**
+   * Sanduuqa furan ee karraaniga — lacag lama qaadan karo la'aantiis (BUSINESS_RULES §7.2).
+   * Row-ka waa la xiraa (FOR UPDATE) ilaa transaction-ku dhammaado: xiritaanka sanduuqa ma dhex geli karo
+   * lacag la qaadayo (lacag sanduuq xiran gasha = lacag lumay), kharashyo isku mar ahna sanduuqa kama dhigi karaan taban.
+   */
   async requireOpenSession(db: Tx, user: AuthUser): Promise<CashSession> {
-    const s = await db.cashSession.findFirst({ where: { cashierId: user.id, closedAt: null } });
-    if (!s) throw Errors.bad('NO_OPEN_SESSION', 'Open your cash session before taking payments');
-    return s;
+    const rows = await db.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "cash_sessions" WHERE "cashierId" = ${user.id} AND "closedAt" IS NULL FOR UPDATE`;
+    if (!rows.length) throw Errors.bad('NO_OPEN_SESSION', 'Open your cash session before taking payments');
+    return db.cashSession.findUniqueOrThrow({ where: { id: rows[0].id } });
   }
 
   /**
@@ -65,6 +70,7 @@ export class CashService {
       throw Errors.bad('REFERENCE_REQUIRED', 'Mobile money payments need the transaction reference');
     }
     const session = await this.requireOpenSession(db, user);
+    void branchId; // lacagtu waxay gashaa laanta sanduuqa (meesha lacagtu jirto) — mar walba
     let exchangeRate: number | null = null;
     let amountUsdCents = amount;
     if (pay.currency === Currency.SLSH) {
@@ -83,7 +89,7 @@ export class CashService {
         reference: pay.reference,
         cashierId: user.id,
         cashSessionId: session.id,
-        branchId,
+        branchId: session.branchId,
       },
     });
   }
@@ -92,9 +98,15 @@ export class CashService {
     if (isSuperAdmin(user) && !user.branchId) throw Errors.bad('BRANCH_REQUIRED', 'Super admin has no branch drawer');
     const existing = await this.prisma.cashSession.findFirst({ where: { cashierId: user.id, closedAt: null } });
     if (existing) throw Errors.conflict('SESSION_ALREADY_OPEN', 'You already have an open cash session', { id: existing.id });
-    return this.prisma.cashSession.create({
-      data: { cashierId: user.id, branchId: user.branchId!, openingFloat: { USD: openingUsdCents, SLSH: openingSlsh } },
-    });
+    try {
+      return await this.prisma.cashSession.create({
+        data: { cashierId: user.id, branchId: user.branchId!, openingFloat: { USD: openingUsdCents, SLSH: openingSlsh } },
+      });
+    } catch (e) {
+      // unique index cash_sessions_one_open: laba tab isku mar
+      if ((e as { code?: string }).code === 'P2002') throw Errors.conflict('SESSION_ALREADY_OPEN', 'You already have an open cash session');
+      throw e;
+    }
   }
 
   async current(user: AuthUser) {
@@ -131,7 +143,10 @@ export class CashService {
 
   /** Xiritaanka maalinta: counted vs expected → variance (BUSINESS_RULES §7.3). */
   async close(user: AuthUser, id: string, countedUsdCents: number, countedSlsh: number, note?: string, force = false) {
-    const s = await this.prisma.cashSession.findUnique({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+    // Xir row-ka: lacag kasta oo socota way dhammaystirantaa ka hor (ama way sugaysaa oo NO_OPEN_SESSION ayay helaysaa)
+    await tx.$queryRaw`SELECT id FROM "cash_sessions" WHERE id = ${id} FOR UPDATE`;
+    const s = await tx.cashSession.findUnique({ where: { id } });
     if (!s) throw Errors.notFound('CashSession', id);
     if (force) {
       // Karraanigu wuu baxay sanduuqa oo furan: Manager-ka laanta ayaa tiriya oo xira
@@ -142,15 +157,16 @@ export class CashService {
       throw Errors.forbidden('Only the cashier who opened the session can close it');
     }
     if (s.closedAt) throw Errors.conflict('SESSION_CLOSED', 'Session already closed');
-    const { expectedCash } = await this.summary(s);
+    const { expectedCash } = await this.summary(s, tx);
     const counted: Money = { USD: countedUsdCents, SLSH: countedSlsh };
     const variance: Money = { USD: counted.USD - expectedCash.USD, SLSH: counted.SLSH - expectedCash.SLSH };
-    const closed = await this.prisma.cashSession.update({
+    const closed = await tx.cashSession.update({
       where: { id },
       data: { closedAt: new Date(), expected: expectedCash, counted, variance, note, ...(force && { forceClosedById: user.id }) },
     });
-    if (force) await this.audit.log(this.prisma, user, 'FORCE_CLOSE', 'cash-sessions', id, { cashierId: s.cashierId }, { variance, note });
+    if (force) await this.audit.log(tx, user, 'FORCE_CLOSE', 'cash-sessions', id, { cashierId: s.cashierId }, { variance, note });
     return closed;
+    });
   }
 
   async approve(user: AuthUser, id: string, note?: string) {

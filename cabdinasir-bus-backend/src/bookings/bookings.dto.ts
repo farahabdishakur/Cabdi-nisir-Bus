@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Min, ValidateNested } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
 import { BookingStatus } from '@prisma/client';
 import { PaymentInputDto } from '../cash/payment.dto';
 import { PageQuery } from '../common/pagination';
@@ -12,7 +12,7 @@ export class CreateBookingDto {
   @IsString() @Length(2, 80) passengerName: string;
   @Matches(PHONE_RE) passengerPhone: string;
   /** Manager kaliya, ≤ maxDiscountBps */
-  @IsOptional() @IsInt() @Min(0) discountCents?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(10_000_000) discountCents?: number;
   @ValidateNested() @Type(() => PaymentInputDto) payment: PaymentInputDto;
 }
 

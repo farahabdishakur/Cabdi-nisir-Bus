@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Module, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, PartialType, OmitType } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsBoolean, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsInt, Max, IsOptional, IsUUID, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../common/decorators';
@@ -11,10 +11,10 @@ import { BranchDirectory } from '../common/branch-directory.service';
 export class CreateRouteDto {
   @IsUUID() fromBranchId: string;
   @IsUUID() toBranchId: string;
-  @IsInt() @Min(0) ticketPriceCents: number;
-  @IsOptional() @IsInt() @Min(0) frontSeatSurchargeCents?: number;
-  @IsInt() @Min(0) parcelPerKgCents: number;
-  @IsOptional() @IsInt() @Min(0) parcelMinFeeCents?: number;
+  @IsInt() @Min(0) @Max(10_000_000) ticketPriceCents: number;
+  @IsOptional() @IsInt() @Min(0) @Max(10_000_000) frontSeatSurchargeCents?: number;
+  @IsInt() @Min(0) @Max(10_000_000) parcelPerKgCents: number;
+  @IsOptional() @IsInt() @Min(0) @Max(10_000_000) parcelMinFeeCents?: number;
 }
 export class UpdateRouteDto extends PartialType(OmitType(CreateRouteDto, ['fromBranchId', 'toBranchId'] as const)) {
   @IsOptional() @IsBoolean() isActive?: boolean;

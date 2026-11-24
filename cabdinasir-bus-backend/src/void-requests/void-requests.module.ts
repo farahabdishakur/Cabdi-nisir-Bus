@@ -61,15 +61,31 @@ export class VoidRequestsService {
   async approve(user: AuthUser, id: string, note?: string) {
     const r = await this.pending(user, id);
     if (r.requestedById === user.id) throw Errors.forbidden('You cannot approve your own request');
+    // Qabso codsiga si atomic ah (laba ansixin isku mar → hal kaliya)
+    const claimed = await this.prisma.voidRequest.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'APPROVED', decidedById: user.id, decidedAt: new Date(), decisionNote: note },
+    });
+    if (claimed.count !== 1) throw Errors.conflict('REQUEST_DECIDED', 'Request already decided');
     const voidDto = { reason: `${r.reason} (codsi ${r.requestedById.slice(0, 8)})`, refund: r.refund };
-    const result = r.entity === 'BOOKING' ? await this.bookings.void(user, r.entityId, voidDto) : await this.parcels.void(user, r.entityId, voidDto);
-    await this.prisma.voidRequest.update({ where: { id }, data: { status: 'APPROVED', decidedById: user.id, decidedAt: new Date(), decisionNote: note } });
-    return { request: { ...r, status: 'APPROVED' }, result };
+    try {
+      const result = r.entity === 'BOOKING' ? await this.bookings.void(user, r.entityId, voidDto) : await this.parcels.void(user, r.entityId, voidDto);
+      return { request: { ...r, status: 'APPROVED' }, result };
+    } catch (e) {
+      // void-ku wuu fashilmay (tusaale safarku wuu baxay) → codsigu wuxuu ku noqonayaa sugid
+      await this.prisma.voidRequest.update({ where: { id }, data: { status: 'PENDING', decidedById: null, decidedAt: null, decisionNote: null } });
+      throw e;
+    }
   }
 
   async reject(user: AuthUser, id: string, note?: string) {
     await this.pending(user, id);
-    return this.prisma.voidRequest.update({ where: { id }, data: { status: 'REJECTED', decidedById: user.id, decidedAt: new Date(), decisionNote: note } });
+    const res = await this.prisma.voidRequest.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'REJECTED', decidedById: user.id, decidedAt: new Date(), decisionNote: note },
+    });
+    if (res.count !== 1) throw Errors.conflict('REQUEST_DECIDED', 'Request already decided');
+    return this.prisma.voidRequest.findUniqueOrThrow({ where: { id } });
   }
 
   private async pending(user: AuthUser, id: string) {

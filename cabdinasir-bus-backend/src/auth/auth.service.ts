@@ -8,8 +8,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Errors } from '../common/errors';
 import { UserStatusCache } from './user-status.cache';
 
-const MAX_FAILED = 5;
+/** Isku day khaldan (taleefan + IP) → 5 ayaa la oggol yahay 15 daqiiqo gudahood (qofka weeraraya kaliya ayaa la xiraa). */
+const MAX_FAILED_PER_IP = 5;
+/** Akoonka laftiisa waxaa la xiraa kaliya marka weerar ballaaran (IP badan) dhaco. */
+const MAX_FAILED = 20;
 const LOCK_MINUTES = 15;
+const WINDOW_MS = LOCK_MINUTES * 60_000;
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
@@ -26,13 +30,30 @@ export class AuthService {
     return argon2.hash(password);
   }
 
+  private readonly attempts = new Map<string, { count: number; first: number }>();
+
+  private ipLimited(phone: string, ip?: string) {
+    const a = this.attempts.get(`${phone}|${ip ?? '-'}`);
+    return !!a && Date.now() - a.first < WINDOW_MS && a.count >= MAX_FAILED_PER_IP;
+  }
+
+  private noteFailure(phone: string, ip?: string) {
+    const key = `${phone}|${ip ?? '-'}`;
+    const a = this.attempts.get(key);
+    if (!a || Date.now() - a.first >= WINDOW_MS) this.attempts.set(key, { count: 1, first: Date.now() });
+    else a.count++;
+    if (this.attempts.size > 10_000) this.attempts.clear();
+  }
+
   async login(phone: string, password: string, ip?: string) {
+    if (this.ipLimited(phone, ip)) throw Errors.conflict('TOO_MANY_ATTEMPTS', 'Too many wrong attempts, try again in 15 minutes');
     const user = await this.prisma.user.findUnique({ where: { phone } });
     const log = (action: string, extra: object = {}) =>
       this.prisma.auditLog
         .create({ data: { userId: user?.id, branchId: user?.branchId, action, entity: 'auth', entityId: user?.id, after: { phone, ...extra }, ip } })
         .catch(() => undefined);
     if (!user || !user.isActive) {
+      this.noteFailure(phone, ip);
       await log('LOGIN_FAILED', { reason: user ? 'inactive' : 'unknown_phone' });
       throw new UnauthorizedException('Invalid phone or password');
     }
@@ -42,17 +63,16 @@ export class AuthService {
     }
     const ok = await argon2.verify(user.passwordHash, password);
     if (!ok) {
-      const failed = user.failedLogins + 1;
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          failedLogins: failed >= MAX_FAILED ? 0 : failed,
-          lockedUntil: failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
-        },
-      });
+      this.noteFailure(phone, ip);
+      // atomic increment (isku day isku mar ah si sax ah ayaa loo tiriyaa)
+      const { failedLogins: failed } = await this.prisma.user.update({ where: { id: user.id }, data: { failedLogins: { increment: 1 } } });
+      if (failed >= MAX_FAILED) {
+        await this.prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: new Date(Date.now() + WINDOW_MS) } });
+      }
       await log('LOGIN_FAILED', { reason: 'wrong_password', attempt: failed });
       throw new UnauthorizedException('Invalid phone or password');
     }
+    this.attempts.delete(`${phone}|${ip ?? '-'}`);
     await log('LOGIN');
     await this.prisma.user.update({
       where: { id: user.id },
@@ -70,7 +90,12 @@ export class AuthService {
       if (row?.revokedAt) await this.revokeAll(row.userId);
       throw new UnauthorizedException('Invalid refresh token');
     }
-    await this.prisma.refreshToken.update({ where: { id: row.id }, data: { revokedAt: new Date() } });
+    // Atomic: laba refresh isku mar oo isku token ah → hal kaliya ayaa guulaysta (kan kale = dib-u-isticmaal)
+    const used = await this.prisma.refreshToken.updateMany({ where: { id: row.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (used.count !== 1) {
+      await this.revokeAll(row.userId);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
     return this.issueTokens(row.user);
   }
 

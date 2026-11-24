@@ -9,12 +9,12 @@ import { SettingsService } from './settings.service';
 import { BranchDirectory } from '../common/branch-directory.service';
 
 export class UpdateSettingsDto {
-  @IsOptional() @IsInt() @Min(0) fragileSurchargeCents?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(10_000_000) fragileSurchargeCents?: number;
   @IsOptional() @IsInt() @Min(0) @Max(10000) insuranceBps?: number;
   @IsOptional() @IsInt() @Min(0) @Max(10000) maxDiscountBps?: number;
   @IsOptional() @IsInt() @Min(30) @Max(1800) seatHoldSeconds?: number;
   @IsOptional() @IsInt() @Min(1) @Max(90) uncollectedDays?: number;
-  @IsOptional() @IsInt() @Min(0) storageFeePerDayCents?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(10_000_000) storageFeePerDayCents?: number;
   @IsOptional() @IsInt() @Min(0) @Max(1) shareTripsWithinCity?: number;
 }
 export class UpdateCompanyDto {
@@ -33,7 +33,7 @@ class RateHistoryQuery {
 }
 
 export class SetRateDto {
-  @IsInt() @Min(1) usdToSlsh: number;
+  @IsInt() @Min(1) @Max(1_000_000) usdToSlsh: number;
 }
 
 @ApiTags('settings')

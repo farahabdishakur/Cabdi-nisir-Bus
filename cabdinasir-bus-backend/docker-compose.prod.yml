@@ -22,6 +22,8 @@ services:
     environment:
       DATABASE_URL: postgresql://cb:${POSTGRES_PASSWORD}@db:5432/cabdinasir_bus?schema=public
       UPLOAD_DIR: /data/uploads
+      # Caddy ayaa hor fadhiya → IP-ga dhabta ah ee macmiilka (rate limit)
+      TRUST_PROXY: "1"
     volumes: [uploads:/data/uploads]
     depends_on:
       db: { condition: service_healthy }

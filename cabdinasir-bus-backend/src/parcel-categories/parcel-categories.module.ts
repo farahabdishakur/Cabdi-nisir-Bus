@@ -8,7 +8,7 @@ import { Roles } from '../common/decorators';
 export class CreateCategoryDto {
   @IsString() @Length(2, 60) nameSo: string;
   @IsString() @Length(2, 60) nameEn: string;
-  @IsInt() @Min(0) baseFeeCents: number;
+  @IsInt() @Min(0) @Max(10_000_000) baseFeeCents: number;
   @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(100) perKgMultiplier?: number;
   /** Alaab khatar ah — nidaamku wuu diidaa (Shuruudda #4) */
   @IsOptional() @IsBoolean() isProhibited?: boolean;

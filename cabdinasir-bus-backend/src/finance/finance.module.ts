@@ -2,7 +2,7 @@ import { Body, Controller, Get, Injectable, Module, Param, Post, Query } from '@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Currency, DepositTarget, ExpenseCategory, PaymentMethod, Prisma, Role } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
@@ -17,7 +17,7 @@ import { AuditService } from '../audit/audit.service';
 
 class MoneyOutDto {
   /** Qadarka lacagta la qabtay: USD → senti, SLSH → shilin */
-  @Type(() => Number) @IsInt() @Min(1) amount: number;
+  @Type(() => Number) @IsInt() @Min(1) @Max(1_000_000_000) amount: number;
   @IsEnum(Currency) currency: Currency;
   @IsOptional() @IsEnum(PaymentMethod) method?: PaymentMethod;
   @ValidateIf((o) => o.method && o.method !== PaymentMethod.CASH) @IsString() @Length(3, 64) reference?: string;
@@ -61,7 +61,7 @@ export class FinanceService {
         data: { branchId, category: dto.category, description: dto.description, tripId: dto.tripId, paymentId: payment.id, createdById: user.id, idempotencyKey },
         include: { payment: paymentSelect },
       });
-    }));
+    }), user.id);
   }
 
   /** Void kharash: Manager; kaliya inta sanduuqii uu ku jiray furan yahay — lacagta dib ayay ugu noqotaa. */
@@ -71,7 +71,12 @@ export class FinanceService {
       if (!e) throw Errors.notFound('Expense', id);
       assertBranch(user, e.branchId);
       if (e.voidedAt) throw Errors.conflict('ALREADY_VOIDED', 'Expense already voided');
-      if (e.payment.cashSession.closedAt) throw Errors.conflict('SESSION_CLOSED', 'Cash session already closed; record a correction instead');
+      // Xir sanduuqa (lacag/xiritaan isku mar) kadib calaamadee void si atomic ah → laba void ≠ laba celin
+      await tx.$queryRaw`SELECT id FROM "cash_sessions" WHERE id = ${e.payment.cashSessionId} FOR UPDATE`;
+      const session = await tx.cashSession.findUniqueOrThrow({ where: { id: e.payment.cashSessionId } });
+      if (session.closedAt) throw Errors.conflict('SESSION_CLOSED', 'Cash session already closed; record a correction instead');
+      const claimed = await tx.expense.updateMany({ where: { id, voidedAt: null }, data: { voidedAt: new Date(), voidedById: user.id, voidReason: reason } });
+      if (claimed.count !== 1) throw Errors.conflict('ALREADY_VOIDED', 'Expense already voided');
       await tx.payment.create({
         data: {
           kind: 'EXPENSE', method: e.payment.method, currency: e.payment.currency, amount: -e.payment.amount,
@@ -79,7 +84,7 @@ export class FinanceService {
           cashierId: e.payment.cashierId, cashSessionId: e.payment.cashSessionId, branchId: e.branchId,
         },
       });
-      const updated = await tx.expense.update({ where: { id }, data: { voidedAt: new Date(), voidedById: user.id, voidReason: reason } });
+      const updated = await tx.expense.findUniqueOrThrow({ where: { id } });
       await this.audit.log(tx, user, 'VOID', 'expenses', id, { amount: e.payment.amount }, { reason });
       return updated;
     });
@@ -104,23 +109,27 @@ export class FinanceService {
         data: { branchId, target: dto.target, reference: dto.reference, note: dto.note, paymentId: payment.id, createdById: user.id, idempotencyKey },
         include: { payment: paymentSelect },
       });
-    }));
+    }), user.id);
   }
 
   /** Idempotency-Key: badhanka laba jeer la riixo → kharash/deposit laba jeer ma noqoto. */
-  private async once<T>(kind: 'expense' | 'deposit', key: string | undefined, run: () => Promise<T>): Promise<T> {
+  private async once<T extends { createdById: string }>(kind: 'expense' | 'deposit', key: string | undefined, run: () => Promise<T>, userId?: string): Promise<T> {
     const find = () =>
       kind === 'expense'
         ? this.prisma.expense.findUnique({ where: { idempotencyKey: key }, include: { payment: paymentSelect } })
         : this.prisma.deposit.findUnique({ where: { idempotencyKey: key }, include: { payment: paymentSelect } });
+    const own = (prev: unknown) => {
+      if (userId && (prev as T).createdById !== userId) throw Errors.conflict('IDEMPOTENCY_KEY_REUSED', 'This Idempotency-Key was used by another user');
+      return prev as T;
+    };
     if (key) {
       const prev = await find();
-      if (prev) return prev as T;
+      if (prev) return own(prev);
     }
     try {
       return await run();
     } catch (e) {
-      if (key && isUniqueViolation(e, 'idempotencyKey')) return (await find()) as T;
+      if (key && isUniqueViolation(e, 'idempotencyKey')) return own(await find());
       throw e;
     }
   }

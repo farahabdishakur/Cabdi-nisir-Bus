@@ -16,7 +16,7 @@ export class QuoteParcelDto {
   @IsNumber({ maxDecimalPlaces: 2 }) @Min(0.01) @Max(2000) weightKg: number;
   @IsOptional() @IsBoolean() isFragile?: boolean;
   @IsOptional() @IsBoolean() insured?: boolean;
-  @IsOptional() @IsInt() @Min(0) declaredValueCents?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(100_000_000) declaredValueCents?: number;
 }
 
 export class CreateParcelDto extends QuoteParcelDto {

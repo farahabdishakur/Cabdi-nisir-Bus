@@ -108,6 +108,7 @@ export class ParcelsService {
   ) {
     if (idempotencyKey) {
       const prev = await this.prisma.parcel.findUnique({ where: { idempotencyKey }, include });
+      if (prev && prev.registeredById !== user.id) throw Errors.conflict('IDEMPOTENCY_KEY_REUSED', 'This Idempotency-Key was used by another user');
       if (prev) return { ...strip(prev), pickupPin: null, replayed: true };
     }
     if (dto.payer === Payer.SENDER && !dto.payment) throw Errors.bad('PAYMENT_REQUIRED', 'Sender pays now: payment is required');
@@ -165,6 +166,7 @@ export class ParcelsService {
     } catch (e) {
       if (idempotencyKey && isUniqueViolation(e, 'idempotencyKey')) {
         const prev = await this.prisma.parcel.findUniqueOrThrow({ where: { idempotencyKey }, include });
+        if (prev.registeredById !== user.id) throw Errors.conflict('IDEMPOTENCY_KEY_REUSED', 'This Idempotency-Key was used by another user');
         return { ...strip(prev), pickupPin: null, replayed: true };
       }
       throw e;
@@ -295,14 +297,16 @@ export class ParcelsService {
     const p0 = await this.prisma.parcel.findUnique({ where: { id } });
     if (!p0) throw Errors.notFound('Parcel', id);
     this.assertSide(user, p0, 'to');
-    if (p0.pinFailures >= MAX_PIN_FAILURES) {
-      throw Errors.conflict('PIN_LOCKED', 'Too many wrong PINs — verify ID and reset the PIN');
-    }
+    // Isku day kasta waa la "xiraa" KA HOR hubinta (atomic) — requests isku mar ah 5-ta xad kama gudbi karaan
+    const reserved = await this.prisma.parcel.updateMany({ where: { id, pinFailures: { lt: MAX_PIN_FAILURES } }, data: { pinFailures: { increment: 1 } } });
+    if (reserved.count === 0) throw Errors.conflict('PIN_LOCKED', 'Too many wrong PINs — verify ID and reset the PIN');
     if (!(await argon2.verify(p0.pickupPinHash, dto.pin))) {
-      const updated = await this.prisma.parcel.update({ where: { id }, data: { pinFailures: { increment: 1 } } });
-      await this.audit.log(this.prisma, user, 'PIN_FAILED', 'parcels', id, null, { failures: updated.pinFailures });
-      throw Errors.bad('INVALID_PIN', 'Pickup PIN is wrong', { attemptsLeft: Math.max(0, MAX_PIN_FAILURES - updated.pinFailures) });
+      const after = await this.prisma.parcel.findUniqueOrThrow({ where: { id }, select: { pinFailures: true } });
+      await this.audit.log(this.prisma, user, 'PIN_FAILED', 'parcels', id, null, { failures: after.pinFailures });
+      throw Errors.bad('INVALID_PIN', 'Pickup PIN is wrong', { attemptsLeft: Math.max(0, MAX_PIN_FAILURES - after.pinFailures) });
     }
+    // PIN sax ah → isku daygan laguma tiriyo
+    await this.prisma.parcel.update({ where: { id }, data: { pinFailures: 0 } });
     return this.prisma.$transaction(async (tx) => {
       const p = await this.loadFor(tx, id);
       this.assertSide(user, p, 'to');

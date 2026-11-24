@@ -11,7 +11,7 @@ import { ParcelsModule } from '../parcels/parcels.module';
 import { ParcelsService } from '../parcels/parcels.service';
 import { CreateParcelDto } from '../parcels/parcels.dto';
 import { EmitEvent } from '../events/emit';
-import { Errors } from '../common/errors';
+import { AppError, Errors } from '../common/errors';
 
 class OfflineParcelDto {
   /** Waajib: client-ka ayaa sameeya (uuid) — sync-ga laba jeer la diro alaab laba jeer ma noqoto */
@@ -84,8 +84,9 @@ export class SyncController {
         });
         results.push({ idempotencyKey: item.idempotencyKey, ok: true, trackingCode: p.trackingCode, receiptNo: p.receiptNo, id: p.id, toBranchId: p.toBranchId, replayed: 'replayed' in p });
       } catch (e) {
-        const err = e as { code?: string; message?: string; details?: unknown };
-        results.push({ idempotencyKey: item.idempotencyKey, ok: false, error: { code: err.code ?? 'ERROR', message: err.message, details: err.details } });
+        // Khaladaadka ganacsiga (AppError) kaliya ayaa la muujiyaa; kuwa gudaha (DB …) fariintooda lama soo bandhigo
+        const err = e instanceof AppError ? { code: e.code, message: e.message, details: e.details } : { code: 'INTERNAL_ERROR', message: 'Could not save this item' };
+        results.push({ idempotencyKey: item.idempotencyKey, ok: false, error: err });
       }
     }
     return { synced: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length, results };

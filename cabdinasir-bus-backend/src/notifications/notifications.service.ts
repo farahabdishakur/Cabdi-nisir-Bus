@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Notification, NotificationStatus, Prisma } from '@prisma/client';
 import { PrismaService, Tx } from '../prisma/prisma.service';
-import { AuthUser } from '../common/auth-user';
+import { AuthUser, isSuperAdmin } from '../common/auth-user';
 import { branchFilter } from '../common/branch-scope';
 import { Errors } from '../common/errors';
 import { isSmsCapable, normalizePhone } from '../common/phone';
@@ -87,8 +87,16 @@ export class NotificationsService {
   async retry(user: AuthUser, id: string) {
     const n = await this.prisma.notification.findUnique({ where: { id }, include: { parcel: true } });
     if (!n) throw Errors.notFound('Notification', id);
-    if (n.parcel) branchFilter(user, user.branchId === n.parcel.toBranchId ? n.parcel.toBranchId : n.parcel.fromBranchId);
+    if (!isSuperAdmin(user)) {
+      // fariin aan alaab lahayn (tusaale digniinta Super Admin) → Super Admin kaliya
+      if (!n.parcel) throw Errors.forbidden();
+      if (user.branchId !== n.parcel.fromBranchId && user.branchId !== n.parcel.toBranchId) throw Errors.forbiddenBranch();
+    }
     if (n.status !== NotificationStatus.FAILED) throw Errors.conflict('NOT_FAILED', 'Only failed notifications can be retried');
+    // PIN-ka waa laga tirtiray fariinta → dib u dirid macno ma leh; PIN cusub samee
+    if (n.template === 'PARCEL_REGISTERED' || n.template === 'PARCEL_PIN_RESET') {
+      throw Errors.conflict('PIN_SMS_EXPIRED', 'PIN messages cannot be resent — use reset-pin to send a new PIN', { parcelId: n.parcelId });
+    }
     return this.prisma.notification.update({ where: { id }, data: { status: 'PENDING', attempts: 0, sendAfter: new Date() } });
   }
 }

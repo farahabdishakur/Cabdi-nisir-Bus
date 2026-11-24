@@ -213,6 +213,8 @@ model Driver {
   name      String
   phone     String
   licenseNo String?
+  /// Laanta darawalka (manager-ku kaliya darawallada laantiisa ayuu maamulaa). null = shirkadda oo dhan (Super Admin)
+  branchId  String?
   userId    String?  @unique
   user      User?    @relation(fields: [userId], references: [id])
   isActive  Boolean  @default(true)

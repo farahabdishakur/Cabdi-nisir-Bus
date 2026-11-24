@@ -54,6 +54,7 @@ export class JwtAuthGuard implements CanActivate {
     }
     const user: AuthUser = { id: s.id, name: s.name, role: s.role, branchId: s.branchId };
     req.user = user;
+    req.tokenVersion = s.tokenVersion;
 
     if (s.mustChangePassword && !PASSWORD_CHANGE_ALLOWED.includes(req.path)) {
       throw new AppError('PASSWORD_CHANGE_REQUIRED', 'Change your temporary password first', 403);
