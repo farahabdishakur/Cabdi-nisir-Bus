@@ -18,6 +18,7 @@ import { AuditService } from '../audit/audit.service';
 import { TripsService } from '../trips/trips.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { formatUsd } from '../common/money';
+import { BranchDirectory } from '../common/branch-directory.service';
 import { mkdir, writeFile } from 'fs/promises';
 import { join, resolve } from 'path';
 import { isUuid } from '../bookings/bookings.service';
@@ -36,6 +37,9 @@ const include = {
 const INCOMING: ParcelStatus[] = ['LOADED', 'IN_TRANSIT', 'ARRIVED', 'MISSING', 'DAMAGED'];
 const OUTGOING: ParcelStatus[] = ['REGISTERED', 'LOADED'];
 const DAY_MS = 86400_000;
+const MAX_PIN_FAILURES = 5;
+/** PIN 4-god ah: ilaalintu waa xiritaanka 5 isku day — hash fudud ayaa ku filan (sync degdeg ah). */
+const PIN_HASH = { memoryCost: 4096, timeCost: 2, parallelism: 1 };
 const PHOTO_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 type ParcelFull = Prisma.ParcelGetPayload<{ include: typeof include }>;
@@ -55,12 +59,17 @@ export class ParcelsService {
     private readonly audit: AuditService,
     private readonly trips: TripsService,
     private readonly notifications: NotificationsService,
+    private readonly dir: BranchDirectory,
   ) {}
 
   /** Qiimaha alaabta — frontend-ku wuxuu wacaa ka hor diiwaangelinta (live quote). */
   async quote(user: AuthUser, dto: QuoteParcelDto, db: Tx | PrismaService = this.prisma) {
     const fromBranchId = effectiveBranch(user, dto.fromBranchId);
     if (fromBranchId === dto.toBranchId) throw Errors.bad('SAME_BRANCH', 'Destination must be a different branch');
+    await this.dir.ensure(fromBranchId, dto.toBranchId);
+    if (!this.dir.differentCities(fromBranchId, dto.toBranchId)) {
+      throw Errors.bad('SAME_CITY', 'Parcels are only sent between cities (e.g. Boorama → Wajaale)');
+    }
     const [route, category, settings] = await Promise.all([
       db.route.findUnique({ where: { fromBranchId_toBranchId: { fromBranchId, toBranchId: dto.toBranchId } } }),
       db.parcelCategory.findUnique({ where: { id: dto.categoryId } }),
@@ -104,7 +113,7 @@ export class ParcelsService {
     if (dto.payer === Payer.SENDER && !dto.payment) throw Errors.bad('PAYMENT_REQUIRED', 'Sender pays now: payment is required');
     // Offline: PIN-ka client-ka ayaa sameeyay si rasiidka offline-ka ah loogu daabaco
     const pickupPin = opts.pickupPin ?? String(randomInt(0, 10000)).padStart(4, '0');
-    const pickupPinHash = await argon2.hash(pickupPin);
+    const pickupPinHash = await argon2.hash(pickupPin, PIN_HASH);
     try {
       const parcel = await this.prisma.$transaction(async (tx) => {
         const q = await this.quote(user, dto, tx);
@@ -233,8 +242,9 @@ export class ParcelsService {
       const p = await this.loadFor(tx, id);
       this.assertSide(user, p, 'from');
       const trip = await this.trips.getForUser(tx, user, tripId);
-      if (trip.route.fromBranchId !== p.fromBranchId || trip.route.toBranchId !== p.toBranchId) {
-        throw Errors.bad('TRIP_ROUTE_MISMATCH', 'This trip does not go to the parcel destination');
+      // Gaariga Boorama → Wajaale wuxuu qaadaa alaabta labada laamood ee Boorama
+      if (!this.dir.sameCity(trip.route.fromBranchId, p.fromBranchId) || !this.dir.sameCity(trip.route.toBranchId, p.toBranchId)) {
+        throw Errors.bad('TRIP_ROUTE_MISMATCH', 'This trip does not go to the parcel destination city');
       }
       if (!['SCHEDULED', 'BOARDING'].includes(trip.status)) throw Errors.conflict('TRIP_DEPARTED', 'Trip already departed');
       return this.transition(tx, user, p, 'LOADED', { tripId }, `Loaded on ${trip.vehicle.plate}`);
@@ -284,7 +294,15 @@ export class ParcelsService {
   async deliver(user: AuthUser, id: string, dto: DeliverParcelDto) {
     const p0 = await this.prisma.parcel.findUnique({ where: { id } });
     if (!p0) throw Errors.notFound('Parcel', id);
-    if (!(await argon2.verify(p0.pickupPinHash, dto.pin))) throw Errors.bad('INVALID_PIN', 'Pickup PIN is wrong');
+    this.assertSide(user, p0, 'to');
+    if (p0.pinFailures >= MAX_PIN_FAILURES) {
+      throw Errors.conflict('PIN_LOCKED', 'Too many wrong PINs — verify ID and reset the PIN');
+    }
+    if (!(await argon2.verify(p0.pickupPinHash, dto.pin))) {
+      const updated = await this.prisma.parcel.update({ where: { id }, data: { pinFailures: { increment: 1 } } });
+      await this.audit.log(this.prisma, user, 'PIN_FAILED', 'parcels', id, null, { failures: updated.pinFailures });
+      throw Errors.bad('INVALID_PIN', 'Pickup PIN is wrong', { attemptsLeft: Math.max(0, MAX_PIN_FAILURES - updated.pinFailures) });
+    }
     return this.prisma.$transaction(async (tx) => {
       const p = await this.loadFor(tx, id);
       this.assertSide(user, p, 'to');
@@ -362,12 +380,12 @@ export class ParcelsService {
   /** Qaataha PIN-ka wuu lumiyay: PIN cusub (SMS + rasiid). Shaqaaluhu waa inay hubiyaan aqoonsiga. */
   async resetPin(user: AuthUser, id: string, reason: string) {
     const pin = String(randomInt(0, 10000)).padStart(4, '0');
-    const hash = await argon2.hash(pin);
+    const hash = await argon2.hash(pin, PIN_HASH);
     return this.prisma.$transaction(async (tx) => {
       const p = await this.loadFor(tx, id);
       this.assertSide(user, p, 'any');
       if (['DELIVERED', 'VOIDED'].includes(p.status)) throw Errors.conflict('PARCEL_CLOSED', 'Parcel already delivered or voided');
-      await tx.parcel.update({ where: { id }, data: { pickupPinHash: hash } });
+      await tx.parcel.update({ where: { id }, data: { pickupPinHash: hash, pinFailures: 0 } });
       await this.notifications.enqueue(tx, p.receiverPhone, 'PARCEL_PIN_RESET', { code: p.trackingCode, pin }, p.id);
       await this.audit.log(tx, user, 'RESET_PIN', 'parcels', id, null, { reason });
       return { parcelId: id, trackingCode: p.trackingCode, pickupPin: pin };

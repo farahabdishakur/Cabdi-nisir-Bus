@@ -143,6 +143,8 @@ model User {
   branch       Branch?   @relation(fields: [branchId], references: [id])
   isActive     Boolean   @default(true)
   mustChangePassword Boolean @default(false)
+  /// Kor u kac → dhammaan tokens-ka hore isla markiiba way dhacaan (deactivate, role, password)
+  tokenVersion Int       @default(0)
   failedLogins Int       @default(0)
   lockedUntil  DateTime?
   lastLoginAt  DateTime?
@@ -321,6 +323,8 @@ model Parcel {
   receiverName       String
   receiverPhone      String
   pickupPinHash      String
+  /// PIN khaldan isku day — 5 → la xiray (reset-pin ayaa furaya)
+  pinFailures        Int            @default(0)
   categoryId         String
   category           ParcelCategory @relation(fields: [categoryId], references: [id])
   pieces             Int

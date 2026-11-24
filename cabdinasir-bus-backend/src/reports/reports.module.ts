@@ -58,6 +58,12 @@ export class ReportsController {
     return send(res, q, 'trips-profit', d, () => d.trips.map(({ tripId: _t, ...x }) => ({ ...x, departureAt: x.departureAt.toISOString() })));
   }
 
+  /** Hubinta daacadnimada lacagta — liis madhan = wax walba waa sax */
+  @Get('integrity')
+  integrity(@CurrentUser() u: AuthUser, @Query() q: RangeDto) {
+    return this.reports.integrity(u, q);
+  }
+
   @Get('daily-close')
   dailyClose(@CurrentUser() u: AuthUser, @Query() q: DayDto) {
     return this.reports.dailyClose(u, q);
@@ -85,5 +91,5 @@ export class ReportsController {
   }
 }
 
-@Module({ controllers: [ReportsController], providers: [ReportsService] })
+@Module({ controllers: [ReportsController], providers: [ReportsService], exports: [ReportsService] })
 export class ReportsModule {}

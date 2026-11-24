@@ -14,7 +14,18 @@ Backend-ka ayaa fuliya dhammaantood; frontend-ku wuu muujiyaa laakiin ma go'aami
 | `CASHIER` | Karraaniga | Laantiisa + shaqadiisa |
 | `DRIVER` | Darawalka (ikhtiyaari) | Safaradiisa (read-only) |
 
-Laamaha: **Boorama**, **Wajaale**, **Laanta 3aad** (la xaqiijin doono).
+Laamaha: **Boorama — Laanta 1 (`BO1`)**, **Boorama — Laanta 2 (`BO2`)**, **Wajaale (`WAJ`)**.
+
+### Laamaha isku magaalada ah (Boorama 1 & 2)
+| Shay | Xeerka |
+|---|---|
+| Safarada | **Waa la wadaagaa**: safar ka baxa BO1 → WAJ, BO2 sidoo kale way arkaysaa oo tigidh ka iibin kartaa (isla seat map). |
+| Tigidh | Rasiidka & lacagta waa **laanta iibisay** (`BO2-T-…`). Void-ka waxaa go'aamiya maamulaha laantaas. |
+| Alaab | Laan kasta alaabteeda (`CB-BO2-…`). Gaariga Boorama → Wajaale wuxuu qaadaa alaabta labada laamood. Alaab u socota BO2 waxay ku iman kartaa safar WAJ → BO1; **BO2 kaliya** ayaa xaqiijisa/wareejisa. |
+| Route / alaab BO1 ⇄ BO2 | **Lama oggola** (isku magaalo) — `SAME_CITY`. |
+| Gaarigu yimid (ARRIVED) | Maamulaha laan kasta oo magaalada ah. |
+| Bixitaan (DEPARTED), beddel safar | Maamulaha laanta safarka leh. |
+| Dami wadaagga | `shareTripsWithinCity = 0` (Super Admin) → laan kasta gooni. |
 
 ### Shaxda faahfaahsan
 | Ficil | SUPER_ADMIN | BRANCH_MANAGER | CASHIER | DRIVER |
@@ -176,3 +187,17 @@ parcel  = max(parcel, route.parcel_min_fee_cents)
 ## 21. Live Updates
 - Seat map, alaabta imanaysa, codsiyada void, sanduuqyada la xiray — si toos ah ayay u cusboonaadaan (`GET /events`, SSE).
 - Laan kasta waxay helaysaa dhacdooyinka laamaheeda oo keliya; magac/taleefan laguma diro.
+
+## 22. Amniga Akoonnada
+- Password: ugu yaraan 8 xaraf, xaraf + tiro. Akoon cusub / password la reset-gareeyay = **ku-meel-gaar** → waa in la beddelaa ka hor shaqo kale (`PASSWORD_CHANGE_REQUIRED`).
+- User la xiray, role/laan la beddelay, password la beddelay, "logout-all" → **dhammaan tokens-ka isla markiiba way dhacaan** (`SESSION_REVOKED`).
+- Login kasta (guul/fashil) audit ayuu galaa. 5 isku day oo khaldan → akoonka 15 daqiiqo waa xiran yahay.
+- PIN alaabta: 5 isku day oo khaldan → **alaabta waa xiran tahay** (`PIN_LOCKED`) → hubi aqoonsiga → `reset-pin`.
+
+## 23. Hubinta Lacagta (Integrity)
+Maalin kasta 08:00 nidaamku wuxuu hubiyaa, haddii dhibaato jirtana **SMS ayuu u diraa Super Admin**:
+- Sanduuq furan > 24 saac · sanduuq xiran oo aan la ansixin > 48 saac
+- Alaab "diraha bixiyay" oo lacag la'aan ah · COD la wareejiyay oo lacag la'aan ah · tigidh lacag la'aan ah
+- Deposit aan la xaqiijin > 72 saac · alaab jidka ku jirta > 48 saac · safar baxay oo aan imaan > 24 saac
+- SMS fashilmay
+Warbixin: `GET /reports/integrity` — liis madhan = wax walba waa sax.

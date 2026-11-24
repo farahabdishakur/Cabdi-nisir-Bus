@@ -1,6 +1,6 @@
 # Cabdinasir Bus — Backend API
 
-API-ga nidaamka diiwaangelinta **rakaabka, kuraasta, alaabta iyo lacagta** ee Cabdinasir Bus (Boorama · Wajaale · Laanta 3aad).
+API-ga nidaamka diiwaangelinta **rakaabka, kuraasta, alaabta iyo lacagta** ee Cabdinasir Bus (Boorama — 2 laamood · Wajaale).
 
 - Frontend: repo gaar ah → `cabdinasir-bus-web`
 - Xeerarka repo-ga: [`CLAUDE.md`](CLAUDE.md)
@@ -28,10 +28,14 @@ npm run dev                     # http://localhost:3000/api/v1
 | Role | Taleefan | Password |
 |---|---|---|
 | Super Admin | `SEED_SUPER_ADMIN_PHONE` (.env) | `SEED_SUPER_ADMIN_PASSWORD` |
-| Maamulaha Boorama | 0631000001 | Demo1234! |
-| Karraani Boorama | 0631000002 | Demo1234! |
-| Maamulaha Wajaale | 0632000001 | Demo1234! |
-| Karraani Wajaale | 0632000002 | Demo1234! |
+| Maamulaha Boorama 1 | 0631000001 | Demo1234 |
+| Karraani Boorama 1 | 0631000002 | Demo1234 |
+| Maamulaha Boorama 2 | 0633000001 | Demo1234 |
+| Karraani Boorama 2 | 0633000002 | Demo1234 |
+| Maamulaha Wajaale | 0632000001 | Demo1234 |
+| Karraani Wajaale | 0632000002 | Demo1234 |
+
+Super Admin-ka seed-ka wuxuu leeyahay password ku-meel-gaar ah — login-ka ugu horreeya waa in la beddelaa (`PASSWORD_CHANGE_REQUIRED`).
 
 ## Tests
 ```bash

@@ -9,7 +9,7 @@ Dokumentigan wuxuu sharxayaa **halka nidaamku ku noolaanayo**, **sida laamuhu ug
 ```
         ┌──────────────── Internet ────────────────┐
         │                                          │
- [Laanta Boorama]   [Laanta Wajaale]   [Laanta 3aad]      [Super Admin — meel kasta, taleefan/laptop]
+ [Boorama Laanta 1] [Boorama Laanta 2] [Laanta Wajaale]   [Super Admin — meel kasta, taleefan/laptop]
   PC + printer       PC + printer       PC + printer
   Fiber + 4G backup  Fiber + 4G backup  Fiber + 4G backup
         │                  │                  │                    │

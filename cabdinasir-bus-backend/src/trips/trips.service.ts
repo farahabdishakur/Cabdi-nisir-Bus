@@ -8,6 +8,7 @@ import { businessDayRange } from '../common/time';
 import { parseSeatLayout } from '../vehicles/seat-layout';
 import { SettingsService } from '../settings/settings.service';
 import { AuditService } from '../audit/audit.service';
+import { BranchDirectory } from '../common/branch-directory.service';
 import { BulkTripsDto, CreateTripDto, MoveBookingsDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
 const VEHICLE_GAP_MS = 3 * 3600_000; // hal gaari laba safar oo 3 saac gudahood ah ma yeelan karo
@@ -27,9 +28,10 @@ export class TripsService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
+    private readonly dir: BranchDirectory,
   ) {}
 
-  /** Safar shaqaaluhu arki karaan: kuwa ka baxa ama u socda laantooda. */
+  /** Safar shaqaaluhu arki karaan: kuwa ka baxa ama u socda magaaladooda (Boorama: 2 laamood way wadaagaan). */
   async getForUser(db: Tx | PrismaService, user: AuthUser, id: string): Promise<TripWithRoute> {
     const trip = await db.trip.findUnique({ where: { id }, include: tripInclude });
     if (!trip) throw Errors.notFound('Trip', id);
@@ -38,8 +40,11 @@ export class TripsService {
       if (!driver || driver.id !== trip.driverId) throw Errors.forbidden('Not your trip');
       return trip;
     }
-    if (!isSuperAdmin(user) && user.branchId !== trip.route.fromBranchId && user.branchId !== trip.route.toBranchId) {
-      throw Errors.forbiddenBranch();
+    if (!isSuperAdmin(user)) {
+      await this.dir.ensure(user.branchId, trip.route.fromBranchId, trip.route.toBranchId);
+      if (!this.dir.sameCity(user.branchId, trip.route.fromBranchId) && !this.dir.sameCity(user.branchId, trip.route.toBranchId)) {
+        throw Errors.forbiddenBranch();
+      }
     }
     return trip;
   }
@@ -59,7 +64,9 @@ export class TripsService {
       const driver = await this.prisma.driver.findUnique({ where: { userId: user.id } });
       where.driverId = driver?.id ?? '00000000-0000-0000-0000-000000000000';
     } else if (!isSuperAdmin(user)) {
-      where.AND = [{ route: { OR: [{ fromBranchId: user.branchId! }, { toBranchId: user.branchId! }] } }];
+      await this.dir.ensure(user.branchId);
+      const mates = this.dir.mates(user.branchId);
+      where.AND = [{ route: { OR: [{ fromBranchId: { in: mates } }, { toBranchId: { in: mates } }] } }];
     }
     where.route = route;
     const trips = await this.prisma.trip.findMany({ where, include: tripInclude, orderBy: { departureAt: 'asc' }, take: 200 });
@@ -122,9 +129,10 @@ export class TripsService {
       // ARRIVED/CLOSED: laanta loo socdo ayaa sameysa; inta kale: laanta laga baxayo
       const ownerBranch = to === 'ARRIVED' || to === 'CLOSED' ? trip.route.toBranchId : trip.route.fromBranchId;
       if (user.role === Role.CASHIER && to === 'BOARDING') {
-        if (user.branchId !== trip.route.fromBranchId) throw Errors.forbiddenBranch();
+        if (!this.dir.sameCity(user.branchId, trip.route.fromBranchId)) throw Errors.forbiddenBranch();
       } else {
-        this.assertManagerOf(user, ownerBranch);
+        // Gaarigu marka uu yimaado magaalada: maamulaha laan kasta oo magaaladaas ah wuu xaqiijin karaa
+        this.assertManagerOf(user, ownerBranch, to === 'ARRIVED' || to === 'CLOSED');
       }
       assertTransition('Trip', TRIP_TRANSITIONS, trip.status, to);
       const data: Prisma.TripUpdateInput = { status: to };
@@ -158,7 +166,9 @@ export class TripsService {
       if (!['SCHEDULED', 'BOARDING'].includes(src.status)) throw Errors.conflict('TRIP_LOCKED', 'Source trip already departed');
       if (dto.targetTripId === id) throw Errors.bad('SAME_TRIP', 'Choose a different trip');
       const dst = await this.getForUser(tx, user, dto.targetTripId);
-      if (dst.routeId !== src.routeId) throw Errors.bad('TRIP_ROUTE_MISMATCH', 'Target trip must be on the same route');
+      const sameWay =
+        this.dir.sameCity(dst.route.fromBranchId, src.route.fromBranchId) && this.dir.sameCity(dst.route.toBranchId, src.route.toBranchId);
+      if (!sameWay) throw Errors.bad('TRIP_ROUTE_MISMATCH', 'Target trip must go between the same cities');
       if (!['SCHEDULED', 'BOARDING'].includes(dst.status)) throw Errors.conflict('TRIP_CLOSED_FOR_SALE', 'Target trip is not open');
 
       const moving = await tx.booking.findMany({ where: { tripId: id, status: { not: 'VOIDED' } }, orderBy: { createdAt: 'asc' } });
@@ -196,7 +206,7 @@ export class TripsService {
       this.prisma.booking.findMany({ where: { tripId: id, status: { not: 'VOIDED' } } }),
       this.prisma.seatHold.findMany({ where: { tripId: id, expiresAt: { gt: new Date() } } }),
     ]);
-    const showPassenger = user.role !== Role.CASHIER || user.branchId === trip.route.fromBranchId;
+    const showPassenger = user.role !== Role.CASHIER || this.dir.sameCity(user.branchId, trip.route.fromBranchId);
     const state = seats.map((seatNo) => {
       const b = bookings.find((x) => x.seatNo === seatNo);
       if (b) {
@@ -267,19 +277,21 @@ export class TripsService {
     };
   }
 
-  /** Iibka tigidhka: laanta laga baxayo oo keliya (ama super admin), safar aan bixin. */
+  /**
+   * Iibka tigidhka: laamaha magaalada laga baxayo (Boorama 1 & 2 way wada iibin karaan isla safarka),
+   * safar aan bixin. Lacagtu waxay gashaa laanta iibisay.
+   */
   assertCanSell(user: AuthUser, trip: TripWithRoute) {
-    if (!isSuperAdmin(user) && user.branchId !== trip.route.fromBranchId) {
-      throw Errors.forbidden('Tickets are sold at the departure branch');
+    if (!isSuperAdmin(user) && !this.dir.sameCity(user.branchId, trip.route.fromBranchId)) {
+      throw Errors.forbidden('Tickets are sold in the departure city');
     }
     if (!['SCHEDULED', 'BOARDING'].includes(trip.status)) throw Errors.conflict('TRIP_CLOSED_FOR_SALE', 'Trip is not open for sale');
   }
 
-  private assertManagerOf(user: AuthUser, branchId: string) {
+  private assertManagerOf(user: AuthUser, branchId: string, cityWide = false) {
     if (isSuperAdmin(user)) return;
-    if (user.role !== Role.BRANCH_MANAGER || user.branchId !== branchId) {
-      throw Errors.forbidden('Only the branch manager can do this');
-    }
+    const ok = user.role === Role.BRANCH_MANAGER && (cityWide ? this.dir.sameCity(user.branchId, branchId) : user.branchId === branchId);
+    if (!ok) throw Errors.forbidden('Only the branch manager can do this');
   }
 
   private async checkVehicleDriver(vehicleId: string, driverId: string, at: Date, exceptTripId?: string) {

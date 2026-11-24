@@ -11,6 +11,8 @@ export interface PricingSettings {
   seatHoldSeconds: number;
   uncollectedDays: number;
   storageFeePerDayCents: number;
+  /** 1 = laamaha isku magaalada ah (Boorama 1 & 2) waxay wadaagaan safarada; 0 = laan kasta gooni */
+  shareTripsWithinCity: number;
 }
 
 export const DEFAULT_SETTINGS: PricingSettings = {
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: PricingSettings = {
   seatHoldSeconds: 180,
   uncollectedDays: 7,
   storageFeePerDayCents: 50,
+  shareTripsWithinCity: 1,
 };
 
 /** Macluumaadka shirkadda ee rasiidka/label-ka ka muuqda (boodhka xafiiska). */

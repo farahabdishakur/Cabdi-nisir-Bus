@@ -1,4 +1,8 @@
-import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+
+/** Ugu yaraan 8 xaraf, xaraf + tiro. */
+export const STRONG_PASSWORD = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
+export const STRONG_PASSWORD_MSG = 'Password must be 8-128 characters with at least one letter and one number';
 
 export class LoginDto {
   @IsString() @IsNotEmpty()
@@ -18,6 +22,6 @@ export class ChangePasswordDto {
   @IsString() @IsNotEmpty()
   currentPassword: string;
 
-  @IsString() @MinLength(8)
+  @IsString() @Matches(STRONG_PASSWORD, { message: STRONG_PASSWORD_MSG })
   newPassword: string;
 }

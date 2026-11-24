@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, Public, Roles } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { SettingsService } from './settings.service';
+import { BranchDirectory } from '../common/branch-directory.service';
 
 export class UpdateSettingsDto {
   @IsOptional() @IsInt() @Min(0) fragileSurchargeCents?: number;
@@ -14,6 +15,7 @@ export class UpdateSettingsDto {
   @IsOptional() @IsInt() @Min(30) @Max(1800) seatHoldSeconds?: number;
   @IsOptional() @IsInt() @Min(1) @Max(90) uncollectedDays?: number;
   @IsOptional() @IsInt() @Min(0) storageFeePerDayCents?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(1) shareTripsWithinCity?: number;
 }
 export class UpdateCompanyDto {
   @IsOptional() @IsString() @Length(2, 80) name?: string;
@@ -38,7 +40,7 @@ export class SetRateDto {
 @ApiBearerAuth()
 @Controller()
 export class SettingsController {
-  constructor(private readonly settings: SettingsService, private readonly prisma: PrismaService) {}
+  constructor(private readonly settings: SettingsService, private readonly prisma: PrismaService, private readonly dir: BranchDirectory) {}
 
   /** Taariikhda sicirka (warbixinada SLSH) */
   @Get('exchange-rates')
@@ -57,8 +59,10 @@ export class SettingsController {
 
   @Roles(Role.SUPER_ADMIN)
   @Put('pricing-settings')
-  update(@Body() dto: UpdateSettingsDto) {
-    return this.settings.update(dto);
+  async update(@Body() dto: UpdateSettingsDto) {
+    const s = await this.settings.update(dto);
+    this.dir.invalidate();
+    return s;
   }
 
   /** Macluumaadka shirkadda (rasiidka, label-ka, bogga tracking-ka) — public */

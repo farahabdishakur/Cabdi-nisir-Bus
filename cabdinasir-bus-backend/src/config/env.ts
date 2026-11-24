@@ -18,6 +18,7 @@ class Env {
   @IsOptional() @IsString() UPLOAD_DIR?: string;
   @IsOptional() @IsIn(['true', 'false']) JOBS_ENABLED?: string;
   @IsOptional() @IsIn(['true', 'false']) THROTTLE_DISABLED?: string;
+  @IsOptional() @IsIn(['true', 'false']) SWAGGER_ENABLED?: string;
 }
 
 export function validateEnv(raw: Record<string, unknown>) {

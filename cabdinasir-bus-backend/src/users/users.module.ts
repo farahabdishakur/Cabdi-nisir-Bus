@@ -1,7 +1,8 @@
 import { Body, Controller, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, Length, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { STRONG_PASSWORD, STRONG_PASSWORD_MSG } from '../auth/auth.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, MANAGERS, Roles } from '../common/decorators';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
@@ -13,7 +14,7 @@ import { AuthService } from '../auth/auth.service';
 export class CreateUserDto {
   @IsString() @Length(2, 80) name: string;
   @IsString() @Length(6, 20) phone: string;
-  @IsString() @MinLength(8) password: string;
+  @IsString() @Matches(STRONG_PASSWORD, { message: STRONG_PASSWORD_MSG }) password: string;
   @IsEnum(Role) role: Role;
   @IsOptional() @IsUUID() branchId?: string;
 }
@@ -24,7 +25,7 @@ export class UpdateUserDto {
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 export class ResetPasswordDto {
-  @IsString() @MinLength(8) password: string;
+  @IsString() @Matches(STRONG_PASSWORD, { message: STRONG_PASSWORD_MSG }) password: string;
 }
 class UserQuery {
   @IsOptional() @IsUUID() branchId?: string;

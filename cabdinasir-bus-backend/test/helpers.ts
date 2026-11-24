@@ -11,7 +11,7 @@ export const PW = 'Test1234!';
 
 export async function createApp(): Promise<INestApplication> {
   const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = mod.createNestApplication();
+  const app = mod.createNestApplication({ bodyParser: false });
   setupApp(app);
   await app.init();
   return app;

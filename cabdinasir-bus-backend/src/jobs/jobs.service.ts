@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
+import { ReportsService } from '../reports/reports.service';
 
 const DAY_MS = 86400_000;
 const REMIND_AFTER_DAYS = 3;
@@ -20,6 +21,7 @@ export class JobsService {
     private readonly notifications: NotificationsService,
     private readonly settings: SettingsService,
     private readonly config: ConfigService,
+    private readonly reports: ReportsService,
   ) {}
 
   private get enabled() {
@@ -50,6 +52,25 @@ export class JobsService {
   async reminders() {
     if (!this.enabled) return;
     await this.runReminders();
+  }
+
+  /** 08:00 Africa/Mogadishu (05:00 UTC): hubinta lacagta → SMS Super Admin haddii dhibaato jirto */
+  @Cron('0 5 * * *')
+  async integrityAlert() {
+    if (!this.enabled) return;
+    await this.runIntegrityAlert();
+  }
+
+  async runIntegrityAlert() {
+    const r = await this.reports.integrity({ id: 'system', name: 'system', role: 'SUPER_ADMIN', branchId: null }, {});
+    if (r.ok) return { issues: 0, notified: 0 };
+    const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', isActive: true }, select: { phone: true } });
+    let notified = 0;
+    for (const a of admins) {
+      if (await this.notifications.enqueue(this.prisma, a.phone, 'INTEGRITY_ALERT', { issues: r.issues })) notified++;
+    }
+    this.logger.warn(`Integrity: ${r.issues} issue(s), ${notified} admin(s) notified`);
+    return { issues: r.issues, notified };
   }
 
   async runCleanup() {

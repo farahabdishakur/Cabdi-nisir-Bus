@@ -6,6 +6,7 @@ import { Transform } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../common/decorators';
 import { Errors } from '../common/errors';
+import { BranchDirectory } from '../common/branch-directory.service';
 
 export class CreateRouteDto {
   @IsUUID() fromBranchId: string;
@@ -28,7 +29,7 @@ class RouteQuery {
 @ApiBearerAuth()
 @Controller('routes')
 export class RoutesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly dir: BranchDirectory) {}
 
   @Get()
   list(@Query() q: RouteQuery) {
@@ -40,8 +41,12 @@ export class RoutesController {
 
   @Roles(Role.SUPER_ADMIN)
   @Post()
-  create(@Body() dto: CreateRouteDto) {
+  async create(@Body() dto: CreateRouteDto) {
     if (dto.fromBranchId === dto.toBranchId) throw Errors.bad('SAME_BRANCH', 'Route must connect two different branches');
+    await this.dir.ensure(dto.fromBranchId, dto.toBranchId);
+    if (!this.dir.differentCities(dto.fromBranchId, dto.toBranchId)) {
+      throw Errors.bad('SAME_CITY', 'A route must connect two different cities');
+    }
     return this.prisma.route.create({ data: dto });
   }
 

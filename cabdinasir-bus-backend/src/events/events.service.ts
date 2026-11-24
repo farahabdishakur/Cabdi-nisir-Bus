@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { filter, interval, map, merge, Observable, Subject } from 'rxjs';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
+import { BranchDirectory } from '../common/branch-directory.service';
 
 export type AppEventType =
   | 'SEAT_CHANGED' // tigidh la iibiyay / void / transfer / hold → seat map cusboonaysii
@@ -25,8 +26,13 @@ export interface AppEvent {
 export class EventsService {
   private readonly bus = new Subject<AppEvent>();
 
+  constructor(private readonly dir: BranchDirectory) {}
+
   publish(type: AppEventType, branchIds: (string | null | undefined)[], data: Record<string, unknown>) {
-    this.bus.next({ type, branchIds: [...new Set(branchIds.filter((b): b is string => !!b))], data });
+    let ids = branchIds.filter((b): b is string => !!b);
+    // Safarada waa la wadaagaa magaalada dhexdeeda → seat map-ka laamaha walaalaha ah sidoo kale
+    if (type === 'SEAT_CHANGED' || type === 'TRIP_STATUS') ids = ids.flatMap((b) => this.dir.mates(b));
+    this.bus.next({ type, branchIds: [...new Set(ids)], data });
   }
 
   stream(user: AuthUser): Observable<{ type: string; data: object }> {

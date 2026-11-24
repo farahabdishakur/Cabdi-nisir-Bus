@@ -15,6 +15,7 @@ import { SettingsService } from '../settings/settings.service';
 import { CashService } from '../cash/cash.service';
 import { AuditService } from '../audit/audit.service';
 import { TripsService } from '../trips/trips.service';
+import { BranchDirectory } from '../common/branch-directory.service';
 import { BookingQuery, CorrectBookingDto, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
 
 const include = { payments: true, trip: { include: { route: { include: { fromBranch: true, toBranch: true } }, vehicle: true } } } satisfies Prisma.BookingInclude;
@@ -27,6 +28,7 @@ export class BookingsService {
     private readonly settings: SettingsService,
     private readonly cash: CashService,
     private readonly audit: AuditService,
+    private readonly dir: BranchDirectory,
   ) {}
 
   async create(user: AuthUser, dto: CreateBookingDto, idempotencyKey?: string) {
@@ -68,7 +70,8 @@ export class BookingsService {
           discountCents: discount,
         });
 
-        const branch = trip.route.fromBranch;
+        // Lacagta & rasiidka: laanta iibisay (Boorama 2 → BO2-T-…); Super Admin → laanta safarku ka baxo
+        const branch = isSuperAdmin(user) || !user.branchId ? trip.route.fromBranch : await tx.branch.findUniqueOrThrow({ where: { id: user.branchId } });
         const receiptNo = await nextNumber(tx, branch.id, branch.code, 'TICKET');
         const booking = await tx.booking.create({
           data: {
@@ -128,8 +131,10 @@ export class BookingsService {
   async get(user: AuthUser, id: string) {
     const b = await this.prisma.booking.findFirst({ where: { OR: [{ id: isUuid(id) ? id : undefined }, { receiptNo: id }] }, include });
     if (!b) throw Errors.notFound('Booking', id);
-    if (!isSuperAdmin(user) && user.branchId !== b.trip.route.fromBranchId && user.branchId !== b.trip.route.toBranchId) {
-      throw Errors.forbiddenBranch();
+    if (!isSuperAdmin(user)) {
+      await this.dir.ensure(user.branchId);
+      const ok = [b.branchId, b.trip.route.fromBranchId, b.trip.route.toBranchId].some((x) => this.dir.sameCity(user.branchId, x));
+      if (!ok) throw Errors.forbiddenBranch();
     }
     return b;
   }
@@ -172,7 +177,9 @@ export class BookingsService {
         if (!['SCHEDULED', 'BOARDING'].includes(b.trip.status)) throw Errors.conflict('TRIP_DEPARTED', 'Original trip already departed');
         const trip = await this.trips.getForUser(tx, user, dto.tripId);
         this.trips.assertCanSell(user, trip);
-        if (trip.route.fromBranchId !== b.branchId) throw Errors.bad('TRIP_ROUTE_MISMATCH', 'New trip must depart from the same branch');
+        if (!this.dir.sameCity(trip.route.fromBranchId, b.trip.route.fromBranchId)) {
+          throw Errors.bad('TRIP_ROUTE_MISMATCH', 'New trip must depart from the same city');
+        }
         const { layout, seats } = parseSeatLayout(trip.vehicle.seatLayout);
         if (!seats.includes(dto.seatNo)) throw Errors.bad('SEAT_NOT_FOUND', `Seat ${dto.seatNo} does not exist`);
         const hold = await tx.seatHold.findUnique({ where: { tripId_seatNo: { tripId: trip.id, seatNo: dto.seatNo } } });
@@ -237,7 +244,7 @@ export class BookingsService {
 
   async board(user: AuthUser, id: string) {
     const b = await this.get(user, id);
-    if (!isSuperAdmin(user) && user.branchId !== b.trip.route.fromBranchId) throw Errors.forbiddenBranch();
+    if (!isSuperAdmin(user) && !this.dir.sameCity(user.branchId, b.trip.route.fromBranchId)) throw Errors.forbiddenBranch();
     assertTransition('Booking', BOOKING_TRANSITIONS, b.status, BookingStatus.BOARDED);
     return this.prisma.booking.update({ where: { id: b.id }, data: { status: BookingStatus.BOARDED } });
   }

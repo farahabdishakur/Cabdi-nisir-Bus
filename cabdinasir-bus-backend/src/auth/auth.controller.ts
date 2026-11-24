@@ -56,11 +56,14 @@ export class AuthController {
     res.clearCookie(COOKIE, { path: '/api/v1/auth' });
   }
 
+  /** Wuxuu soo celiyaa tokens cusub (qalabka kale oo dhan waa laga saaray). */
   @ApiBearerAuth()
   @Post('change-password')
-  @HttpCode(204)
-  async changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
-    await this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  @HttpCode(200)
+  async changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto, @Res({ passthrough: true }) res: Response) {
+    const t = await this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+    this.setCookie(res, t.refreshToken, t.refreshExpiresAt);
+    return t;
   }
 
   private setCookie(res: Response, token: string, expires: Date) {

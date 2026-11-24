@@ -5,10 +5,11 @@ import { ArrayMaxSize, IsArray, IsBoolean, IsOptional, IsString, Length, Matches
 import { PartialType } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../common/decorators';
+import { BranchDirectory } from '../common/branch-directory.service';
 
 export class CreateBranchDto {
-  /** 3 xaraf waaweyn: BOR, WAJ … — rasiidyada ayuu ka muuqdaa */
-  @Matches(/^[A-Z]{3}$/) code: string;
+  /** 3 xaraf/god: BO1, BO2, WAJ … — rasiidyada ayuu ka muuqdaa */
+  @Matches(/^[A-Z][A-Z0-9]{2}$/) code: string;
   @IsString() @Length(2, 60) name: string;
   @IsString() @Length(2, 60) city: string;
   @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) phones?: string[];
@@ -21,7 +22,7 @@ export class UpdateBranchDto extends PartialType(CreateBranchDto) {
 @ApiBearerAuth()
 @Controller('branches')
 export class BranchesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly dir: BranchDirectory) {}
 
   /** Dhammaan shaqaaluhu way arki karaan (laanta loo dirayo ayay dooranayaan). */
   @Get()
@@ -36,14 +37,18 @@ export class BranchesController {
 
   @Roles(Role.SUPER_ADMIN)
   @Post()
-  create(@Body() dto: CreateBranchDto) {
-    return this.prisma.branch.create({ data: { ...dto, phones: dto.phones ?? [] } });
+  async create(@Body() dto: CreateBranchDto) {
+    const b = await this.prisma.branch.create({ data: { ...dto, phones: dto.phones ?? [] } });
+    this.dir.invalidate();
+    return b;
   }
 
   @Roles(Role.SUPER_ADMIN)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateBranchDto) {
-    return this.prisma.branch.update({ where: { id }, data: dto });
+  async update(@Param('id') id: string, @Body() dto: UpdateBranchDto) {
+    const b = await this.prisma.branch.update({ where: { id }, data: dto });
+    this.dir.invalidate();
+    return b;
   }
 }
 

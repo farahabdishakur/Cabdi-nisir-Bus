@@ -4,7 +4,7 @@
  * - SEED_DEMO=true → shaqaale tijaabo ah, gaari, darawal, sicir (development kaliya)
  *
  * ⚠️ Qiimayaasha routes-ka waa TUSAALE — Super Admin waa inuu ku beddelaa kuwa dhabta ah.
- * ⚠️ Laanta 3aad magaceeda lama xaqiijin — ka beddel Admin → Laamaha.
+ * ⚠️ Taleefannada Boorama Laanta 2 — ku dar Admin → Laamaha.
  */
 import { PrismaClient, Role } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -12,10 +12,11 @@ import 'dotenv/config';
 
 const prisma = new PrismaClient();
 
+/** Boorama: 2 laamood (waxay wadaagaan safarada) · Wajaale: 1. Taleefannada: boodhka xafiiska. */
 const BRANCHES = [
-  { code: 'BOR', name: 'Boorama', city: 'Boorama', phones: ['610700', '613053', '063-4500038', '063-6111188'] },
+  { code: 'BO1', name: 'Boorama — Laanta 1', city: 'Boorama', phones: ['610700', '613053', '063-4500038', '063-6111188'] },
+  { code: 'BO2', name: 'Boorama — Laanta 2', city: 'Boorama', phones: [] as string[] },
   { code: 'WAJ', name: 'Wajaale', city: 'Wajaale', phones: ['644408', '644945', '634500038', '63 6111144'] },
-  { code: 'LS3', name: 'Laanta 3aad', city: 'La xaqiijin doono', phones: [] as string[] },
 ];
 
 const CATEGORIES = [
@@ -39,9 +40,10 @@ async function main() {
     branches.push(await prisma.branch.upsert({ where: { code: b.code }, create: b, update: {} }));
   }
 
+  // Routes: kaliya magaalooyin kala duwan (Boorama ⇄ Wajaale) — Boorama 1 ⇄ Boorama 2 ma jiro
   for (const from of branches) {
     for (const to of branches) {
-      if (from.id === to.id) continue;
+      if (from.city === to.city) continue;
       await prisma.route.upsert({
         where: { fromBranchId_toBranchId: { fromBranchId: from.id, toBranchId: to.id } },
         create: { fromBranchId: from.id, toBranchId: to.id, ...ROUTE_PRICES },
@@ -67,12 +69,14 @@ async function main() {
   console.log('✔ Seed done');
 }
 
-async function demo(branches: { id: string; code: string }[]) {
-  const pw = await argon2.hash('Demo1234!');
-  const [bor, waj] = branches;
+async function demo(branches: { id: string; code: string; city: string }[]) {
+  const pw = await argon2.hash('Demo1234');
+  const [bo1, bo2, waj] = branches;
   const users = [
-    { name: 'Maamulaha Boorama', phone: '0631000001', role: Role.BRANCH_MANAGER, branchId: bor.id },
-    { name: 'Karraani Boorama', phone: '0631000002', role: Role.CASHIER, branchId: bor.id },
+    { name: 'Maamulaha Boorama 1', phone: '0631000001', role: Role.BRANCH_MANAGER, branchId: bo1.id },
+    { name: 'Karraani Boorama 1', phone: '0631000002', role: Role.CASHIER, branchId: bo1.id },
+    { name: 'Maamulaha Boorama 2', phone: '0633000001', role: Role.BRANCH_MANAGER, branchId: bo2.id },
+    { name: 'Karraani Boorama 2', phone: '0633000002', role: Role.CASHIER, branchId: bo2.id },
     { name: 'Maamulaha Wajaale', phone: '0632000001', role: Role.BRANCH_MANAGER, branchId: waj.id },
     { name: 'Karraani Wajaale', phone: '0632000002', role: Role.CASHIER, branchId: waj.id },
   ];
@@ -83,11 +87,11 @@ async function demo(branches: { id: string; code: string }[]) {
     front: ['1', '2'],
   };
   await prisma.vehicle.upsert({ where: { plate: 'SL-DEMO-1' }, create: { plate: 'SL-DEMO-1', model: 'Toyota Hiace', seatLayout: layout, capacity: 14 }, update: {} });
-  if ((await prisma.driver.count()) === 0) await prisma.driver.create({ data: { name: 'Darawal Tijaabo', phone: '0633000001' } });
+  if ((await prisma.driver.count()) === 0) await prisma.driver.create({ data: { name: 'Darawal Tijaabo', phone: '0635000001' } });
   const sa = await prisma.user.findFirstOrThrow({ where: { role: Role.SUPER_ADMIN } });
   const today = new Date(new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10));
   await prisma.exchangeRate.upsert({ where: { date: today }, create: { date: today, usdToSlsh: 8500, setById: sa.id }, update: {} });
-  console.log('✔ Demo data (password: Demo1234!)');
+  console.log('✔ Demo data (password: Demo1234)');
 }
 
 main()

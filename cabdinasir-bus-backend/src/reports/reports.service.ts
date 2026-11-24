@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PaymentKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { BranchDirectory } from '../common/branch-directory.service';
 import { AuthUser } from '../common/auth-user';
 import { branchFilter } from '../common/branch-scope';
 import { businessDate, businessRange, BUSINESS_UTC_OFFSET_HOURS } from '../common/time';
@@ -17,7 +18,7 @@ export interface RangeQuery {
 /** Warbixinada (BUSINESS_RULES §7, REPORT §5). Lacagta oo dhan waxaa lagu soo celiyaa USD senti. */
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly dir: BranchDirectory) {}
 
   private range(q: RangeQuery) {
     const from = q.from ?? businessDate();
@@ -70,7 +71,7 @@ export class ReportsService {
     const r = this.range(q);
     const branchId = branchFilter(user, q.branchId);
     const trips = await this.prisma.trip.findMany({
-      where: { departureAt: { gte: r.start, lt: r.end }, status: { not: 'CANCELLED' }, route: branchId ? { fromBranchId: branchId } : undefined },
+      where: { departureAt: { gte: r.start, lt: r.end }, status: { not: 'CANCELLED' }, route: branchId ? { fromBranchId: { in: await this.cityMates(branchId) } } : undefined },
       include: { vehicle: true, driver: true, route: { include: { fromBranch: true, toBranch: true } }, _count: { select: { bookings: { where: { status: { not: 'VOIDED' } } } } } },
       orderBy: { departureAt: 'asc' },
     });
@@ -290,6 +291,63 @@ export class ReportsService {
       trips: rows,
       totals: { trips: rows.length, ticketsUsdCents: sum('ticketsUsdCents'), parcelsUsdCents: sum('parcelsUsdCents'), expensesUsdCents: sum('expensesUsdCents'), profitUsdCents: sum('profitUsdCents'), lossMakingTrips: rows.filter((x) => x.profitUsdCents < 0).length },
     };
+  }
+
+  private async cityMates(branchId: string) {
+    await this.dir.ensure(branchId);
+    return this.dir.mates(branchId);
+  }
+
+  /**
+   * Hubinta daacadnimada lacagta (integrity): waxyaabaha muujin kara lacag lumay ama khalad.
+   * Super Admin / Manager-ku waa inuu eegaa maalin kasta — liis madhan = wax walba waa sax.
+   */
+  async integrity(user: AuthUser, q: { branchId?: string }) {
+    const branchId = branchFilter(user, q.branchId);
+    const now = Date.now();
+    const hoursAgo = (h: number) => new Date(now - h * 3600_000);
+    const take = 50;
+    const [staleSessions, unapproved, senderUnpaid, codDeliveredUnpaid, ticketsUnpaid, unconfirmedDeposits, stuckParcels, tripsNotArrived, failedSms] =
+      await Promise.all([
+        this.prisma.cashSession.findMany({ where: { branchId, closedAt: null, openedAt: { lt: hoursAgo(24) } }, take }),
+        this.prisma.cashSession.findMany({ where: { branchId, closedAt: { lt: hoursAgo(48) }, approvedAt: null }, take }),
+        // diraha bixiyay → waa in lacag PARCEL ah jirto
+        this.prisma.parcel.findMany({
+          where: { fromBranchId: branchId, payer: 'SENDER', feeCents: { gt: 0 }, status: { not: 'VOIDED' }, payments: { none: { kind: 'PARCEL' } } },
+          select: { id: true, trackingCode: true, feeCents: true, createdAt: true }, take,
+        }),
+        // COD la wareejiyay → waa in lacag jirto
+        this.prisma.parcel.findMany({
+          where: { toBranchId: branchId, payer: 'RECEIVER', feeCents: { gt: 0 }, status: 'DELIVERED', payments: { none: { kind: 'PARCEL' } } },
+          select: { id: true, trackingCode: true, feeCents: true, deliveredAt: true, deliveredById: true }, take,
+        }),
+        this.prisma.booking.findMany({
+          where: { branchId, priceCents: { gt: 0 }, status: { not: 'VOIDED' }, payments: { none: { kind: 'TICKET' } } },
+          select: { id: true, receiptNo: true, priceCents: true, soldById: true, createdAt: true }, take,
+        }),
+        this.prisma.deposit.findMany({ where: { branchId, confirmedAt: null, createdAt: { lt: hoursAgo(72) } }, include: { payment: { select: { amount: true, currency: true } } }, take }),
+        this.prisma.parcel.findMany({
+          where: { status: 'IN_TRANSIT', updatedAt: { lt: hoursAgo(48) }, ...(branchId && { OR: [{ fromBranchId: branchId }, { toBranchId: branchId }] }) },
+          select: { id: true, trackingCode: true, tripId: true, updatedAt: true }, take,
+        }),
+        this.prisma.trip.findMany({
+          where: { status: 'DEPARTED', departureAt: { lt: hoursAgo(24) }, ...(branchId && { route: { OR: [{ fromBranchId: branchId }, { toBranchId: branchId }] } }) },
+          select: { id: true, departureAt: true, vehicleId: true }, take,
+        }),
+        this.prisma.notification.count({ where: { status: 'FAILED', ...(branchId && { parcel: { OR: [{ fromBranchId: branchId }, { toBranchId: branchId }] } }) } }),
+      ]);
+    const checks = {
+      cashSessionsOpenOver24h: staleSessions,
+      closedSessionsNotApprovedOver48h: unapproved,
+      senderPaidParcelsWithoutPayment: senderUnpaid,
+      codDeliveredWithoutPayment: codDeliveredUnpaid,
+      ticketsWithoutPayment: ticketsUnpaid,
+      depositsUnconfirmedOver72h: unconfirmedDeposits,
+      parcelsInTransitOver48h: stuckParcels,
+      tripsDepartedNotArrivedOver24h: tripsNotArrived,
+    };
+    const issues = Object.values(checks).reduce((s, list) => s + list.length, 0) + (failedSms > 0 ? 1 : 0);
+    return { ok: issues === 0, issues, failedSms, checks, checkedAt: new Date() };
   }
 
   /** Dashboard-ka maanta (hal call). */

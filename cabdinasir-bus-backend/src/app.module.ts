@@ -30,6 +30,7 @@ import { SyncModule } from './sync/sync.module';
 import { JobsModule } from './jobs/jobs.module';
 import { HealthController } from './health.controller';
 import { EventsModule } from './events/events.module';
+import { BranchDirectoryModule } from './common/branch-directory.service';
 import { EmitInterceptor } from './events/emit';
 
 @Module({
@@ -41,6 +42,7 @@ import { EmitInterceptor } from './events/emit';
     }),
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 300 }], skipIf: () => process.env.THROTTLE_DISABLED === 'true' }),
     PrismaModule,
+    BranchDirectoryModule,
     EventsModule,
     AuditModule,
     AuthModule,

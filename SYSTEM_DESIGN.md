@@ -25,9 +25,9 @@ Labadaba ayaa loo baahan yahay:
 
 ### Qaybaha
 1. **Super Admin (Xafiiska Guud / Mulkiilaha)**
-2. **Laanta Boorama**
+2. **Boorama — Laanta 1**
 3. **Laanta Wajaale**
-4. **Laanta 3aad** *(magaca la xaqiijin doono — tusaale Hargeysa)*
+4. **Boorama — Laanta 2** *(xaqiijiyay: Boorama waxay leedahay 2 laamood; waxay wadaagaan safarada Boorama ⇄ Wajaale)*
 
 Laan kasta gudaheeda waxaa jira:
 - **Branch Manager (Sub-admin)** — maamulaha laanta
@@ -60,7 +60,7 @@ Laan kasta gudaheeda waxaa jira:
 
 ### 3.1 Maamulka Aasaasiga ah (Super Admin)
 - **Laamaha:** magac, magaalo, taleefannada (610700, 613053, 063-4500038 …)
-- **Wadooyinka (Routes):** Boorama ⇄ Wajaale, Boorama ⇄ Laanta 3, Wajaale ⇄ Laanta 3 — qiimaha tigidhka mid kasta
+- **Wadooyinka (Routes):** Boorama (1 & 2) ⇄ Wajaale — qiimaha tigidhka mid kasta
 - **Gaadiidka:** taarikada, nooca (Hiace 14 kursi), **qaabka kuraasta (seat map)**
 - **Darawallada:** magac, taleefan, liisan
 
@@ -193,7 +193,7 @@ GET    /reports/...
 ---
 
 ## 9. Su'aalo u Baahan Xaqiijin (ka hor dhismaha)
-1. Laanta 3aad magaceedu waa maxay, wadooyinka (routes) saxda ahina waa kuwee?
+1. ~~Laanta 3aad~~ → xaqiijiyay: Boorama Laanta 2.
 2. Gaari kasta immisa kursi buu leeyahay (Hiace 14?) — qaabka kuraasta?
 3. Qiimaha tigidhka iyo alaabta hadda (USD mise SLSH)? Alaabta ma miisaan baa lagu xisaabiyaa mise xabbad?
 4. COD (lacagta marka la qaato) ma la isticmaalaa hadda?

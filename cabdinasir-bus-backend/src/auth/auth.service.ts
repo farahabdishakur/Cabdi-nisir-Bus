@@ -6,6 +6,7 @@ import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { Errors } from '../common/errors';
+import { UserStatusCache } from './user-status.cache';
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -18,6 +19,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly status: UserStatusCache,
   ) {}
 
   static hashPassword(password: string) {
@@ -80,8 +82,13 @@ export class AuthService {
     });
   }
 
-  revokeAll(userId: string) {
-    return this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  /** Ka saar qalab kasta: refresh tokens + access tokens (tokenVersion kor u kac). */
+  async revokeAll(userId: string) {
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      this.prisma.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } }),
+    ]);
+    this.status.invalidate(userId);
   }
 
   async me(userId: string) {
@@ -92,11 +99,14 @@ export class AuthService {
   async changePassword(userId: string, current: string, next: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!(await argon2.verify(user.passwordHash, current))) throw Errors.bad('WRONG_PASSWORD', 'Current password is wrong');
+    if (await argon2.verify(user.passwordHash, next)) throw Errors.bad('SAME_PASSWORD', 'New password must be different');
     await this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash: await AuthService.hashPassword(next), mustChangePassword: false },
     });
+    // qalab kasta oo kale waa laga saarayaa; kan hadda wuxuu helayaa tokens cusub
     await this.revokeAll(userId);
+    return this.issueTokens(await this.prisma.user.findUniqueOrThrow({ where: { id: userId } }));
   }
 
   static publicUser(u: User & { branch?: unknown }) {
@@ -106,8 +116,9 @@ export class AuthService {
 
   private async issueTokens(user: User) {
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, name: user.name, role: user.role, branchId: user.branchId },
-      { secret: this.config.getOrThrow('JWT_ACCESS_SECRET'), expiresIn: this.config.get('JWT_ACCESS_TTL', '15m') },
+      // role/branch token-ka laguma kalsoona — guard-ku DB-ga ayuu ka akhriyaa
+      { sub: user.id, tv: user.tokenVersion, name: user.name, role: user.role, branchId: user.branchId },
+      { secret: this.config.getOrThrow('JWT_ACCESS_SECRET'), expiresIn: this.config.get('JWT_ACCESS_TTL', '15m'), algorithm: 'HS256' },
     );
     const refreshToken = randomBytes(48).toString('base64url');
     const days = Number(this.config.get('JWT_REFRESH_TTL_DAYS', 7));
