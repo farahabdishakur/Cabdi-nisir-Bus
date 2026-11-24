@@ -115,6 +115,9 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 - Rasiidka/label-ka: `GET /company` (magaca, ujeeddada, shuruudaha 5-ta, footer).
 - Types: backend `npm run openapi` → `openapi.json` → `openapi-typescript`.
 - Liiska error codes-ka (turjumaadda Af-Soomaaliga): backend `docs/REPORT.md §9`.
+- **v0.3.0:** live updates `GET /events` (SSE — isticmaal `@microsoft/fetch-event-source` si Authorization header loo diro) → seat map & alaabta imanaysa refresh la'aan.
+- Sixitaan: `PATCH /parcels/:id`, `PATCH /bookings/:id` · PIN lumay: `POST /parcels/:id/reset-pin` · Gaari xumaaday: `POST /trips/:id/move-bookings` · Sanduuq laga tagay: `POST /cash-sessions/:id/force-close` · Faa'iidada safarka: `GET /reports/trips-profit` · Jadwal dadweyne: `GET /public/trips`.
+- Kharash/deposit: dir `Idempotency-Key`.
 
 ## 9. Changelog / Xaaladda
 - **2026-11-24** — Naqshadda, xeerarka (`CLAUDE.md`, `UI_RULES.md`) iyo warbixintan la qoray. Code: 0%.

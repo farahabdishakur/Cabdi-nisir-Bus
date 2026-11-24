@@ -11,6 +11,8 @@ import { branchFilter, assertBranch } from '../common/branch-scope';
 import { Errors } from '../common/errors';
 import { businessRange, businessDate } from '../common/time';
 import { CashService } from '../cash/cash.service';
+import { IdempotencyKey, isUniqueViolation } from '../common/idempotency';
+import { ApiHeader } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service';
 
 class MoneyOutDto {
@@ -50,16 +52,16 @@ export class FinanceService {
   constructor(private readonly prisma: PrismaService, private readonly cash: CashService, private readonly audit: AuditService) {}
 
   /** Kharash: wuxuu ka baxaa sanduuqa karraaniga (Payment taban). */
-  async createExpense(user: AuthUser, dto: CreateExpenseDto) {
-    return this.prisma.$transaction(async (tx) => {
+  async createExpense(user: AuthUser, dto: CreateExpenseDto, idempotencyKey?: string) {
+    return this.once('expense', idempotencyKey, () => this.prisma.$transaction(async (tx) => {
       const branchId = this.ownBranch(user);
       await this.assertEnoughCash(tx, user, dto);
       const payment = await this.cash.recordRaw(tx, user, branchId, 'EXPENSE', -dto.amount, this.pay(dto));
       return tx.expense.create({
-        data: { branchId, category: dto.category, description: dto.description, tripId: dto.tripId, paymentId: payment.id, createdById: user.id },
+        data: { branchId, category: dto.category, description: dto.description, tripId: dto.tripId, paymentId: payment.id, createdById: user.id, idempotencyKey },
         include: { payment: paymentSelect },
       });
-    });
+    }));
   }
 
   /** Void kharash: Manager; kaliya inta sanduuqii uu ku jiray furan yahay — lacagta dib ayay ugu noqotaa. */
@@ -93,16 +95,34 @@ export class FinanceService {
   }
 
   /** Deposit: lacag laga wareejiyay sanduuqa → xafiiska guud / bangi. */
-  async createDeposit(user: AuthUser, dto: CreateDepositDto) {
-    return this.prisma.$transaction(async (tx) => {
+  async createDeposit(user: AuthUser, dto: CreateDepositDto, idempotencyKey?: string) {
+    return this.once('deposit', idempotencyKey, () => this.prisma.$transaction(async (tx) => {
       const branchId = this.ownBranch(user);
       await this.assertEnoughCash(tx, user, dto);
       const payment = await this.cash.recordRaw(tx, user, branchId, 'DEPOSIT', -dto.amount, this.pay(dto));
       return tx.deposit.create({
-        data: { branchId, target: dto.target, reference: dto.reference, note: dto.note, paymentId: payment.id, createdById: user.id },
+        data: { branchId, target: dto.target, reference: dto.reference, note: dto.note, paymentId: payment.id, createdById: user.id, idempotencyKey },
         include: { payment: paymentSelect },
       });
-    });
+    }));
+  }
+
+  /** Idempotency-Key: badhanka laba jeer la riixo → kharash/deposit laba jeer ma noqoto. */
+  private async once<T>(kind: 'expense' | 'deposit', key: string | undefined, run: () => Promise<T>): Promise<T> {
+    const find = () =>
+      kind === 'expense'
+        ? this.prisma.expense.findUnique({ where: { idempotencyKey: key }, include: { payment: paymentSelect } })
+        : this.prisma.deposit.findUnique({ where: { idempotencyKey: key }, include: { payment: paymentSelect } });
+    if (key) {
+      const prev = await find();
+      if (prev) return prev as T;
+    }
+    try {
+      return await run();
+    } catch (e) {
+      if (key && isUniqueViolation(e, 'idempotencyKey')) return (await find()) as T;
+      throw e;
+    }
   }
 
   /** Super Admin: "lacagta waan helay" — silsiladda lacagtu way xirantaa. */
@@ -150,9 +170,10 @@ export class FinanceService {
 export class FinanceController {
   constructor(private readonly finance: FinanceService) {}
 
+  @ApiHeader({ name: 'Idempotency-Key', required: false })
   @Post('expenses')
-  createExpense(@CurrentUser() u: AuthUser, @Body() dto: CreateExpenseDto) {
-    return this.finance.createExpense(u, dto);
+  createExpense(@CurrentUser() u: AuthUser, @Body() dto: CreateExpenseDto, @IdempotencyKey() key?: string) {
+    return this.finance.createExpense(u, dto, key);
   }
 
   @Get('expenses')
@@ -166,9 +187,10 @@ export class FinanceController {
     return this.finance.voidExpense(u, id, dto.reason);
   }
 
+  @ApiHeader({ name: 'Idempotency-Key', required: false })
   @Post('deposits')
-  createDeposit(@CurrentUser() u: AuthUser, @Body() dto: CreateDepositDto) {
-    return this.finance.createDeposit(u, dto);
+  createDeposit(@CurrentUser() u: AuthUser, @Body() dto: CreateDepositDto, @IdempotencyKey() key?: string) {
+    return this.finance.createDeposit(u, dto, key);
   }
 
   @Get('deposits')

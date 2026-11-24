@@ -238,6 +238,60 @@ export class ReportsService {
     return { from: r.from, to: r.to, cashiers: rows };
   }
 
+  /**
+   * Faa'iidada safar kasta: tigidhada (+farqi −celin) + alaabta la raray − kharashka safarka (shidaal, darawal …).
+   * Mulkiiluhu wuxuu arkaa safarada khasaaraha ah.
+   */
+  async tripsProfit(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const trips = await this.prisma.trip.findMany({
+      where: { departureAt: { gte: r.start, lt: r.end }, status: { not: 'CANCELLED' }, route: branchId ? { fromBranchId: branchId } : undefined },
+      include: { vehicle: { select: { plate: true, capacity: true } }, driver: { select: { name: true } }, route: { include: { fromBranch: true, toBranch: true } } },
+      orderBy: { departureAt: 'asc' },
+    });
+    const ids = trips.map((t) => t.id);
+    const [ticketMoney, parcelFees, expenses, seats] = await Promise.all([
+      this.prisma.$queryRaw<{ trip_id: string; usd: bigint }[]>`
+        SELECT b."tripId" AS trip_id, COALESCE(SUM(p."amountUsdCents"), 0)::bigint AS usd
+        FROM "payments" p JOIN "bookings" b ON b.id = p."bookingId"
+        WHERE b."tripId" = ANY(${ids}) GROUP BY 1`,
+      this.prisma.parcel.groupBy({ by: ['tripId'], where: { tripId: { in: ids }, status: { not: 'VOIDED' } }, _sum: { feeCents: true }, _count: true }),
+      this.prisma.$queryRaw<{ trip_id: string; usd: bigint }[]>`
+        SELECT e."tripId" AS trip_id, COALESCE(SUM(-p."amountUsdCents"), 0)::bigint AS usd
+        FROM "expenses" e JOIN "payments" p ON p.id = e."paymentId"
+        WHERE e."tripId" = ANY(${ids}) AND e."voidedAt" IS NULL GROUP BY 1`,
+      this.prisma.booking.groupBy({ by: ['tripId'], where: { tripId: { in: ids }, status: { not: 'VOIDED' } }, _count: true }),
+    ]);
+    const rows = trips.map((t) => {
+      const tickets = Number(ticketMoney.find((x) => x.trip_id === t.id)?.usd ?? 0);
+      const pf = parcelFees.find((x) => x.tripId === t.id);
+      const parcels = pf?._sum.feeCents ?? 0;
+      const exp = Number(expenses.find((x) => x.trip_id === t.id)?.usd ?? 0);
+      return {
+        tripId: t.id,
+        departureAt: t.departureAt,
+        route: `${t.route.fromBranch.code} → ${t.route.toBranch.code}`,
+        vehicle: t.vehicle.plate,
+        driver: t.driver.name,
+        passengers: seats.find((x) => x.tripId === t.id)?._count ?? 0,
+        capacity: t.vehicle.capacity,
+        parcels: pf?._count ?? 0,
+        ticketsUsdCents: tickets,
+        parcelsUsdCents: parcels,
+        expensesUsdCents: exp,
+        profitUsdCents: tickets + parcels - exp,
+      };
+    });
+    const sum = (k: 'ticketsUsdCents' | 'parcelsUsdCents' | 'expensesUsdCents' | 'profitUsdCents') => rows.reduce((s, x) => s + x[k], 0);
+    return {
+      from: r.from,
+      to: r.to,
+      trips: rows,
+      totals: { trips: rows.length, ticketsUsdCents: sum('ticketsUsdCents'), parcelsUsdCents: sum('parcelsUsdCents'), expensesUsdCents: sum('expensesUsdCents'), profitUsdCents: sum('profitUsdCents'), lossMakingTrips: rows.filter((x) => x.profitUsdCents < 0).length },
+    };
+  }
+
   /** Dashboard-ka maanta (hal call). */
   async dashboard(user: AuthUser, branchId?: string) {
     const today = businessDate();

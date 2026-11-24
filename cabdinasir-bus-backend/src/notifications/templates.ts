@@ -5,6 +5,7 @@ export const TEMPLATES = {
   PARCEL_ARRIVED: 'Cabdinasir Bus: Alaabtaada {code} waxay timid laanta {to}. Kaalay la imow PIN-ka.{cod}',
   PARCEL_REMINDER:
     'Cabdinasir Bus: Xusuusin - alaabtaada {code} weli waxay taal laanta {to}. Ka dib {days} maalmood waxaa la bixiyaa khidmad kayd.',
+  PARCEL_PIN_RESET: 'Cabdinasir Bus: PIN cusub ee alaabta {code}: PIN: {pin}. PIN-kii hore waa la joojiyay.',
   PARCEL_DELIVERED: 'Cabdinasir Bus: Alaabtii aad u dirtay {receiver} ({code}) waa la gaarsiiyay. Mahadsanid.',
 } as const;
 

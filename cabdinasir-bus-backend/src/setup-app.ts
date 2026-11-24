@@ -16,7 +16,7 @@ export function setupApp(app: INestApplication) {
   const config = new DocumentBuilder()
     .setTitle('Cabdinasir Bus API')
     .setDescription('Rakaab, kuraas, alaab iyo lacag — Boorama · Wajaale · Laanta 3aad')
-    .setVersion('0.1.0')
+    .setVersion('0.3.0')
     .addBearerAuth()
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, config));

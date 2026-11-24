@@ -5,6 +5,7 @@ import { Transform } from 'class-transformer';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { CashService } from './cash.service';
+import { EmitEvent } from '../events/emit';
 import { ApproveSessionDto, CloseSessionDto, OpenSessionDto } from './payment.dto';
 
 class SessionQuery {
@@ -35,9 +36,18 @@ export class CashController {
     return this.cash.open(user, dto.openingUsdCents, dto.openingSlsh);
   }
 
+  @EmitEvent('CASH_SESSION', (s) => ({ branchIds: [s.branchId], data: { sessionId: s.id, closed: true, variance: s.variance } }))
   @Post(':id/close')
   close(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: CloseSessionDto) {
     return this.cash.close(user, id, dto.countedUsdCents, dto.countedSlsh, dto.note);
+  }
+
+  /** Manager: xir sanduuq karraani ka tagay (sabab waajib) */
+  @Roles(...MANAGERS)
+  @EmitEvent('CASH_SESSION', (s) => ({ branchIds: [s.branchId], data: { sessionId: s.id, closed: true, forced: true } }))
+  @Post(':id/force-close')
+  forceClose(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: CloseSessionDto) {
+    return this.cash.close(user, id, dto.countedUsdCents, dto.countedSlsh, dto.note, true);
   }
 
   @Roles(...MANAGERS)

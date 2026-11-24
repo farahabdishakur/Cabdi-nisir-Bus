@@ -10,6 +10,8 @@ import { SettingsService } from '../settings/settings.service';
 import { ParcelsModule } from '../parcels/parcels.module';
 import { ParcelsService } from '../parcels/parcels.service';
 import { CreateParcelDto } from '../parcels/parcels.dto';
+import { EmitEvent } from '../events/emit';
+import { Errors } from '../common/errors';
 
 class OfflineParcelDto {
   /** Waajib: client-ka ayaa sameeya (uuid) — sync-ga laba jeer la diro alaab laba jeer ma noqoto */
@@ -63,16 +65,24 @@ export class SyncController {
   }
 
   /** Alaabta offline lagu diiwaangeliyay. Mid kasta natiijadiisa ayaa la soo celiyaa (ok / error). */
+  @EmitEvent('PARCEL_CHANGED', (r) => ({
+    branchIds: (r.results ?? []).filter((x: { ok: boolean }) => x.ok).map((x: { toBranchId: string }) => x.toBranchId),
+    data: { synced: r.synced },
+  }))
   @Post('parcels')
   async parcelsSync(@CurrentUser() user: AuthUser, @Body() dto: SyncParcelsDto) {
     const results = [];
     for (const item of dto.items) {
       try {
+        const at = new Date(item.offlineCreatedAt).getTime();
+        if (at > Date.now() + 5 * 60_000 || at < Date.now() - 7 * 86400_000) {
+          throw Errors.bad('OFFLINE_TIME_INVALID', 'offlineCreatedAt must be within the last 7 days (check the PC clock)');
+        }
         const p = await this.parcels.create(user, item.parcel, item.idempotencyKey, {
           pickupPin: item.pickupPin,
           offlineCreatedAt: new Date(item.offlineCreatedAt),
         });
-        results.push({ idempotencyKey: item.idempotencyKey, ok: true, trackingCode: p.trackingCode, receiptNo: p.receiptNo, id: p.id, replayed: 'replayed' in p });
+        results.push({ idempotencyKey: item.idempotencyKey, ok: true, trackingCode: p.trackingCode, receiptNo: p.receiptNo, id: p.id, toBranchId: p.toBranchId, replayed: 'replayed' in p });
       } catch (e) {
         const err = e as { code?: string; message?: string; details?: unknown };
         results.push({ idempotencyKey: item.idempotencyKey, ok: false, error: { code: err.code ?? 'ERROR', message: err.message, details: err.details } });

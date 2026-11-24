@@ -55,6 +55,16 @@ export class VoidParcelDto {
   @IsOptional() @ValidateNested() @Type(() => PaymentInputDto) refundPayment?: PaymentInputDto;
 }
 
+/** Sixitaan qalad qoraal (magac/taleefan/sharraxaad). Qiimaha/miisaanka lama beddelo — void + mid cusub. */
+export class CorrectParcelDto {
+  @IsOptional() @IsString() @Length(2, 80) senderName?: string;
+  @IsOptional() @Matches(PHONE_RE) senderPhone?: string;
+  @IsOptional() @IsString() @Length(2, 80) receiverName?: string;
+  @IsOptional() @Matches(PHONE_RE) receiverPhone?: string;
+  @IsOptional() @IsString() @Length(0, 500) description?: string;
+  @IsString() @Length(3, 300) reason: string;
+}
+
 export class NoteDto {
   @IsString() @Length(3, 500) note: string;
 }

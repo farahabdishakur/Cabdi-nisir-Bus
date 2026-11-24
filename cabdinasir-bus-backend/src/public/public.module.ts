@@ -1,7 +1,8 @@
 import { Controller, Get, Module, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { Matches } from 'class-validator';
+import { IsOptional, Matches } from 'class-validator';
+import { businessDate, businessDayRange } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 import { Public } from '../common/decorators';
 import { Errors } from '../common/errors';
@@ -15,6 +16,12 @@ class TrackQuery {
  * Bogga dadweynaha: raadinta alaabta (Phase 3 website) — login la'aan.
  * Magac / taleefan lama muujiyo; waxaa loo baahan yahay koodhka + 4 god oo taleefan ah.
  */
+class TripsQuery {
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @Matches(/^[A-Z0-9]{3}$/) from?: string;
+  @IsOptional() @Matches(/^[A-Z0-9]{3}$/) to?: string;
+}
+
 @ApiTags('public')
 @Public()
 @Controller('public')
@@ -43,6 +50,34 @@ export class PublicController {
       amountDueCents: p.payer === 'RECEIVER' && !p.paidAt ? p.feeCents : 0,
       history: p.history.map((h) => ({ status: h.toStatus, at: h.createdAt, branch: h.branchId ? branches.get(h.branchId) ?? null : null })),
     };
+  }
+
+  /** Jadwalka safarada + kuraasta bannaan (macmiilku wuu arkaa ka hor intuu iman) */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('trips')
+  async trips(@Query() q: TripsQuery) {
+    const { start, end } = businessDayRange(q.date ?? businessDate());
+    const trips = await this.prisma.trip.findMany({
+      where: {
+        departureAt: { gte: start, lt: end },
+        status: { in: ['SCHEDULED', 'BOARDING'] },
+        route: { fromBranch: q.from ? { code: q.from } : undefined, toBranch: q.to ? { code: q.to } : undefined },
+      },
+      include: {
+        route: { include: { fromBranch: true, toBranch: true } },
+        vehicle: { select: { capacity: true } },
+        _count: { select: { bookings: { where: { status: { not: 'VOIDED' } } } } },
+      },
+      orderBy: { departureAt: 'asc' },
+    });
+    return trips.map((t) => ({
+      departureAt: t.departureAt,
+      from: t.route.fromBranch.name,
+      to: t.route.toBranch.name,
+      priceCents: t.route.ticketPriceCents,
+      seatsAvailable: Math.max(0, t.vehicle.capacity - t._count.bookings),
+      status: t.status,
+    }));
   }
 
   /** Laamaha iyo taleefannada (bogga xiriirka) */

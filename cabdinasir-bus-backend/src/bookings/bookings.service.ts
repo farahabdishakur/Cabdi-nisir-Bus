@@ -15,7 +15,7 @@ import { SettingsService } from '../settings/settings.service';
 import { CashService } from '../cash/cash.service';
 import { AuditService } from '../audit/audit.service';
 import { TripsService } from '../trips/trips.service';
-import { BookingQuery, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
+import { BookingQuery, CorrectBookingDto, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
 
 const include = { payments: true, trip: { include: { route: { include: { fromBranch: true, toBranch: true } }, vehicle: true } } } satisfies Prisma.BookingInclude;
 
@@ -208,6 +208,23 @@ export class BookingsService {
       if (isUniqueViolation(e)) throw Errors.conflict('SEAT_TAKEN', `Seat ${dto.seatNo} is already sold`);
       throw e;
     }
+  }
+
+  /** Sixitaan magaca/taleefanka rakaabka (ka hor bixitaanka). */
+  async correct(user: AuthUser, id: string, dto: CorrectBookingDto) {
+    const b = await this.get(user, id);
+    if (!isSuperAdmin(user) && user.branchId !== b.branchId) throw Errors.forbiddenBranch();
+    if (b.status === BookingStatus.VOIDED) throw Errors.conflict('BOOKING_NOT_ACTIVE', 'Ticket is voided');
+    if (!['SCHEDULED', 'BOARDING'].includes(b.trip.status)) throw Errors.conflict('TRIP_DEPARTED', 'Trip already departed');
+    const data: Prisma.BookingUpdateInput = {};
+    if (dto.passengerName) data.passengerName = dto.passengerName.trim();
+    if (dto.passengerPhone) data.passengerPhone = dto.passengerPhone.replace(/\s/g, '');
+    if (!Object.keys(data).length) throw Errors.bad('NOTHING_TO_CHANGE', 'No fields to correct');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.update({ where: { id: b.id }, data, include });
+      await this.audit.log(tx, user, 'CORRECT', 'bookings', b.id, { passengerName: b.passengerName, passengerPhone: b.passengerPhone }, { ...data, reason: dto.reason });
+      return updated;
+    });
   }
 
   /** Dib u daabac rasiidka — waa la tiriyaa oo audit ayuu galaa (rasiid nuqul ah lagu khiyaanayn). */

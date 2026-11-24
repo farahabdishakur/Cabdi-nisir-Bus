@@ -152,3 +152,27 @@ parcel  = max(parcel, route.parcel_min_fee_cents)
 ## 15. Tracking Dadweyne
 - Koodhka + 4-ta god ee ugu dambeeya taleefanka qaataha/diraha → xaaladda alaabta.
 - Magac iyo taleefan lama muujiyo. 10 isku day / daqiiqo.
+
+## 16. Sixitaanka Qaladaadka
+- **Alaab:** magac / taleefan / sharraxaad. Karraaniga laanta diray: inta aan gaariga ka bixin (REGISTERED/LOADED). Manager: ilaa la wareejiyo. Qiimaha, miisaanka, nooca **lama beddeli karo** → void + diiwaangelin cusub.
+- **Tigidh:** magaca / taleefanka rakaabka, ka hor bixitaanka.
+- Sixitaan kasta: sabab waajib + audit (qiimihii hore iyo kan cusub).
+
+## 17. PIN Lumay
+- Shaqaalaha laanta diray ama tan loo diray: **hubi aqoonsiga (ID)** → `reset-pin` → PIN cusub (SMS + rasiid). PIN-kii hore isla markiiba wuu dhacaa. Audit.
+
+## 18. Gaari Xumaaday (Move Bookings)
+- Manager: rakaabka oo dhan + alaabta la raray → safar kale **isla route-ka**.
+- Kursigii qofka haddii uu bannaan yahay waa la siiyaa; haddii kale kursiga ugu horreeya ee bannaan. Qiimaha isma beddelo.
+- Kuraas ku filan ma jiraan → waa la diidaa (`NOT_ENOUGH_SEATS`). Kadib safarkii hore waa la joojin karaa (CANCELLED).
+
+## 19. Sanduuq Laga Tagay (Force Close)
+- Karraanigu wuu baxay sanduuqa oo furan: **Manager-ka laanta** ayaa lacagta tiriya oo xira (sabab waajib, audit, `forceClosedById`).
+- Variance-ku wuxuu ku dhacaa karraanigii sanduuqa lahaa.
+
+## 20. Badhan Laba Jeer La Riixay
+- Tigidh, alaab, kharash, deposit: `Idempotency-Key` → lacag laba jeer lama qaado.
+
+## 21. Live Updates
+- Seat map, alaabta imanaysa, codsiyada void, sanduuqyada la xiray — si toos ah ayay u cusboonaadaan (`GET /events`, SSE).
+- Laan kasta waxay helaysaa dhacdooyinka laamaheeda oo keliya; magac/taleefan laguma diro.

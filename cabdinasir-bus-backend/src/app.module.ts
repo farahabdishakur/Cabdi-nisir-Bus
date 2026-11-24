@@ -29,6 +29,8 @@ import { PublicModule } from './public/public.module';
 import { SyncModule } from './sync/sync.module';
 import { JobsModule } from './jobs/jobs.module';
 import { HealthController } from './health.controller';
+import { EventsModule } from './events/events.module';
+import { EmitInterceptor } from './events/emit';
 
 @Module({
   imports: [
@@ -39,6 +41,7 @@ import { HealthController } from './health.controller';
     }),
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 300 }], skipIf: () => process.env.THROTTLE_DISABLED === 'true' }),
     PrismaModule,
+    EventsModule,
     AuditModule,
     AuthModule,
     SettingsModule,
@@ -66,6 +69,7 @@ import { HealthController } from './health.controller';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: EmitInterceptor },
   ],
 })
 export class AppModule implements NestModule {

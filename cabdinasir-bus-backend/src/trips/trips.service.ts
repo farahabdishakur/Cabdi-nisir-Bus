@@ -8,7 +8,7 @@ import { businessDayRange } from '../common/time';
 import { parseSeatLayout } from '../vehicles/seat-layout';
 import { SettingsService } from '../settings/settings.service';
 import { AuditService } from '../audit/audit.service';
-import { BulkTripsDto, CreateTripDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
+import { BulkTripsDto, CreateTripDto, MoveBookingsDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
 const VEHICLE_GAP_MS = 3 * 3600_000; // hal gaari laba safar oo 3 saac gudahood ah ma yeelan karo
 const ACTIVE_TRIP: TripStatus[] = ['SCHEDULED', 'BOARDING', 'DEPARTED'];
@@ -144,6 +144,48 @@ export class TripsService {
       await this.audit.log(tx, user, `STATUS_${to}`, 'trips', id, { status: trip.status }, { status: to, reason: dto.reason });
       return updated;
     });
+  }
+
+  /**
+   * Gaari xumaaday / safar la joojinayo: rakaabka oo dhan u rar safar kale.
+   * Kursigiisii haddii uu bannaan yahay waa la siiyaa, haddii kale kursiga ugu horreeya ee bannaan.
+   * Qiimaha isma beddelo (shirkadda ayaa sabab u ah). Alaabta la raray sidoo kale way raacaysaa.
+   */
+  async moveBookings(user: AuthUser, id: string, dto: MoveBookingsDto) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const src = await this.getForUser(tx, user, id);
+      this.assertManagerOf(user, src.route.fromBranchId);
+      if (!['SCHEDULED', 'BOARDING'].includes(src.status)) throw Errors.conflict('TRIP_LOCKED', 'Source trip already departed');
+      if (dto.targetTripId === id) throw Errors.bad('SAME_TRIP', 'Choose a different trip');
+      const dst = await this.getForUser(tx, user, dto.targetTripId);
+      if (dst.routeId !== src.routeId) throw Errors.bad('TRIP_ROUTE_MISMATCH', 'Target trip must be on the same route');
+      if (!['SCHEDULED', 'BOARDING'].includes(dst.status)) throw Errors.conflict('TRIP_CLOSED_FOR_SALE', 'Target trip is not open');
+
+      const moving = await tx.booking.findMany({ where: { tripId: id, status: { not: 'VOIDED' } }, orderBy: { createdAt: 'asc' } });
+      const { seats } = parseSeatLayout(dst.vehicle.seatLayout);
+      const taken = new Set((await tx.booking.findMany({ where: { tripId: dst.id, status: { not: 'VOIDED' } }, select: { seatNo: true } })).map((b) => b.seatNo));
+      const held = new Set((await tx.seatHold.findMany({ where: { tripId: dst.id, expiresAt: { gt: new Date() } } })).map((h) => h.seatNo));
+      const free = seats.filter((s) => !taken.has(s) && !held.has(s));
+      if (free.length < moving.length) {
+        throw Errors.conflict('NOT_ENOUGH_SEATS', 'Target trip does not have enough free seats', { needed: moving.length, free: free.length });
+      }
+      const mapping: { bookingId: string; receiptNo: string; from: string; to: string }[] = [];
+      // marka hore kuwa kursigoodii bannaan yahay
+      const wantsSame = moving.filter((b) => free.includes(b.seatNo));
+      const others = moving.filter((b) => !free.includes(b.seatNo));
+      const assign = (seat: string) => free.splice(free.indexOf(seat), 1)[0];
+      const plan = [...wantsSame.map((b) => ({ b, seat: assign(b.seatNo) })), ...others.map((b) => ({ b, seat: '' }))];
+      for (const p of plan) if (!p.seat) p.seat = free.shift()!;
+      for (const { b, seat } of plan) {
+        await tx.booking.update({ where: { id: b.id }, data: { tripId: dst.id, seatNo: seat, transferredFromTripId: id } });
+        mapping.push({ bookingId: b.id, receiptNo: b.receiptNo, from: b.seatNo, to: seat });
+      }
+      const parcels = await tx.parcel.findMany({ where: { tripId: id, status: 'LOADED' }, select: { id: true } });
+      await tx.parcel.updateMany({ where: { tripId: id, status: 'LOADED' }, data: { tripId: dst.id } });
+      await this.audit.log(tx, user, 'MOVE_BOOKINGS', 'trips', id, { tripId: id }, { targetTripId: dst.id, reason: dto.reason, bookings: mapping.length, parcels: parcels.length });
+      return { fromTripId: id, toTripId: dst.id, moved: mapping, parcelsMoved: parcels.length, branchIds: [src.route.fromBranchId, src.route.toBranchId] };
+    });
+    return result;
   }
 
   /** Khariidadda kuraasta: bannaan / la hayo (hold) / la iibiyay. */

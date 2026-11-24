@@ -3,8 +3,9 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
+import { EmitEvent } from '../events/emit';
 import { TripsService } from './trips.service';
-import { BulkTripsDto, CreateTripDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
+import { BulkTripsDto, CreateTripDto, MoveBookingsDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
 @ApiTags('trips')
 @ApiBearerAuth()
@@ -43,9 +44,17 @@ export class TripsController {
   }
 
   @Roles(...STAFF)
+  @EmitEvent('TRIP_STATUS', (t) => ({ branchIds: [t.route?.fromBranchId, t.route?.toBranchId], data: { tripId: t.id, status: t.status } }))
   @Patch(':id/status')
   status(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: TripStatusDto) {
     return this.trips.changeStatus(user, id, dto);
+  }
+
+  @Roles(...MANAGERS)
+  @EmitEvent('SEAT_CHANGED', (r) => ({ branchIds: r.branchIds, data: { tripId: r.fromTripId, targetTripId: r.toTripId } }))
+  @Post(':id/move-bookings')
+  moveBookings(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: MoveBookingsDto) {
+    return this.trips.moveBookings(user, id, dto);
   }
 
   @Roles(...STAFF)
@@ -55,12 +64,14 @@ export class TripsController {
   }
 
   @Roles(...STAFF)
+  @EmitEvent('SEAT_CHANGED', (h) => ({ branchIds: [], data: { tripId: h.tripId, seatNo: h.seatNo, held: true } }))
   @Post(':id/seats/:seatNo/hold')
   hold(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('seatNo') seatNo: string) {
     return this.trips.hold(user, id, seatNo);
   }
 
   @Roles(...STAFF)
+  @EmitEvent('SEAT_CHANGED', (_r, req) => ({ branchIds: [], data: { tripId: req.params.id, seatNo: req.params.seatNo, held: false } }))
   @Delete(':id/seats/:seatNo/hold')
   @HttpCode(204)
   release(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('seatNo') seatNo: string) {

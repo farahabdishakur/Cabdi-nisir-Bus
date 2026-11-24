@@ -52,6 +52,12 @@ export class ReportsController {
     return send(res, q, 'occupancy', d, () => d.trips.map(({ tripId: _t, ...x }) => ({ ...x, departureAt: x.departureAt.toISOString() })));
   }
 
+  @Get('trips-profit')
+  async tripsProfit(@CurrentUser() u: AuthUser, @Query() q: RangeDto, @Res({ passthrough: true }) res: Response) {
+    const d = await this.reports.tripsProfit(u, q);
+    return send(res, q, 'trips-profit', d, () => d.trips.map(({ tripId: _t, ...x }) => ({ ...x, departureAt: x.departureAt.toISOString() })));
+  }
+
   @Get('daily-close')
   dailyClose(@CurrentUser() u: AuthUser, @Query() q: DayDto) {
     return this.reports.dailyClose(u, q);

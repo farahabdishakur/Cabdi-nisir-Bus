@@ -130,18 +130,27 @@ export class CashService {
   }
 
   /** Xiritaanka maalinta: counted vs expected → variance (BUSINESS_RULES §7.3). */
-  async close(user: AuthUser, id: string, countedUsdCents: number, countedSlsh: number, note?: string) {
+  async close(user: AuthUser, id: string, countedUsdCents: number, countedSlsh: number, note?: string, force = false) {
     const s = await this.prisma.cashSession.findUnique({ where: { id } });
     if (!s) throw Errors.notFound('CashSession', id);
-    if (s.cashierId !== user.id) throw Errors.forbidden('Only the cashier who opened the session can close it');
+    if (force) {
+      // Karraanigu wuu baxay sanduuqa oo furan: Manager-ka laanta ayaa tiriya oo xira
+      assertBranch(user, s.branchId);
+      if (s.cashierId === user.id) throw Errors.bad('USE_NORMAL_CLOSE', 'Close your own session normally');
+      if (!note) throw Errors.bad('REASON_REQUIRED', 'Force close needs a note');
+    } else if (s.cashierId !== user.id) {
+      throw Errors.forbidden('Only the cashier who opened the session can close it');
+    }
     if (s.closedAt) throw Errors.conflict('SESSION_CLOSED', 'Session already closed');
     const { expectedCash } = await this.summary(s);
     const counted: Money = { USD: countedUsdCents, SLSH: countedSlsh };
     const variance: Money = { USD: counted.USD - expectedCash.USD, SLSH: counted.SLSH - expectedCash.SLSH };
-    return this.prisma.cashSession.update({
+    const closed = await this.prisma.cashSession.update({
       where: { id },
-      data: { closedAt: new Date(), expected: expectedCash, counted, variance, note },
+      data: { closedAt: new Date(), expected: expectedCash, counted, variance, note, ...(force && { forceClosedById: user.id }) },
     });
+    if (force) await this.audit.log(this.prisma, user, 'FORCE_CLOSE', 'cash-sessions', id, { cashierId: s.cashierId }, { variance, note });
+    return closed;
   }
 
   async approve(user: AuthUser, id: string, note?: string) {

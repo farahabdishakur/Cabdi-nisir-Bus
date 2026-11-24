@@ -412,6 +412,8 @@ model CashSession {
   branch       Branch    @relation(fields: [branchId], references: [id])
   openedAt     DateTime  @default(now())
   closedAt     DateTime?
+  /// Manager ayaa xiray (karraanigu wuu baxay sanduuqa oo furan)
+  forceClosedById String?
   openingFloat Json
   expected     Json?
   counted      Json?
@@ -482,6 +484,7 @@ model Expense {
   paymentId   String          @unique
   payment     Payment         @relation(fields: [paymentId], references: [id])
   createdById String
+  idempotencyKey String?      @unique
   voidedAt    DateTime?
   voidedById  String?
   voidReason  String?
@@ -502,6 +505,7 @@ model Deposit {
   paymentId     String        @unique
   payment       Payment       @relation(fields: [paymentId], references: [id])
   createdById   String
+  idempotencyKey String?      @unique
   confirmedById String?
   confirmedAt   DateTime?
   createdAt     DateTime      @default(now())

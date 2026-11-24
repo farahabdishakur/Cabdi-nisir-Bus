@@ -12,6 +12,7 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { BookingsService } from '../bookings/bookings.service';
 import { ParcelsModule } from '../parcels/parcels.module';
 import { ParcelsService } from '../parcels/parcels.service';
+import { EmitEvent } from '../events/emit';
 
 export class CreateVoidRequestDto {
   @IsEnum(VoidEntity) entity: VoidEntity;
@@ -98,6 +99,7 @@ export class VoidRequestsService {
 export class VoidRequestsController {
   constructor(private readonly svc: VoidRequestsService) {}
 
+  @EmitEvent('VOID_REQUEST', (r) => ({ branchIds: [r.branchId], data: { requestId: r.id, entity: r.entity, entityId: r.entityId } }))
   @Post()
   create(@CurrentUser() u: AuthUser, @Body() dto: CreateVoidRequestDto) {
     return this.svc.create(u, dto);

@@ -1,11 +1,12 @@
-import { Body, Controller, Get, Module, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Module, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { IdempotencyKey } from '../common/idempotency';
 import { TripsModule } from '../trips/trips.module';
+import { EmitEvent } from '../events/emit';
 import { BookingsService } from './bookings.service';
-import { BookingQuery, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
+import { BookingQuery, CorrectBookingDto, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
 
 @ApiTags('bookings')
 @ApiBearerAuth()
@@ -15,6 +16,7 @@ export class BookingsController {
   constructor(private readonly bookings: BookingsService) {}
 
   @ApiHeader({ name: 'Idempotency-Key', required: false })
+  @EmitEvent('SEAT_CHANGED', (b) => ({ branchIds: [b.trip?.route?.fromBranchId, b.trip?.route?.toBranchId], data: { tripId: b.tripId, seatNo: b.seatNo } }))
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBookingDto, @IdempotencyKey() key?: string) {
     return this.bookings.create(user, dto, key);
@@ -32,14 +34,21 @@ export class BookingsController {
   }
 
   @Roles(...MANAGERS)
+  @EmitEvent('SEAT_CHANGED', (b) => ({ branchIds: [b.branchId], data: { tripId: b.tripId, seatNo: b.seatNo } }))
   @Post(':id/void')
   void(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: VoidBookingDto) {
     return this.bookings.void(user, id, dto);
   }
 
+  @EmitEvent('SEAT_CHANGED', (b) => ({ branchIds: [b.branchId], data: { tripId: b.tripId, previousTripId: b.transferredFromTripId } }))
   @Post(':id/transfer')
   transfer(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: TransferBookingDto) {
     return this.bookings.transfer(user, id, dto);
+  }
+
+  @Patch(':id')
+  correct(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: CorrectBookingDto) {
+    return this.bookings.correct(user, id, dto);
   }
 
   @Post(':id/reprint')

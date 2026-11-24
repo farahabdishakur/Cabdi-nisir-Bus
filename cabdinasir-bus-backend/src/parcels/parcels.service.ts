@@ -22,7 +22,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { join, resolve } from 'path';
 import { isUuid } from '../bookings/bookings.service';
 import {
-  ArriveBatchDto, CreateParcelDto, DeliverParcelDto, ParcelQuery, QuoteParcelDto, VoidParcelDto,
+  ArriveBatchDto, CorrectParcelDto, CreateParcelDto, DeliverParcelDto, ParcelQuery, QuoteParcelDto, VoidParcelDto,
 } from './parcels.dto';
 
 const include = {
@@ -330,6 +330,47 @@ export class ParcelsService {
       const updated = await this.transition(tx, user, p, to, {}, note);
       await this.audit.log(tx, user, `MARK_${to}`, 'parcels', id, { status: p.status }, { status: to, note });
       return updated;
+    });
+  }
+
+  /**
+   * Sixitaan: laanta laga diray inta aan la wareejin; Manager laan kasta oo khusaysa.
+   * Before/after audit ayaa la qoraa.
+   */
+  async correct(user: AuthUser, id: string, dto: CorrectParcelDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const p = await this.loadFor(tx, id);
+      if (['DELIVERED', 'VOIDED'].includes(p.status)) throw Errors.conflict('PARCEL_CLOSED', 'Parcel already delivered or voided');
+      const isManager = user.role === Role.BRANCH_MANAGER || isSuperAdmin(user);
+      this.assertSide(user, p, isManager ? 'any' : 'from');
+      if (!isManager && !['REGISTERED', 'LOADED'].includes(p.status)) throw Errors.forbidden('Only a manager can correct a parcel in transit');
+      const { reason, ...fields } = dto;
+      const data = Object.fromEntries(
+        Object.entries(fields)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, k.endsWith('Phone') ? String(v).replace(/\s/g, '') : String(v).trim()]),
+      );
+      if (!Object.keys(data).length) throw Errors.bad('NOTHING_TO_CHANGE', 'No fields to correct');
+      const before = Object.fromEntries(Object.keys(data).map((k) => [k, (p as unknown as Record<string, unknown>)[k]]));
+      await tx.parcel.update({ where: { id }, data });
+      await tx.parcelStatusHistory.create({ data: { parcelId: id, fromStatus: p.status, toStatus: p.status, branchId: user.branchId, userId: user.id, note: `Correction: ${reason}` } });
+      await this.audit.log(tx, user, 'CORRECT', 'parcels', id, before, { ...data, reason });
+      return strip(await tx.parcel.findUniqueOrThrow({ where: { id }, include }));
+    });
+  }
+
+  /** Qaataha PIN-ka wuu lumiyay: PIN cusub (SMS + rasiid). Shaqaaluhu waa inay hubiyaan aqoonsiga. */
+  async resetPin(user: AuthUser, id: string, reason: string) {
+    const pin = String(randomInt(0, 10000)).padStart(4, '0');
+    const hash = await argon2.hash(pin);
+    return this.prisma.$transaction(async (tx) => {
+      const p = await this.loadFor(tx, id);
+      this.assertSide(user, p, 'any');
+      if (['DELIVERED', 'VOIDED'].includes(p.status)) throw Errors.conflict('PARCEL_CLOSED', 'Parcel already delivered or voided');
+      await tx.parcel.update({ where: { id }, data: { pickupPinHash: hash } });
+      await this.notifications.enqueue(tx, p.receiverPhone, 'PARCEL_PIN_RESET', { code: p.trackingCode, pin }, p.id);
+      await this.audit.log(tx, user, 'RESET_PIN', 'parcels', id, null, { reason });
+      return { parcelId: id, trackingCode: p.trackingCode, pickupPin: pin };
     });
   }
 

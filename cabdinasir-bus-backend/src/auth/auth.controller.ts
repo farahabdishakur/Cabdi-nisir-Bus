@@ -18,8 +18,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const t = await this.auth.login(dto.phone, dto.password);
+  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const t = await this.auth.login(dto.phone, dto.password, req.ip);
     this.setCookie(res, t.refreshToken, t.refreshExpiresAt);
     return t;
   }

@@ -1,0 +1,47 @@
+# (Nuqul ku-meel-gaar ah inta repo-gu kala go'ayo — kan dhabta ah: cabdinasir-bus-backend/.github/workflows/ci.yml)
+# CI: lint, typecheck, unit + e2e tests (Postgres), build — push/PR kasta.
+name: backend-ci
+on:
+  push:
+    paths: ["cabdinasir-bus-backend/**", ".github/workflows/backend-ci.yml"]
+  pull_request:
+    paths: ["cabdinasir-bus-backend/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cb
+          POSTGRES_PASSWORD: cb
+          POSTGRES_DB: cabdinasir_bus_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cb" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: cabdinasir-bus-backend
+    env:
+      DATABASE_URL: postgresql://cb:cb@localhost:5432/cabdinasir_bus_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cabdinasir-bus-backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: .env.test
+        run: |
+          sed 's/cabdinasir_bus?/cabdinasir_bus_test?/' .env.example > .env.test
+          sed -i 's/JOBS_ENABLED="true"/JOBS_ENABLED="false"/; s/THROTTLE_DISABLED="false"/THROTTLE_DISABLED="true"/' .env.test
+          sed -i 's|UPLOAD_DIR="./uploads"|UPLOAD_DIR="./uploads-test"|' .env.test
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:e2e
+      - run: npm run build

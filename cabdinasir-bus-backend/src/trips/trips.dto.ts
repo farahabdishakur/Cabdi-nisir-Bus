@@ -26,6 +26,12 @@ export class TripStatusDto {
   @IsOptional() @IsString() @Length(0, 300) reason?: string;
 }
 
+/** Gaari xumaaday: u rar rakaabka + alaabta safar kale (isla route-ka). */
+export class MoveBookingsDto {
+  @IsUUID() targetTripId: string;
+  @IsString() @Length(3, 300) reason: string;
+}
+
 export class TripQuery {
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @IsUUID() fromBranchId?: string;

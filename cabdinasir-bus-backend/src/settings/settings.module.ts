@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Global, Module, Put } from '@nestjs/common';
+import { Body, Controller, Get, Global, Module, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, Public, Roles } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { SettingsService } from './settings.service';
@@ -24,6 +25,11 @@ export class UpdateCompanyDto {
   @IsOptional() @IsString() @Length(0, 200) receiptFooter?: string;
 }
 
+class RateHistoryQuery {
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
+}
+
 export class SetRateDto {
   @IsInt() @Min(1) usdToSlsh: number;
 }
@@ -32,7 +38,17 @@ export class SetRateDto {
 @ApiBearerAuth()
 @Controller()
 export class SettingsController {
-  constructor(private readonly settings: SettingsService) {}
+  constructor(private readonly settings: SettingsService, private readonly prisma: PrismaService) {}
+
+  /** Taariikhda sicirka (warbixinada SLSH) */
+  @Get('exchange-rates')
+  rates(@Query() q: RateHistoryQuery) {
+    return this.prisma.exchangeRate.findMany({
+      where: { date: { gte: q.from ? new Date(q.from) : undefined, lte: q.to ? new Date(q.to) : undefined } },
+      orderBy: { date: 'desc' },
+      take: 366,
+    });
+  }
 
   @Get('pricing-settings')
   get() {

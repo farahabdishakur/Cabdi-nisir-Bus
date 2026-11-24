@@ -24,10 +24,18 @@ export class AuthService {
     return argon2.hash(password);
   }
 
-  async login(phone: string, password: string) {
+  async login(phone: string, password: string, ip?: string) {
     const user = await this.prisma.user.findUnique({ where: { phone } });
-    if (!user || !user.isActive) throw new UnauthorizedException('Invalid phone or password');
+    const log = (action: string, extra: object = {}) =>
+      this.prisma.auditLog
+        .create({ data: { userId: user?.id, branchId: user?.branchId, action, entity: 'auth', entityId: user?.id, after: { phone, ...extra }, ip } })
+        .catch(() => undefined);
+    if (!user || !user.isActive) {
+      await log('LOGIN_FAILED', { reason: user ? 'inactive' : 'unknown_phone' });
+      throw new UnauthorizedException('Invalid phone or password');
+    }
     if (user.lockedUntil && user.lockedUntil > new Date()) {
+      await log('LOGIN_FAILED', { reason: 'locked' });
       throw Errors.forbidden('Account locked, try again later');
     }
     const ok = await argon2.verify(user.passwordHash, password);
@@ -40,8 +48,10 @@ export class AuthService {
           lockedUntil: failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
         },
       });
+      await log('LOGIN_FAILED', { reason: 'wrong_password', attempt: failed });
       throw new UnauthorizedException('Invalid phone or password');
     }
+    await log('LOGIN');
     await this.prisma.user.update({
       where: { id: user.id },
       data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() },

@@ -23,6 +23,12 @@ export class VoidBookingDto {
   @IsOptional() @ValidateNested() @Type(() => PaymentInputDto) refundPayment?: PaymentInputDto;
 }
 
+export class CorrectBookingDto {
+  @IsOptional() @IsString() @Length(2, 80) passengerName?: string;
+  @IsOptional() @Matches(PHONE_RE) passengerPhone?: string;
+  @IsString() @Length(3, 300) reason: string;
+}
+
 export class TransferBookingDto {
   @IsUUID() tripId: string;
   @IsString() @Length(1, 4) seatNo: string;
