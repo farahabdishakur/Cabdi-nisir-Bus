@@ -1,6 +1,6 @@
 # Warbixinta Backend-ka — Cabdinasir Bus API
 
-**Repo:** `cabdinasir-bus-backend` · **Xaaladda:** Naqshad (code wali lama bilaabin) · **Taariikh:** 2026-11-24
+**Repo:** `cabdinasir-bus-backend` · **Xaaladda:** Phase 1 (MVP) backend waa la dhisay oo la tijaabiyay · **Taariikh:** 2026-11-24
 
 ---
 
@@ -77,7 +77,8 @@ Indexes muhiim ah: `parcels(to_branch_id, status)`, `parcels(tracking_code)`, `p
 | Method | Path | Role |
 |---|---|---|
 | POST | `/auth/login` · `/auth/refresh` · `/auth/logout` | all |
-| GET | `/me` | all |
+| GET | `/auth/me` · POST `/auth/change-password` | all |
+| POST | `/users/:id/reset-password` | SA, BM |
 | CRUD | `/branches` `/routes` `/vehicles` `/parcel-categories` `/pricing-settings` | SA (read: all) |
 | CRUD | `/users` | SA, BM (laantiisa) |
 | CRUD | `/drivers` | SA, BM |
@@ -88,12 +89,15 @@ Indexes muhiim ah: `parcels(to_branch_id, status)`, `parcels(tracking_code)`, `p
 | POST | `/parcels/quote` | CASHIER+ |
 | POST | `/parcels` · GET `/parcels` · GET `/parcels/:code` | CASHIER+ |
 | GET | `/parcels/incoming` · `/parcels/outgoing` | CASHIER+ (laantiisa) |
-| POST | `/parcels/:id/load` `{trip_id}` · `/arrive` · `/deliver` `{pin, name}` | CASHIER+ |
+| POST | `/parcels/:id/load` `{tripId}` · `/unload` · `/arrive` · `/deliver` `{pin, receivedByName, payment?}` | CASHIER+ |
+| POST | `/parcels/arrive-batch` `{tripId, parcelIds[]}` → `{arrived, missing}` | CASHIER+ (laanta loo diray) |
 | POST | `/parcels/:id/void` · `/mark-missing` · `/mark-damaged` | BM+ |
 | POST | `/cash-sessions/open` · `/cash-sessions/:id/close` · `/approve` | CASHIER / BM+ |
 | GET | `/cash-sessions/current` | CASHIER+ |
 | GET/PUT | `/exchange-rates/today` | all / SA |
-| GET | `/reports/revenue` `/occupancy` `/parcels` `/exceptions` `/inter-branch` `/cashier-variance` | BM+ (SA: all) |
+| GET | `/reports/dashboard` | STAFF |
+| GET | `/reports/revenue` `/occupancy` `/parcels` `/exceptions` `/inter-branch` (`?from=&to=&branchId=`) | BM+ (SA: all) |
+| GET | `/health` | public |
 | GET | `/audit-logs` | BM+ |
 | GET | `/public/track/:code?phone_last4=` | public (Phase 3) |
 
@@ -121,4 +125,33 @@ Indexes muhiim ah: `parcels(to_branch_id, status)`, `parcels(tracking_code)`, `p
 6. SMS provider (Telesom?).
 
 ## 9. Changelog / Xaaladda
-- **2026-11-24** — Naqshadda, xeerarka (`CLAUDE.md`, `BUSINESS_RULES.md`) iyo warbixintan la qoray. Code: 0%.
+
+### Xaaladda Phase 1 (MVP)
+| Qayb | Xaalad |
+|---|---|
+| Auth (login, refresh rotation, logout, lock 5 isku day, change password) | ✅ |
+| Users + roles + branch scoping | ✅ |
+| Branches, routes, vehicles (seat layout), drivers, parcel categories | ✅ |
+| Pricing settings + exchange rate | ✅ |
+| Trips (jadwal, clash check, status machine, manifest) | ✅ |
+| Seat map + seat hold (3 daqiiqo) + DB unique index | ✅ |
+| Bookings (iib, discount xad, void + refund, board, Idempotency-Key) | ✅ |
+| Parcels (quote, diiwaangelin, PIN, load/unload, arrive, arrive-batch, deliver + COD + storage fee, void, missing/damaged, history) | ✅ |
+| Cash sessions (fur, summary, xir + variance, ansixi) + payments (Cash/Zaad/eDahab, USD/SLSH) | ✅ |
+| Reports (dashboard, revenue, occupancy, parcels, exceptions, inter-branch) | ✅ |
+| Audit log (interceptor + before/after ficillada xasaasiga) + DB trigger diida DELETE | ✅ |
+| Swagger `/api/docs`, Docker, seed | ✅ (Dockerfile weli lama tijaabin) |
+| SMS, offline sync, public tracking, sawirada alaabta | ⏳ Phase 2/3 |
+
+**Tests:** 10 unit (pricing) + 14 e2e (socodka buuxa ee maalin: tigidh → alaab COD → rar → bixitaan → gaadhay → wareejin PIN → xiritaanka sanduuqa → warbixino; void/refund; laba qof oo isku mar hal kursi iibinaya → hal ayaa guulaysta).
+
+### Go'aamo
+- **NestJS 11 + Prisma 6** ayaa la doortay (versions la hubo), halkii ay ka ahaan lahaayeen kuwa ugu cusub.
+- Boqolleyda waxaa lagu kaydiyaa **basis points** (1% = 100) — float la'aan.
+- Tigidhka waxaa iibiya **laanta laga baxayo** oo keliya; alaabta waxaa xaqiijiya (arrive/deliver) **laanta loo diray** oo keliya.
+- Lacag celinta (refund) waxay ka baxdaa sanduuqa qofka void-ka sameeyay (Manager) — waa inuu sanduuq furan haystaa.
+- Laanta 3aad: koodh ku-meel-gaar ah `LS3`; qiimayaasha routes-ka ee seed-ka waa tusaale.
+
+### Log
+- **2026-11-24** — Naqshadda iyo xeerarka la qoray.
+- **2026-11-24** — Phase 1 backend: dhammaan modules-ka kor ku xusan + tests.

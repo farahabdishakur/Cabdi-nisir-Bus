@@ -1,0 +1,160 @@
+import { Injectable } from '@nestjs/common';
+import { CashSession, Currency, PaymentKind, PaymentMethod, Prisma } from '@prisma/client';
+import { PrismaService, Tx } from '../prisma/prisma.service';
+import { AuthUser, isSuperAdmin } from '../common/auth-user';
+import { assertBranch, branchFilter, effectiveBranch } from '../common/branch-scope';
+import { Errors } from '../common/errors';
+import { SettingsService } from '../settings/settings.service';
+import { slshToUsdCents, usdCentsToSlsh } from '../pricing/pricing';
+import { AuditService } from '../audit/audit.service';
+import { PaymentInputDto } from './payment.dto';
+import { businessDayRange } from '../common/time';
+
+type Money = { USD: number; SLSH: number };
+
+@Injectable()
+export class CashService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settings: SettingsService,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** Sanduuqa furan ee karraaniga — lacag lama qaadan karo la'aantiis (BUSINESS_RULES §7.2). */
+  async requireOpenSession(db: Tx, user: AuthUser): Promise<CashSession> {
+    const s = await db.cashSession.findFirst({ where: { cashierId: user.id, closedAt: null } });
+    if (!s) throw Errors.bad('NO_OPEN_SESSION', 'Open your cash session before taking payments');
+    return s;
+  }
+
+  /**
+   * Diiwaangeli lacag. `usdCents` = qadarka USD ee nidaamku xisaabiyay (taban = lacag celin).
+   * Haddii currency = SLSH, waxaa lagu beddelaa sicirka maanta.
+   */
+  async recordPayment(
+    db: Tx,
+    user: AuthUser,
+    branchId: string,
+    kind: PaymentKind,
+    usdCents: number,
+    pay: PaymentInputDto,
+    link: { bookingId?: string; parcelId?: string },
+  ) {
+    if (pay.method !== PaymentMethod.CASH && !pay.reference) {
+      throw Errors.bad('REFERENCE_REQUIRED', 'Mobile money payments need the transaction reference');
+    }
+    const session = await this.requireOpenSession(db, user);
+    let amount = usdCents;
+    let exchangeRate: number | null = null;
+    let amountUsdCents = usdCents;
+    if (pay.currency === Currency.SLSH) {
+      exchangeRate = await this.settings.requireRate(db);
+      amount = usdCentsToSlsh(usdCents, exchangeRate);
+      amountUsdCents = slshToUsdCents(amount, exchangeRate);
+    }
+    return db.payment.create({
+      data: {
+        kind,
+        ...link,
+        method: pay.method,
+        currency: pay.currency,
+        amount,
+        amountUsdCents,
+        exchangeRate,
+        reference: pay.reference,
+        cashierId: user.id,
+        cashSessionId: session.id,
+        branchId,
+      },
+    });
+  }
+
+  async open(user: AuthUser, openingUsdCents = 0, openingSlsh = 0) {
+    if (isSuperAdmin(user) && !user.branchId) throw Errors.bad('BRANCH_REQUIRED', 'Super admin has no branch drawer');
+    const existing = await this.prisma.cashSession.findFirst({ where: { cashierId: user.id, closedAt: null } });
+    if (existing) throw Errors.conflict('SESSION_ALREADY_OPEN', 'You already have an open cash session', { id: existing.id });
+    return this.prisma.cashSession.create({
+      data: { cashierId: user.id, branchId: user.branchId!, openingFloat: { USD: openingUsdCents, SLSH: openingSlsh } },
+    });
+  }
+
+  async current(user: AuthUser) {
+    const s = await this.prisma.cashSession.findFirst({ where: { cashierId: user.id, closedAt: null } });
+    if (!s) return null;
+    return { ...s, summary: await this.summary(s) };
+  }
+
+  /** Lacagta la filayo sanduuqa (CASH kaliya) + wadarta habab kale. */
+  async summary(s: CashSession) {
+    const groups = await this.prisma.payment.groupBy({
+      by: ['method', 'currency'],
+      where: { cashSessionId: s.id },
+      _sum: { amount: true, amountUsdCents: true },
+      _count: true,
+    });
+    const opening = s.openingFloat as Money;
+    const expectedCash: Money = { USD: opening.USD ?? 0, SLSH: opening.SLSH ?? 0 };
+    for (const g of groups) {
+      if (g.method === PaymentMethod.CASH) expectedCash[g.currency] += g._sum.amount ?? 0;
+    }
+    return {
+      expectedCash,
+      byMethod: groups.map((g) => ({
+        method: g.method,
+        currency: g.currency,
+        count: g._count,
+        amount: g._sum.amount ?? 0,
+        amountUsdCents: g._sum.amountUsdCents ?? 0,
+      })),
+      totalUsdCents: groups.reduce((a, g) => a + (g._sum.amountUsdCents ?? 0), 0),
+    };
+  }
+
+  /** Xiritaanka maalinta: counted vs expected → variance (BUSINESS_RULES §7.3). */
+  async close(user: AuthUser, id: string, countedUsdCents: number, countedSlsh: number, note?: string) {
+    const s = await this.prisma.cashSession.findUnique({ where: { id } });
+    if (!s) throw Errors.notFound('CashSession', id);
+    if (s.cashierId !== user.id) throw Errors.forbidden('Only the cashier who opened the session can close it');
+    if (s.closedAt) throw Errors.conflict('SESSION_CLOSED', 'Session already closed');
+    const { expectedCash } = await this.summary(s);
+    const counted: Money = { USD: countedUsdCents, SLSH: countedSlsh };
+    const variance: Money = { USD: counted.USD - expectedCash.USD, SLSH: counted.SLSH - expectedCash.SLSH };
+    return this.prisma.cashSession.update({
+      where: { id },
+      data: { closedAt: new Date(), expected: expectedCash, counted, variance, note },
+    });
+  }
+
+  async approve(user: AuthUser, id: string, note?: string) {
+    const s = await this.prisma.cashSession.findUnique({ where: { id } });
+    if (!s) throw Errors.notFound('CashSession', id);
+    assertBranch(user, s.branchId);
+    if (!s.closedAt) throw Errors.conflict('SESSION_OPEN', 'Session must be closed before approval');
+    if (s.approvedAt) throw Errors.conflict('SESSION_APPROVED', 'Session already approved');
+    if (s.cashierId === user.id && !isSuperAdmin(user)) throw Errors.forbidden('You cannot approve your own session');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.cashSession.update({
+        where: { id },
+        data: { approvedById: user.id, approvedAt: new Date(), note: note ? `${s.note ?? ''}\n[approve] ${note}`.trim() : s.note },
+      });
+      await this.audit.log(tx, user, 'APPROVE', 'cash-sessions', id, { variance: s.variance }, { approvedAt: updated.approvedAt });
+      return updated;
+    });
+  }
+
+  list(user: AuthUser, q: { branchId?: string; date?: string; pendingApproval?: boolean }) {
+    const where: Prisma.CashSessionWhereInput = { branchId: branchFilter(user, q.branchId) };
+    if (user.role === 'CASHIER') where.cashierId = user.id;
+    if (q.date) {
+      const { start, end } = businessDayRange(q.date);
+      where.openedAt = { gte: start, lt: end };
+    }
+    if (q.pendingApproval) Object.assign(where, { closedAt: { not: null }, approvedAt: null });
+    return this.prisma.cashSession.findMany({ where, orderBy: { openedAt: 'desc' }, take: 200 });
+  }
+
+  /** Branch-ka shaqada: karraani → laantiisa; super admin → laanta la cayimay. */
+  branchFor(user: AuthUser, requested?: string) {
+    return effectiveBranch(user, requested);
+  }
+}

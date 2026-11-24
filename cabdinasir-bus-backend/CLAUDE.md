@@ -11,26 +11,27 @@ Akhri ka hor intaadan wax beddelin:
 
 ## 1. Tech Stack (go'aan la gaadhay — ha beddelin la'aan ogolaansho)
 - **Runtime:** Node.js 22 LTS · **Language:** TypeScript (strict)
-- **Framework:** NestJS
-- **Database:** PostgreSQL 16 · **ORM:** Prisma (migrations kaliya Prisma Migrate)
+- **Framework:** NestJS 11
+- **Database:** PostgreSQL 16 · **ORM:** Prisma 6 (migrations kaliya Prisma Migrate)
 - **Auth:** JWT (access 15 daqiiqo + refresh 7 maalmood), password hash: argon2
 - **Validation:** class-validator DTOs · **Docs:** OpenAPI/Swagger at `/api/docs`
 - **Tests:** Jest (unit) + Supertest (e2e) + Postgres test container
-- **Jobs:** BullMQ + Redis (SMS, digniinaha alaabta aan la qaadin)
+- **Jobs (Phase 2):** BullMQ + Redis (SMS, digniinaha alaabta aan la qaadin) — MVP-ga kuma jiro
 
 ## 2. Qaab-dhismeedka Folder-ada
 ```
 src/
   main.ts
   common/        guards, decorators (@Roles, @CurrentUser), filters, interceptors (audit)
-  auth/          login, refresh, logout
-  branches/  users/  routes/  vehicles/  drivers/
-  trips/         trips + seat map
+  auth/          login, refresh, logout, JwtAuthGuard (global)
+  branches/  users/  routes/  vehicles/  drivers/  parcel-categories/
+  settings/      pricing settings + exchange rates
+  trips/         trips + seat map + seat hold + manifest
   bookings/      tigidhada rakaabka
   parcels/       alaabta + tracking + status history
-  pricing/       PricingService — MEELNA kale lagama xisaabiyo qiimo
-  payments/  cash-sessions/  exchange-rates/
-  reports/  audit/  notifications/
+  pricing/       pricing.ts — MEELNA kale lagama xisaabiyo qiimo
+  cash/          payments (recordPayment) + cash sessions
+  reports/  audit/
 prisma/
   schema.prisma  migrations/  seed.ts
 test/
@@ -59,7 +60,7 @@ Module kasta: `*.controller.ts` (HTTP kaliya) → `*.service.ts` (logic) → Pri
 
 ## 5. Ka hor commit kasta
 ```
-npm run lint && npm run typecheck && npm test
+npm run lint && npm run typecheck && npm test && npm run test:e2e
 ```
 - Feature cusub = test cusub (gaar ahaan pricing, seat lock, branch scope, void).
 - Migration cusub = magac macno leh (`add_parcel_cod_fields`), lama beddelo migration hore.

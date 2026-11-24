@@ -1,0 +1,183 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { AuthUser } from '../common/auth-user';
+import { branchFilter } from '../common/branch-scope';
+import { businessDate, businessRange, BUSINESS_UTC_OFFSET_HOURS } from '../common/time';
+
+export interface RangeQuery {
+  from?: string;
+  to?: string;
+  branchId?: string;
+}
+
+/** Warbixinada (BUSINESS_RULES §7, REPORT §5). Lacagta oo dhan waxaa lagu soo celiyaa USD senti. */
+@Injectable()
+export class ReportsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private range(q: RangeQuery) {
+    const from = q.from ?? businessDate();
+    const to = q.to ?? from;
+    return { from, to, ...businessRange(from, to) };
+  }
+
+  /** Dakhliga: laan kasta, nooc kasta (tigidh/alaab/kayd/celin), hab kasta, iyo maalin kasta. */
+  async revenue(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const where: Prisma.PaymentWhereInput = { branchId, createdAt: { gte: r.start, lt: r.end } };
+    const [byBranchKind, byMethod, branches] = await Promise.all([
+      this.prisma.payment.groupBy({ by: ['branchId', 'kind'], where, _sum: { amountUsdCents: true }, _count: true }),
+      this.prisma.payment.groupBy({ by: ['method', 'currency'], where, _sum: { amount: true, amountUsdCents: true }, _count: true }),
+      this.prisma.branch.findMany({ select: { id: true, code: true, name: true } }),
+    ]);
+    const offset = `${BUSINESS_UTC_OFFSET_HOURS} hours`;
+    const daily = await this.prisma.$queryRaw<{ day: string; usd_cents: bigint }[]>`
+      SELECT to_char(("createdAt" + ${offset}::interval)::date, 'YYYY-MM-DD') AS day, SUM("amountUsdCents")::bigint AS usd_cents
+      FROM "payments"
+      WHERE "createdAt" >= ${r.start} AND "createdAt" < ${r.end}
+        AND (${branchId ?? null}::text IS NULL OR "branchId" = ${branchId ?? null}::text)
+      GROUP BY 1 ORDER BY 1`;
+    const perBranch = branches
+      .filter((b) => !branchId || b.id === branchId)
+      .map((b) => {
+        const rows = byBranchKind.filter((x) => x.branchId === b.id);
+        const kinds = Object.fromEntries(rows.map((x) => [x.kind, x._sum.amountUsdCents ?? 0]));
+        return { branch: b, byKind: kinds, totalUsdCents: rows.reduce((s, x) => s + (x._sum.amountUsdCents ?? 0), 0) };
+      });
+    return {
+      from: r.from,
+      to: r.to,
+      totalUsdCents: perBranch.reduce((s, b) => s + b.totalUsdCents, 0),
+      perBranch,
+      byMethod: byMethod.map((m) => ({ method: m.method, currency: m.currency, count: m._count, amount: m._sum.amount ?? 0, amountUsdCents: m._sum.amountUsdCents ?? 0 })),
+      daily: daily.map((d) => ({ day: d.day, usdCents: Number(d.usd_cents) })),
+    };
+  }
+
+  /** Buuxsanaanta kuraasta safar kasta. */
+  async occupancy(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const trips = await this.prisma.trip.findMany({
+      where: { departureAt: { gte: r.start, lt: r.end }, status: { not: 'CANCELLED' }, route: branchId ? { fromBranchId: branchId } : undefined },
+      include: { vehicle: true, driver: true, route: { include: { fromBranch: true, toBranch: true } }, _count: { select: { bookings: { where: { status: { not: 'VOIDED' } } } } } },
+      orderBy: { departureAt: 'asc' },
+    });
+    const rows = trips.map((t) => ({
+      tripId: t.id,
+      departureAt: t.departureAt,
+      route: `${t.route.fromBranch.code} → ${t.route.toBranch.code}`,
+      vehicle: t.vehicle.plate,
+      driver: t.driver.name,
+      capacity: t.vehicle.capacity,
+      sold: t._count.bookings,
+      occupancyPct: t.vehicle.capacity ? Math.round((t._count.bookings / t.vehicle.capacity) * 100) : 0,
+    }));
+    const cap = rows.reduce((s, x) => s + x.capacity, 0);
+    const sold = rows.reduce((s, x) => s + x.sold, 0);
+    return { from: r.from, to: r.to, trips: rows, totals: { trips: rows.length, capacity: cap, sold, occupancyPct: cap ? Math.round((sold / cap) * 100) : 0 } };
+  }
+
+  /** Alaabta: la diray / la helay / xaaladaha, iyo alaab aan la qaadin. */
+  async parcels(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const created = { createdAt: { gte: r.start, lt: r.end } };
+    const [sentByStatus, receivedByStatus, uncollected] = await Promise.all([
+      this.prisma.parcel.groupBy({ by: ['status'], where: { ...created, fromBranchId: branchId }, _count: true, _sum: { feeCents: true } }),
+      this.prisma.parcel.groupBy({ by: ['status'], where: { ...created, toBranchId: branchId }, _count: true }),
+      this.prisma.parcel.findMany({
+        where: { toBranchId: branchId, status: 'ARRIVED' },
+        select: { id: true, trackingCode: true, receiverName: true, receiverPhone: true, arrivedAt: true, payer: true, feeCents: true, paidAt: true },
+        orderBy: { arrivedAt: 'asc' },
+        take: 200,
+      }),
+    ]);
+    return {
+      from: r.from,
+      to: r.to,
+      sent: sentByStatus.map((x) => ({ status: x.status, count: x._count, feeCents: x._sum.feeCents ?? 0 })),
+      received: receivedByStatus.map((x) => ({ status: x.status, count: x._count })),
+      awaitingPickup: uncollected,
+    };
+  }
+
+  /** Exceptions: void, discount, refund, variance sanduuq, alaab lumay/dhaawacmay — kuwa lacag lumis keeni kara. */
+  async exceptions(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const inRange = { gte: r.start, lt: r.end };
+    const [voidedBookings, discounts, voidedParcels, problemParcels, refunds, variances] = await Promise.all([
+      this.prisma.booking.findMany({ where: { branchId, status: 'VOIDED', voidedAt: inRange }, select: { id: true, receiptNo: true, priceCents: true, voidReason: true, voidedById: true, voidedAt: true } }),
+      this.prisma.booking.findMany({ where: { branchId, discountCents: { gt: 0 }, createdAt: inRange }, select: { id: true, receiptNo: true, discountCents: true, soldById: true, createdAt: true } }),
+      this.prisma.parcel.findMany({ where: { fromBranchId: branchId, status: 'VOIDED', updatedAt: inRange }, select: { id: true, trackingCode: true, feeCents: true, voidReason: true, updatedAt: true } }),
+      this.prisma.parcel.findMany({
+        where: { status: { in: ['MISSING', 'DAMAGED'] }, updatedAt: inRange, ...(branchId && { OR: [{ fromBranchId: branchId }, { toBranchId: branchId }] }) },
+        select: { id: true, trackingCode: true, status: true, declaredValueCents: true, fromBranchId: true, toBranchId: true, updatedAt: true },
+      }),
+      this.prisma.payment.findMany({ where: { branchId, kind: 'REFUND', createdAt: inRange }, select: { id: true, amountUsdCents: true, cashierId: true, bookingId: true, parcelId: true, createdAt: true } }),
+      this.prisma.cashSession.findMany({ where: { branchId, closedAt: inRange }, select: { id: true, cashierId: true, branchId: true, expected: true, counted: true, variance: true, approvedById: true, closedAt: true } }),
+    ]);
+    const nonZero = variances.filter((v) => {
+      const x = v.variance as { USD?: number; SLSH?: number } | null;
+      return x && ((x.USD ?? 0) !== 0 || (x.SLSH ?? 0) !== 0);
+    });
+    return {
+      from: r.from,
+      to: r.to,
+      voidedBookings,
+      discounts,
+      voidedParcels,
+      problemParcels,
+      refunds,
+      cashVariances: nonZero,
+      unapprovedSessions: variances.filter((v) => !v.approvedById).length,
+    };
+  }
+
+  /**
+   * Inter-branch: COD-ga laanta qaadatay (to) ee alaab laan kale (from) dirtay.
+   * Matrix: from → to → lacag. Waxay muujinaysaa laan kasta inta ay ku leedahay tan kale.
+   */
+  async interBranch(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const rows = await this.prisma.$queryRaw<{ from_branch: string; to_branch: string; usd_cents: bigint; count: bigint }[]>`
+      SELECT p."fromBranchId" AS from_branch, pay."branchId" AS to_branch,
+             SUM(pay."amountUsdCents")::bigint AS usd_cents, COUNT(*)::bigint AS count
+      FROM "payments" pay JOIN "parcels" p ON p.id = pay."parcelId"
+      WHERE pay.kind = 'PARCEL' AND pay."branchId" <> p."fromBranchId"
+        AND pay."createdAt" >= ${r.start} AND pay."createdAt" < ${r.end}
+        AND (${branchId ?? null}::text IS NULL OR pay."branchId" = ${branchId ?? null}::text OR p."fromBranchId" = ${branchId ?? null}::text)
+      GROUP BY 1, 2`;
+    return {
+      from: r.from,
+      to: r.to,
+      codCollected: rows.map((x) => ({ originBranchId: x.from_branch, collectedByBranchId: x.to_branch, usdCents: Number(x.usd_cents), count: Number(x.count) })),
+    };
+  }
+
+  /** Dashboard-ka maanta (hal call). */
+  async dashboard(user: AuthUser, branchId?: string) {
+    const today = businessDate();
+    const b = branchFilter(user, branchId);
+    const [revenue, occupancy, incoming, outgoing, openSessions] = await Promise.all([
+      this.revenue(user, { from: today, to: today, branchId: b }),
+      this.occupancy(user, { from: today, to: today, branchId: b }),
+      this.prisma.parcel.groupBy({ by: ['status'], where: { toBranchId: b, status: { in: ['LOADED', 'IN_TRANSIT', 'ARRIVED'] } }, _count: true }),
+      this.prisma.parcel.count({ where: { fromBranchId: b, status: 'REGISTERED' } }),
+      this.prisma.cashSession.count({ where: { branchId: b, closedAt: null } }),
+    ]);
+    return {
+      date: today,
+      revenueUsdCents: revenue.totalUsdCents,
+      perBranch: revenue.perBranch,
+      trips: occupancy.totals,
+      incomingParcels: Object.fromEntries(incoming.map((x) => [x.status, x._count])),
+      parcelsAwaitingLoad: outgoing,
+      openCashSessions: openSessions,
+    };
+  }
+}

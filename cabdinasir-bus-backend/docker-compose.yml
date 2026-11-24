@@ -1,0 +1,19 @@
+# Development / server yar: api + postgres. Production: beddel passwords-ka oo isticmaal .env
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cb
+      POSTGRES_PASSWORD: cb
+      POSTGRES_DB: cabdinasir_bus
+    volumes: [pgdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://cb:cb@db:5432/cabdinasir_bus?schema=public
+    ports: ["3000:3000"]
+    depends_on: [db]
+volumes:
+  pgdata:

@@ -1,0 +1,424 @@
+// Cabdinasir Bus — database schema
+// Xeer: lacagtu waa integer (USD = senti, SLSH = shilin). Float lama isticmaalo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  BRANCH_MANAGER
+  CASHIER
+  DRIVER
+}
+
+enum TripStatus {
+  SCHEDULED
+  BOARDING
+  DEPARTED
+  ARRIVED
+  CLOSED
+  CANCELLED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  BOARDED
+  VOIDED
+}
+
+enum ParcelStatus {
+  REGISTERED
+  LOADED
+  IN_TRANSIT
+  ARRIVED
+  DELIVERED
+  VOIDED
+  MISSING
+  DAMAGED
+}
+
+enum Payer {
+  SENDER
+  RECEIVER
+}
+
+enum PaymentKind {
+  TICKET
+  PARCEL
+  REFUND
+  STORAGE
+}
+
+enum PaymentMethod {
+  CASH
+  ZAAD
+  EDAHAB
+}
+
+enum Currency {
+  USD
+  SLSH
+}
+
+enum SequenceKind {
+  TICKET
+  PARCEL
+  TRACKING
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  code      String   @unique // BOR, WAJ, ...
+  name      String
+  city      String
+  phones    String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  routesFrom     Route[]       @relation("RouteFrom")
+  routesTo       Route[]       @relation("RouteTo")
+  parcelsFrom    Parcel[]      @relation("ParcelFrom")
+  parcelsTo      Parcel[]      @relation("ParcelTo")
+  bookings       Booking[]
+  payments       Payment[]
+  cashSessions   CashSession[]
+  sequences      Sequence[]
+
+  @@map("branches")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  phone        String    @unique
+  passwordHash String
+  role         Role
+  branchId     String? // null = SUPER_ADMIN
+  branch       Branch?   @relation(fields: [branchId], references: [id])
+  isActive     Boolean   @default(true)
+  mustChangePassword Boolean @default(false)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  driver        Driver?
+  refreshTokens RefreshToken[]
+
+  @@index([branchId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Route {
+  id                      String   @id @default(uuid())
+  fromBranchId            String
+  toBranchId              String
+  fromBranch              Branch   @relation("RouteFrom", fields: [fromBranchId], references: [id])
+  toBranch                Branch   @relation("RouteTo", fields: [toBranchId], references: [id])
+  ticketPriceCents        Int
+  frontSeatSurchargeCents Int      @default(0)
+  parcelPerKgCents        Int
+  parcelMinFeeCents       Int      @default(0)
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  trips Trip[]
+
+  @@unique([fromBranchId, toBranchId])
+  @@map("routes")
+}
+
+/// seatLayout: { "rows": [["D", null, "1"], ["2","3","4"], ...], "front": ["1"] }
+/// "D" = darawalka (lama iibiyo), null = meel bannaan, string kale = lambarka kursiga.
+model Vehicle {
+  id         String   @id @default(uuid())
+  plate      String   @unique
+  model      String
+  seatLayout Json
+  capacity   Int
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  trips Trip[]
+
+  @@map("vehicles")
+}
+
+model Driver {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  licenseNo String?
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trips Trip[]
+
+  @@map("drivers")
+}
+
+model Trip {
+  id               String     @id @default(uuid())
+  routeId          String
+  route            Route      @relation(fields: [routeId], references: [id])
+  vehicleId        String
+  vehicle          Vehicle    @relation(fields: [vehicleId], references: [id])
+  driverId         String
+  driver           Driver     @relation(fields: [driverId], references: [id])
+  departureAt      DateTime
+  status           TripStatus @default(SCHEDULED)
+  manifestLockedAt DateTime?
+  createdById      String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  bookings  Booking[]
+  seatHolds SeatHold[]
+  parcels   Parcel[]
+
+  @@index([departureAt])
+  @@index([vehicleId, departureAt])
+  @@map("trips")
+}
+
+model SeatHold {
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  seatNo    String
+  userId    String
+  expiresAt DateTime
+
+  @@id([tripId, seatNo])
+  @@map("seat_holds")
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  receiptNo      String        @unique
+  tripId         String
+  trip           Trip          @relation(fields: [tripId], references: [id])
+  seatNo         String
+  passengerName  String
+  passengerPhone String
+  priceCents     Int
+  discountCents  Int           @default(0)
+  priceBreakdown Json
+  status         BookingStatus @default(CONFIRMED)
+  soldById       String
+  branchId       String
+  branch         Branch        @relation(fields: [branchId], references: [id])
+  voidReason     String?
+  voidedById     String?
+  voidedAt       DateTime?
+  idempotencyKey String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  payments Payment[]
+
+  // Unique "kursi firfircoon" waxaa lagu sameeyay migration gaar ah (partial index):
+  // CREATE UNIQUE INDEX bookings_active_seat ON bookings(trip_id, seat_no) WHERE status <> 'VOIDED'
+  @@index([tripId])
+  @@index([branchId, createdAt])
+  @@map("bookings")
+}
+
+model ParcelCategory {
+  id              String   @id @default(uuid())
+  nameSo          String
+  nameEn          String
+  baseFeeCents    Int
+  perKgMultiplier Decimal  @default(1) @db.Decimal(5, 2)
+  isProhibited    Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  parcels Parcel[]
+
+  @@map("parcel_categories")
+}
+
+model Parcel {
+  id                 String         @id @default(uuid())
+  trackingCode       String         @unique
+  receiptNo          String         @unique
+  fromBranchId       String
+  fromBranch         Branch         @relation("ParcelFrom", fields: [fromBranchId], references: [id])
+  toBranchId         String
+  toBranch           Branch         @relation("ParcelTo", fields: [toBranchId], references: [id])
+  tripId             String?
+  trip               Trip?          @relation(fields: [tripId], references: [id])
+  senderName         String
+  senderPhone        String
+  receiverName       String
+  receiverPhone      String
+  pickupPinHash      String
+  categoryId         String
+  category           ParcelCategory @relation(fields: [categoryId], references: [id])
+  pieces             Int
+  weightKg           Decimal        @db.Decimal(6, 2)
+  description        String?
+  declaredValueCents Int?
+  isFragile          Boolean        @default(false)
+  insured            Boolean        @default(false)
+  packagingOk        Boolean        @default(true)
+  payer              Payer
+  feeCents           Int
+  priceBreakdown     Json
+  paidAt             DateTime?
+  status             ParcelStatus   @default(REGISTERED)
+  registeredById     String
+  deliveredById      String?
+  deliveredToName    String?
+  deliveredAt        DateTime?
+  arrivedAt          DateTime?
+  photoUrl           String?
+  voidReason         String?
+  idempotencyKey     String?        @unique
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  history  ParcelStatusHistory[]
+  payments Payment[]
+
+  @@index([toBranchId, status])
+  @@index([fromBranchId, status])
+  @@index([receiverPhone])
+  @@map("parcels")
+}
+
+model ParcelStatusHistory {
+  id         String        @id @default(uuid())
+  parcelId   String
+  parcel     Parcel        @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  fromStatus ParcelStatus?
+  toStatus   ParcelStatus
+  branchId   String?
+  userId     String
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  @@index([parcelId])
+  @@map("parcel_status_history")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  kind           PaymentKind
+  bookingId      String?
+  booking        Booking?      @relation(fields: [bookingId], references: [id])
+  parcelId       String?
+  parcel         Parcel?       @relation(fields: [parcelId], references: [id])
+  method         PaymentMethod
+  currency       Currency
+  /// USD: senti · SLSH: shilin. Taban (negative) = lacag celin.
+  amount         Int
+  amountUsdCents Int
+  exchangeRate   Int? // 1 USD = ? SLSH (marka currency = SLSH)
+  reference      String? // Zaad/eDahab transaction id
+  cashierId      String
+  cashSessionId  String
+  cashSession    CashSession   @relation(fields: [cashSessionId], references: [id])
+  branchId       String
+  branch         Branch        @relation(fields: [branchId], references: [id])
+  createdAt      DateTime      @default(now())
+
+  @@index([cashSessionId])
+  @@index([branchId, createdAt])
+  @@map("payments")
+}
+
+/// expected/counted/variance: { "USD": senti, "SLSH": shilin } — CASH kaliya
+model CashSession {
+  id           String    @id @default(uuid())
+  cashierId    String
+  branchId     String
+  branch       Branch    @relation(fields: [branchId], references: [id])
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+  openingFloat Json
+  expected     Json?
+  counted      Json?
+  variance     Json?
+  approvedById String?
+  approvedAt   DateTime?
+  note         String?
+
+  payments Payment[]
+
+  @@index([cashierId, closedAt])
+  @@index([branchId, openedAt])
+  @@map("cash_sessions")
+}
+
+model ExchangeRate {
+  date       DateTime @id @db.Date
+  usdToSlsh  Int
+  setById    String
+  createdAt  DateTime @default(now())
+
+  @@map("exchange_rates")
+}
+
+model PricingSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("pricing_settings")
+}
+
+model Sequence {
+  branchId  String
+  branch    Branch       @relation(fields: [branchId], references: [id])
+  kind      SequenceKind
+  nextValue Int          @default(1)
+
+  @@id([branchId, kind])
+  @@map("sequences")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  branchId  String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([branchId, createdAt])
+  @@map("audit_logs")
+}
