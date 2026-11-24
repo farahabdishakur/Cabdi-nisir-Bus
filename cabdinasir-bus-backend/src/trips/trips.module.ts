@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { TripsService } from './trips.service';
-import { CreateTripDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
+import { BulkTripsDto, CreateTripDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
 @ApiTags('trips')
 @ApiBearerAuth()
@@ -28,6 +28,12 @@ export class TripsController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateTripDto) {
     return this.trips.create(user, dto);
+  }
+
+  @Roles(...MANAGERS)
+  @Post('bulk')
+  bulk(@CurrentUser() user: AuthUser, @Body() dto: BulkTripsDto) {
+    return this.trips.bulk(user, dto);
   }
 
   @Roles(...MANAGERS)

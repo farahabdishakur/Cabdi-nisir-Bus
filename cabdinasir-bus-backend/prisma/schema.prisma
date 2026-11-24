@@ -53,6 +53,42 @@ enum PaymentKind {
   PARCEL
   REFUND
   STORAGE
+  EXPENSE // kharash ka baxay sanduuqa (taban)
+  DEPOSIT // lacag loo wareejiyay xafiiska guud / bangiga (taban)
+  TRANSFER_DIFF // farqiga qiimaha marka tigidh la beddelo
+}
+
+enum ExpenseCategory {
+  FUEL
+  DRIVER_ALLOWANCE
+  MAINTENANCE
+  RENT
+  UTILITIES
+  SALARY
+  OTHER
+}
+
+enum DepositTarget {
+  HEAD_OFFICE
+  BANK
+  MOBILE_MONEY
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VoidEntity {
+  BOOKING
+  PARCEL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 enum PaymentMethod {
@@ -91,6 +127,8 @@ model Branch {
   payments       Payment[]
   cashSessions   CashSession[]
   sequences      Sequence[]
+  expenses       Expense[]
+  deposits       Deposit[]
 
   @@map("branches")
 }
@@ -238,6 +276,8 @@ model Booking {
   voidedById     String?
   voidedAt       DateTime?
   idempotencyKey String?       @unique
+  printCount     Int           @default(0)
+  transferredFromTripId String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -303,11 +343,16 @@ model Parcel {
   photoUrl           String?
   voidReason         String?
   idempotencyKey     String?        @unique
+  /// Waqtiga dhabta ah ee la diiwaangeliyay haddii offline la sameeyay (sync kadib)
+  offlineCreatedAt   DateTime?
+  printCount         Int            @default(0)
+  remindersSent      Int            @default(0)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  history  ParcelStatusHistory[]
-  payments Payment[]
+  history       ParcelStatusHistory[]
+  payments      Payment[]
+  notifications Notification[]
 
   @@index([toBranchId, status])
   @@index([fromBranchId, status])
@@ -350,6 +395,9 @@ model Payment {
   branchId       String
   branch         Branch        @relation(fields: [branchId], references: [id])
   createdAt      DateTime      @default(now())
+
+  expense Expense?
+  deposit Deposit?
 
   @@index([cashSessionId])
   @@index([branchId, createdAt])
@@ -421,4 +469,83 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([branchId, createdAt])
   @@map("audit_logs")
+}
+
+/// Kharashka laanta (shidaal, mushahar darawal …) — wuxuu ka baxaa sanduuqa (Payment taban, kind EXPENSE)
+model Expense {
+  id          String          @id @default(uuid())
+  branchId    String
+  branch      Branch          @relation(fields: [branchId], references: [id])
+  category    ExpenseCategory
+  description String
+  tripId      String?
+  paymentId   String          @unique
+  payment     Payment         @relation(fields: [paymentId], references: [id])
+  createdById String
+  voidedAt    DateTime?
+  voidedById  String?
+  voidReason  String?
+  createdAt   DateTime        @default(now())
+
+  @@index([branchId, createdAt])
+  @@map("expenses")
+}
+
+/// Lacag laga wareejiyay sanduuqa laanta → xafiiska guud / bangi. Super Admin ayaa xaqiijiya inuu helay.
+model Deposit {
+  id            String        @id @default(uuid())
+  branchId      String
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  target        DepositTarget
+  reference     String?
+  note          String?
+  paymentId     String        @unique
+  payment       Payment       @relation(fields: [paymentId], references: [id])
+  createdById   String
+  confirmedById String?
+  confirmedAt   DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@index([branchId, createdAt])
+  @@map("deposits")
+}
+
+/// Karraanigu void ma samayn karo — wuu codsadaa, Manager ayaa go'aamiya (BUSINESS_RULES §1).
+model VoidRequest {
+  id          String        @id @default(uuid())
+  entity      VoidEntity
+  entityId    String
+  branchId    String
+  reason      String
+  refund      Boolean       @default(true)
+  status      RequestStatus @default(PENDING)
+  requestedById String
+  decidedById String?
+  decidedAt   DateTime?
+  decisionNote String?
+  createdAt   DateTime      @default(now())
+
+  @@index([branchId, status])
+  @@index([entity, entityId])
+  @@map("void_requests")
+}
+
+/// Outbox-ka SMS: waa la kaydiyaa marka hore, worker ayaa diraya (retry). Internet go'ay → lama lumiyo.
+model Notification {
+  id         String             @id @default(uuid())
+  channel    String             @default("SMS")
+  to         String
+  template   String
+  body       String
+  status     NotificationStatus @default(PENDING)
+  attempts   Int                @default(0)
+  lastError  String?
+  sendAfter  DateTime           @default(now())
+  sentAt     DateTime?
+  parcelId   String?
+  parcel     Parcel?            @relation(fields: [parcelId], references: [id])
+  createdAt  DateTime           @default(now())
+
+  @@index([status, sendAfter])
+  @@map("notifications")
 }

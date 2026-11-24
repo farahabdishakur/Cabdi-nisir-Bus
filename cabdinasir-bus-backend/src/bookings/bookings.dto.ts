@@ -23,6 +23,13 @@ export class VoidBookingDto {
   @IsOptional() @ValidateNested() @Type(() => PaymentInputDto) refundPayment?: PaymentInputDto;
 }
 
+export class TransferBookingDto {
+  @IsUUID() tripId: string;
+  @IsString() @Length(1, 4) seatNo: string;
+  /** Waajib haddii qiimaha cusub ka badan yahay kii hore */
+  @IsOptional() @ValidateNested() @Type(() => PaymentInputDto) payment?: PaymentInputDto;
+}
+
 export class BookingQuery extends PageQuery {
   @IsOptional() @IsUUID() tripId?: string;
   @IsOptional() @IsUUID() branchId?: string;

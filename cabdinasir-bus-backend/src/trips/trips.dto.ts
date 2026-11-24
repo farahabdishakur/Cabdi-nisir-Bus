@@ -1,4 +1,5 @@
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID, Length, Matches, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { TripStatus } from '@prisma/client';
 
 export class CreateTripDto {
@@ -6,6 +7,12 @@ export class CreateTripDto {
   @IsUUID() vehicleId: string;
   @IsUUID() driverId: string;
   @IsDateString() departureAt: string;
+}
+
+/** Jadwalka maalinta hal mar (tusaale 6 safar oo subax kasta) */
+export class BulkTripsDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => CreateTripDto)
+  trips: CreateTripDto[];
 }
 
 export class UpdateTripDto {

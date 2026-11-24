@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { PaymentKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/auth-user';
 import { branchFilter } from '../common/branch-scope';
 import { businessDate, businessRange, BUSINESS_UTC_OFFSET_HOURS } from '../common/time';
+
+/** Dakhli = lacag ganacsi (kharash iyo deposit ma aha dakhli). */
+export const INCOME_KINDS: PaymentKind[] = ['TICKET', 'PARCEL', 'STORAGE', 'REFUND', 'TRANSFER_DIFF'];
 
 export interface RangeQuery {
   from?: string;
@@ -26,11 +29,12 @@ export class ReportsService {
   async revenue(user: AuthUser, q: RangeQuery) {
     const r = this.range(q);
     const branchId = branchFilter(user, q.branchId);
-    const where: Prisma.PaymentWhereInput = { branchId, createdAt: { gte: r.start, lt: r.end } };
-    const [byBranchKind, byMethod, branches] = await Promise.all([
+    const where: Prisma.PaymentWhereInput = { branchId, createdAt: { gte: r.start, lt: r.end }, kind: { in: INCOME_KINDS } };
+    const [byBranchKind, byMethod, branches, expenses] = await Promise.all([
       this.prisma.payment.groupBy({ by: ['branchId', 'kind'], where, _sum: { amountUsdCents: true }, _count: true }),
       this.prisma.payment.groupBy({ by: ['method', 'currency'], where, _sum: { amount: true, amountUsdCents: true }, _count: true }),
       this.prisma.branch.findMany({ select: { id: true, code: true, name: true } }),
+      this.prisma.payment.groupBy({ by: ['branchId'], where: { branchId, createdAt: { gte: r.start, lt: r.end }, kind: 'EXPENSE' }, _sum: { amountUsdCents: true } }),
     ]);
     const offset = `${BUSINESS_UTC_OFFSET_HOURS} hours`;
     const daily = await this.prisma.$queryRaw<{ day: string; usd_cents: bigint }[]>`
@@ -38,18 +42,23 @@ export class ReportsService {
       FROM "payments"
       WHERE "createdAt" >= ${r.start} AND "createdAt" < ${r.end}
         AND (${branchId ?? null}::text IS NULL OR "branchId" = ${branchId ?? null}::text)
+        AND "kind"::text = ANY(${INCOME_KINDS as string[]})
       GROUP BY 1 ORDER BY 1`;
     const perBranch = branches
       .filter((b) => !branchId || b.id === branchId)
       .map((b) => {
         const rows = byBranchKind.filter((x) => x.branchId === b.id);
         const kinds = Object.fromEntries(rows.map((x) => [x.kind, x._sum.amountUsdCents ?? 0]));
-        return { branch: b, byKind: kinds, totalUsdCents: rows.reduce((s, x) => s + (x._sum.amountUsdCents ?? 0), 0) };
+        const total = rows.reduce((s, x) => s + (x._sum.amountUsdCents ?? 0), 0);
+        const exp = -(expenses.find((e) => e.branchId === b.id)?._sum.amountUsdCents ?? 0);
+        return { branch: b, byKind: kinds, totalUsdCents: total, expensesUsdCents: exp, netUsdCents: total - exp };
       });
     return {
       from: r.from,
       to: r.to,
       totalUsdCents: perBranch.reduce((s, b) => s + b.totalUsdCents, 0),
+      expensesUsdCents: perBranch.reduce((s, b) => s + b.expensesUsdCents, 0),
+      netUsdCents: perBranch.reduce((s, b) => s + b.netUsdCents, 0),
       perBranch,
       byMethod: byMethod.map((m) => ({ method: m.method, currency: m.currency, count: m._count, amount: m._sum.amount ?? 0, amountUsdCents: m._sum.amountUsdCents ?? 0 })),
       daily: daily.map((d) => ({ day: d.day, usdCents: Number(d.usd_cents) })),
@@ -157,6 +166,76 @@ export class ReportsService {
       to: r.to,
       codCollected: rows.map((x) => ({ originBranchId: x.from_branch, collectedByBranchId: x.to_branch, usdCents: Number(x.usd_cents), count: Number(x.count) })),
     };
+  }
+
+  /**
+   * Xiritaanka maalinta laanta: sanduuq kasta (karraani), dakhliga, kharashka, deposits-ka.
+   * Manager-ku fiidkii wuxuu eegaa: "lacagtii maanta meeday?"
+   */
+  async dailyClose(user: AuthUser, q: { date?: string; branchId?: string }) {
+    const date = q.date ?? businessDate();
+    const r = businessRange(date, date);
+    const branchId = branchFilter(user, q.branchId);
+    const inDay = { gte: r.start, lt: r.end };
+    const [sessions, byKind, expenses, deposits, tickets, parcelsSent, delivered] = await Promise.all([
+      this.prisma.cashSession.findMany({ where: { branchId, OR: [{ openedAt: inDay }, { closedAt: inDay }, { closedAt: null }] }, orderBy: { openedAt: 'asc' } }),
+      this.prisma.payment.groupBy({ by: ['kind', 'method', 'currency'], where: { branchId, createdAt: inDay }, _sum: { amount: true, amountUsdCents: true }, _count: true }),
+      this.prisma.expense.findMany({ where: { branchId, createdAt: inDay }, include: { payment: { select: { amount: true, currency: true, amountUsdCents: true } } } }),
+      this.prisma.deposit.findMany({ where: { branchId, createdAt: inDay }, include: { payment: { select: { amount: true, currency: true, amountUsdCents: true } } } }),
+      this.prisma.booking.count({ where: { branchId, createdAt: inDay, status: { not: 'VOIDED' } } }),
+      this.prisma.parcel.count({ where: { fromBranchId: branchId, createdAt: inDay, status: { not: 'VOIDED' } } }),
+      this.prisma.parcel.count({ where: { toBranchId: branchId, deliveredAt: inDay } }),
+    ]);
+    const users = await this.prisma.user.findMany({ where: { id: { in: sessions.map((s) => s.cashierId) } }, select: { id: true, name: true } });
+    const name = new Map(users.map((u) => [u.id, u.name]));
+    const sum = (kinds: PaymentKind[]) => byKind.filter((x) => kinds.includes(x.kind)).reduce((s, x) => s + (x._sum.amountUsdCents ?? 0), 0);
+    return {
+      date,
+      branchId: branchId ?? null,
+      counts: { tickets, parcelsSent, parcelsDelivered: delivered },
+      incomeUsdCents: sum(INCOME_KINDS),
+      expensesUsdCents: -sum(['EXPENSE']),
+      depositsUsdCents: -sum(['DEPOSIT']),
+      breakdown: byKind.map((x) => ({ kind: x.kind, method: x.method, currency: x.currency, count: x._count, amount: x._sum.amount ?? 0, amountUsdCents: x._sum.amountUsdCents ?? 0 })),
+      sessions: sessions.map((s) => ({
+        id: s.id, cashier: name.get(s.cashierId) ?? s.cashierId, openedAt: s.openedAt, closedAt: s.closedAt,
+        expected: s.expected, counted: s.counted, variance: s.variance, approved: !!s.approvedAt,
+      })),
+      expenses: expenses.map((e) => ({ id: e.id, category: e.category, description: e.description, voided: !!e.voidedAt, ...e.payment })),
+      deposits: deposits.map((d) => ({ id: d.id, target: d.target, confirmed: !!d.confirmedAt, ...d.payment })),
+    };
+  }
+
+  /** Shaqada karraani kasta: iib, alaab, wareejin, lacag, farqiga sanduuqa. */
+  async cashiers(user: AuthUser, q: RangeQuery) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const inRange = { gte: r.start, lt: r.end };
+    const staff = await this.prisma.user.findMany({ where: { branchId, role: { in: ['CASHIER', 'BRANCH_MANAGER'] } }, select: { id: true, name: true, role: true, branchId: true } });
+    const ids = staff.map((s) => s.id);
+    const [tickets, parcels, deliveries, money, sessions] = await Promise.all([
+      this.prisma.booking.groupBy({ by: ['soldById'], where: { soldById: { in: ids }, createdAt: inRange, status: { not: 'VOIDED' } }, _count: true }),
+      this.prisma.parcel.groupBy({ by: ['registeredById'], where: { registeredById: { in: ids }, createdAt: inRange, status: { not: 'VOIDED' } }, _count: true }),
+      this.prisma.parcel.groupBy({ by: ['deliveredById'], where: { deliveredById: { in: ids }, deliveredAt: inRange }, _count: true }),
+      this.prisma.payment.groupBy({ by: ['cashierId'], where: { cashierId: { in: ids }, createdAt: inRange, kind: { in: INCOME_KINDS } }, _sum: { amountUsdCents: true } }),
+      this.prisma.cashSession.findMany({ where: { cashierId: { in: ids }, closedAt: inRange }, select: { cashierId: true, variance: true } }),
+    ]);
+    const rows = staff.map((s) => {
+      const v = sessions.filter((x) => x.cashierId === s.id).map((x) => x.variance as { USD?: number; SLSH?: number } | null);
+      return {
+        userId: s.id,
+        name: s.name,
+        role: s.role,
+        tickets: tickets.find((x) => x.soldById === s.id)?._count ?? 0,
+        parcels: parcels.find((x) => x.registeredById === s.id)?._count ?? 0,
+        deliveries: deliveries.find((x) => x.deliveredById === s.id)?._count ?? 0,
+        incomeUsdCents: money.find((x) => x.cashierId === s.id)?._sum.amountUsdCents ?? 0,
+        sessionsClosed: v.length,
+        varianceUsdCents: v.reduce((a, x) => a + (x?.USD ?? 0), 0),
+        varianceSlsh: v.reduce((a, x) => a + (x?.SLSH ?? 0), 0),
+      };
+    });
+    return { from: r.from, to: r.to, cashiers: rows };
   }
 
   /** Dashboard-ka maanta (hal call). */

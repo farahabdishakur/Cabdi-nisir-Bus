@@ -6,6 +6,7 @@ API-ga nidaamka diiwaangelinta **rakaabka, kuraasta, alaabta iyo lacagta** ee Ca
 - Xeerarka repo-ga: [`CLAUDE.md`](CLAUDE.md)
 - Xeerarka ganacsiga: [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md)
 - Warbixinta farsamada & xaaladda: [`docs/REPORT.md`](docs/REPORT.md)
+- Internet-ka, server-ka, offline & backup: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
 **Stack:** Node 22 · NestJS 11 · TypeScript · PostgreSQL 16 · Prisma 6 · Docker
 
@@ -19,6 +20,9 @@ npm run dev                     # http://localhost:3000/api/v1
 ```
 - API docs (Swagger): http://localhost:3000/api/docs
 - Ama Docker: `docker compose up --build` (migrations si automatic ah ayay u socdaan).
+- Production: `docker compose -f docker-compose.prod.yml up -d --build` (Caddy HTTPS) — eeg `docs/DEPLOYMENT.md`.
+- `npm run openapi` → `openapi.json` (frontend-ku types-ka halkan ayuu ka sameeyaa)
+- `npm run backup` → backup database (`scripts/backup.sh`, `scripts/restore.sh`)
 
 ### Login-ka tijaabada (SEED_DEMO=true)
 | Role | Taleefan | Password |
@@ -31,7 +35,7 @@ npm run dev                     # http://localhost:3000/api/v1
 
 ## Tests
 ```bash
-npm test             # unit (pricing)
+npm test             # unit (pricing, helpers)
 npm run test:e2e     # socodka buuxa — wuxuu u baahan yahay Postgres + .env.test (database: cabdinasir_bus_test)
 ```
 `.env.test` = `.env.example` oo database-ku yahay `cabdinasir_bus_test`. E2E-gu database-kaas wuu nadiifiyaa.

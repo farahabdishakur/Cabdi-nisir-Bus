@@ -21,17 +21,22 @@ Akhri ka hor intaadan wax beddelin:
 ## 2. Qaab-dhismeedka Folder-ada
 ```
 src/
-  main.ts
-  common/        guards, decorators (@Roles, @CurrentUser), filters, interceptors (audit)
-  auth/          login, refresh, logout, JwtAuthGuard (global)
+  main.ts  setup-app.ts  app.module.ts
+  config/        env validation (server-ku ma kaco haddii .env khaldan yahay)
+  common/        guards, decorators (@Roles, @CurrentUser), errors, branch-scope, state-machine, sequences, time, phone, csv
+  auth/          login, refresh rotation, logout(-all), JwtAuthGuard (global)
   branches/  users/  routes/  vehicles/  drivers/  parcel-categories/
-  settings/      pricing settings + exchange rates
-  trips/         trips + seat map + seat hold + manifest
-  bookings/      tigidhada rakaabka
-  parcels/       alaabta + tracking + status history
+  settings/      pricing settings, company profile, exchange rates
+  trips/         trips + seat map + seat hold + manifest + bulk
+  bookings/      tigidhada: iib, void, transfer, reprint, board
+  parcels/       alaabta: quote, diiwaangelin, rar, gaadhay, wareejin, sawir, history
   pricing/       pricing.ts — MEELNA kale lagama xisaabiyo qiimo
-  cash/          payments (recordPayment) + cash sessions
-  reports/  audit/
+  cash/          payments (recordPayment/recordRaw) + cash sessions
+  finance/       kharash (expenses) + deposits
+  void-requests/ codsiyada void (karraani → manager)
+  notifications/ SMS outbox + provider + templates
+  jobs/          cron: SMS worker, xusuusin, nadiifin
+  reports/  audit/  customers/  public/  sync/
 prisma/
   schema.prisma  migrations/  seed.ts
 test/

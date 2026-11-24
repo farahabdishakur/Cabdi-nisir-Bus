@@ -1,0 +1,8 @@
+# HTTPS automatic (Let's Encrypt). Website-ka (app.*) wuxuu ku dari doonaa block kale marka la dhiso.
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy api:3000
+	request_body {
+		max_size 6MB
+	}
+}

@@ -8,7 +8,7 @@ import { businessDayRange } from '../common/time';
 import { parseSeatLayout } from '../vehicles/seat-layout';
 import { SettingsService } from '../settings/settings.service';
 import { AuditService } from '../audit/audit.service';
-import { CreateTripDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
+import { BulkTripsDto, CreateTripDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
 const VEHICLE_GAP_MS = 3 * 3600_000; // hal gaari laba safar oo 3 saac gudahood ah ma yeelan karo
 const ACTIVE_TRIP: TripStatus[] = ['SCHEDULED', 'BOARDING', 'DEPARTED'];
@@ -80,6 +80,20 @@ export class TripsService {
     }
     await this.checkVehicleDriver(dto.vehicleId, dto.driverId, new Date(dto.departureAt));
     return this.prisma.trip.create({ data: { ...dto, departureAt: new Date(dto.departureAt), createdById: user.id }, include: tripInclude });
+  }
+
+  /** Safaro badan: mid kasta si gooni ah ayaa loo hubiyaa; natiijada mid kasta way soo laabanaysaa. */
+  async bulk(user: AuthUser, dto: BulkTripsDto) {
+    const results = [];
+    for (const t of dto.trips) {
+      try {
+        results.push({ ok: true, trip: await this.create(user, t) });
+      } catch (e) {
+        const err = e as { code?: string; message?: string };
+        results.push({ ok: false, input: t, error: { code: err.code ?? 'ERROR', message: err.message } });
+      }
+    }
+    return { created: results.filter((r) => r.ok).length, results };
   }
 
   async update(user: AuthUser, id: string, dto: UpdateTripDto) {

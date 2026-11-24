@@ -53,6 +53,13 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 | Audit log | `/audit` | SA, BM | 1 |
 | Daabacaad (rasiid, label, manifest) | `/print/*` | SA, BM, CASHIER | 1 |
 | Profile / beddel password | `/profile` | all | 1 |
+| Kharashka (shidaal, darawal …) | `/cash/expenses` | SA, BM, CASHIER | 1 |
+| Deposits (lacag u wareeji xafiiska) + xaqiijin | `/cash/deposits` | SA, BM, CASHIER | 1 |
+| Codsiyada void (karraani → manager) | `/void-requests` | SA, BM, CASHIER | 1 |
+| Xiritaanka maalinta laanta | `/reports/daily-close` | SA, BM | 1 |
+| Shaqada karraaniyada | `/reports/cashiers` | SA, BM | 1 |
+| SMS-yada (fashilmay → dib u dir) | `/admin/notifications` | SA, BM | 1 |
+| Profile-ka shirkadda (rasiidka, shuruudaha) | `/admin/company` | SA | 1 |
 | Manifest darawal | `/driver` | DRIVER | 2 |
 | Tracking dadweyne | `/track` | public | 3 |
 | Online booking | `/book` | public | 3 |
@@ -98,6 +105,16 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 2. Kombiyuutar mise taleefan/tablet ayaa xafiisyada lagu isticmaali doonaa?
 3. Logo-ga shirkadda (file tayo sare leh).
 4. Domain (tusaale `cabdinasirbus.com`)?
+
+## 8b. Backend-ka diyaar ah (v0.2.0) — waxa website-ku isticmaali doono
+- Tigidh: **transfer** (beddel safar/kursi + farqi), **reprint** (la tiriyo).
+- Alaab: **sawir** (camera taleefanka / upload), **arrive-batch** (scan dhammaan → kuwa maqan), PIN + COD + khidmad kayd.
+- Karraanigu void ma sameeyo → badhanka "Codso void".
+- Autofill taleefanka: `GET /customers/lookup`.
+- Offline: `GET /sync/bootstrap` (kaydi IndexedDB) + `POST /sync/parcels`.
+- Rasiidka/label-ka: `GET /company` (magaca, ujeeddada, shuruudaha 5-ta, footer).
+- Types: backend `npm run openapi` → `openapi.json` → `openapi-typescript`.
+- Liiska error codes-ka (turjumaadda Af-Soomaaliga): backend `docs/REPORT.md §9`.
 
 ## 9. Changelog / Xaaladda
 - **2026-11-24** — Naqshadda, xeerarka (`CLAUDE.md`, `UI_RULES.md`) iyo warbixintan la qoray. Code: 0%.

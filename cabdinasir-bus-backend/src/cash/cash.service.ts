@@ -43,13 +43,32 @@ export class CashService {
     if (pay.method !== PaymentMethod.CASH && !pay.reference) {
       throw Errors.bad('REFERENCE_REQUIRED', 'Mobile money payments need the transaction reference');
     }
-    const session = await this.requireOpenSession(db, user);
     let amount = usdCents;
+    if (pay.currency === Currency.SLSH) amount = usdCentsToSlsh(usdCents, await this.settings.requireRate(db));
+    return this.recordRaw(db, user, branchId, kind, amount, pay, link);
+  }
+
+  /**
+   * Diiwaangeli lacag qadarkeedu yahay lacagta la qabtay (USD senti ama SLSH shilin) — kharash, deposit.
+   * Taban = sanduuqa ayay ka baxaysaa.
+   */
+  async recordRaw(
+    db: Tx,
+    user: AuthUser,
+    branchId: string,
+    kind: PaymentKind,
+    amount: number,
+    pay: PaymentInputDto,
+    link: { bookingId?: string; parcelId?: string } = {},
+  ) {
+    if (pay.method !== PaymentMethod.CASH && !pay.reference) {
+      throw Errors.bad('REFERENCE_REQUIRED', 'Mobile money payments need the transaction reference');
+    }
+    const session = await this.requireOpenSession(db, user);
     let exchangeRate: number | null = null;
-    let amountUsdCents = usdCents;
+    let amountUsdCents = amount;
     if (pay.currency === Currency.SLSH) {
       exchangeRate = await this.settings.requireRate(db);
-      amount = usdCentsToSlsh(usdCents, exchangeRate);
       amountUsdCents = slshToUsdCents(amount, exchangeRate);
     }
     return db.payment.create({
@@ -85,8 +104,8 @@ export class CashService {
   }
 
   /** Lacagta la filayo sanduuqa (CASH kaliya) + wadarta habab kale. */
-  async summary(s: CashSession) {
-    const groups = await this.prisma.payment.groupBy({
+  async summary(s: CashSession, db: Tx | PrismaService = this.prisma) {
+    const groups = await db.payment.groupBy({
       by: ['method', 'currency'],
       where: { cashSessionId: s.id },
       _sum: { amount: true, amountUsdCents: true },

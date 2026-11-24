@@ -16,6 +16,10 @@ import { SettingsService } from '../settings/settings.service';
 import { CashService } from '../cash/cash.service';
 import { AuditService } from '../audit/audit.service';
 import { TripsService } from '../trips/trips.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { formatUsd } from '../common/money';
+import { mkdir, writeFile } from 'fs/promises';
+import { join, resolve } from 'path';
 import { isUuid } from '../bookings/bookings.service';
 import {
   ArriveBatchDto, CreateParcelDto, DeliverParcelDto, ParcelQuery, QuoteParcelDto, VoidParcelDto,
@@ -32,6 +36,7 @@ const include = {
 const INCOMING: ParcelStatus[] = ['LOADED', 'IN_TRANSIT', 'ARRIVED', 'MISSING', 'DAMAGED'];
 const OUTGOING: ParcelStatus[] = ['REGISTERED', 'LOADED'];
 const DAY_MS = 86400_000;
+const PHOTO_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 type ParcelFull = Prisma.ParcelGetPayload<{ include: typeof include }>;
 
@@ -49,6 +54,7 @@ export class ParcelsService {
     private readonly cash: CashService,
     private readonly audit: AuditService,
     private readonly trips: TripsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Qiimaha alaabta — frontend-ku wuxuu wacaa ka hor diiwaangelinta (live quote). */
@@ -85,13 +91,19 @@ export class ParcelsService {
    * Diiwaangelinta alaabta (BUSINESS_RULES §4). Natiijada: tracking code + rasiid + PIN-ka qaataha.
    * PIN-ka hal mar ayaa la soo celiyaa (rasiidka / SMS) — DB-ga waa hashed.
    */
-  async create(user: AuthUser, dto: CreateParcelDto, idempotencyKey?: string) {
+  async create(
+    user: AuthUser,
+    dto: CreateParcelDto,
+    idempotencyKey?: string,
+    opts: { pickupPin?: string; offlineCreatedAt?: Date } = {},
+  ) {
     if (idempotencyKey) {
       const prev = await this.prisma.parcel.findUnique({ where: { idempotencyKey }, include });
       if (prev) return { ...strip(prev), pickupPin: null, replayed: true };
     }
     if (dto.payer === Payer.SENDER && !dto.payment) throw Errors.bad('PAYMENT_REQUIRED', 'Sender pays now: payment is required');
-    const pickupPin = String(randomInt(0, 10000)).padStart(4, '0');
+    // Offline: PIN-ka client-ka ayaa sameeyay si rasiidka offline-ka ah loogu daabaco
+    const pickupPin = opts.pickupPin ?? String(randomInt(0, 10000)).padStart(4, '0');
     const pickupPinHash = await argon2.hash(pickupPin);
     try {
       const parcel = await this.prisma.$transaction(async (tx) => {
@@ -124,6 +136,7 @@ export class ParcelsService {
             paidAt: dto.payer === Payer.SENDER ? new Date() : null,
             registeredById: user.id,
             idempotencyKey,
+            offlineCreatedAt: opts.offlineCreatedAt,
           },
         });
         await tx.parcelStatusHistory.create({
@@ -132,7 +145,12 @@ export class ParcelsService {
         if (dto.payer === Payer.SENDER && q.totalCents > 0) {
           await this.cash.recordPayment(tx, user, q.fromBranchId, PaymentKind.PARCEL, q.totalCents, dto.payment!, { parcelId: p.id });
         }
-        return tx.parcel.findUniqueOrThrow({ where: { id: p.id }, include });
+        const full = await tx.parcel.findUniqueOrThrow({ where: { id: p.id }, include });
+        await this.notifications.enqueue(tx, full.receiverPhone, 'PARCEL_REGISTERED', {
+          sender: full.senderName, pieces: full.pieces, from: full.fromBranch.name, to: full.toBranch.name,
+          code: full.trackingCode, pin: pickupPin, cod: this.codLine(full),
+        }, full.id);
+        return full;
       });
       return { ...strip(parcel), pickupPin };
     } catch (e) {
@@ -315,7 +333,48 @@ export class ParcelsService {
     });
   }
 
+  async reprint(user: AuthUser, id: string) {
+    const p = await this.prisma.parcel.findUnique({ where: { id } });
+    if (!p) throw Errors.notFound('Parcel', id);
+    this.assertSide(user, p, 'any');
+    const updated = await this.prisma.parcel.update({ where: { id }, data: { printCount: { increment: 1 } }, include });
+    await this.audit.log(this.prisma, user, 'REPRINT', 'parcels', id, { printCount: p.printCount }, { printCount: updated.printCount });
+    return strip(updated);
+  }
+
+  /** Sawirka alaabta (caddayn haddii khilaaf dhaco). */
+  async savePhoto(user: AuthUser, id: string, file: { buffer: Buffer; mimetype: string; size: number } | undefined) {
+    if (!file) throw Errors.bad('FILE_REQUIRED', 'Upload an image in field "file"');
+    const ext = PHOTO_TYPES[file.mimetype];
+    if (!ext) throw Errors.bad('INVALID_FILE_TYPE', 'Only JPEG, PNG or WEBP images are allowed');
+    const p = await this.prisma.parcel.findUnique({ where: { id } });
+    if (!p) throw Errors.notFound('Parcel', id);
+    this.assertSide(user, p, 'any');
+    const dir = join(this.uploadDir, 'parcels');
+    await mkdir(dir, { recursive: true });
+    const name = `${p.id}-${Date.now()}.${ext}`;
+    await writeFile(join(dir, name), file.buffer);
+    const updated = await this.prisma.parcel.update({ where: { id }, data: { photoUrl: `parcels/${name}` }, include });
+    return strip(updated);
+  }
+
+  async photoPath(user: AuthUser, id: string) {
+    const p = await this.prisma.parcel.findUnique({ where: { id } });
+    if (!p) throw Errors.notFound('Parcel', id);
+    this.assertSide(user, p, 'any');
+    if (!p.photoUrl) throw Errors.notFound('Photo', id);
+    return resolve(this.uploadDir, p.photoUrl);
+  }
+
+  private get uploadDir() {
+    return resolve(process.env.UPLOAD_DIR ?? './uploads');
+  }
+
   // ---------------------------------------------------------------- helpers
+
+  private codLine(p: { payer: Payer; paidAt: Date | null; feeCents: number }) {
+    return p.payer === Payer.RECEIVER && !p.paidAt ? ' Lacagta rarista: ' + formatUsd(p.feeCents) + ' (marka aad qaadanayso).' : '';
+  }
 
   private async loadFor(tx: Tx, id: string): Promise<ParcelFull> {
     const p = await tx.parcel.findUnique({ where: { id }, include });
@@ -332,6 +391,11 @@ export class ParcelsService {
       data: { parcelId: p.id, fromStatus: p.status, toStatus: to, branchId: user.branchId, userId: user.id, note },
     });
     const updated = await tx.parcel.findUniqueOrThrow({ where: { id: p.id }, include });
+    if (to === 'ARRIVED') {
+      await this.notifications.enqueue(tx, updated.receiverPhone, 'PARCEL_ARRIVED', { code: updated.trackingCode, to: updated.toBranch.name, cod: this.codLine(updated) }, updated.id);
+    } else if (to === 'DELIVERED') {
+      await this.notifications.enqueue(tx, updated.senderPhone, 'PARCEL_DELIVERED', { code: updated.trackingCode, receiver: updated.receiverName }, updated.id);
+    }
     return strip(updated);
   }
 

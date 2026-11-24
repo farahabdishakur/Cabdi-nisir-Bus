@@ -1,8 +1,8 @@
 {
   "name": "cabdinasir-bus-backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Cabdinasir Bus API — rakaab, kuraas, alaab iyo lacag",
+  "description": "Cabdinasir Bus API \u2014 rakaab, kuraas, alaab iyo lacag",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
@@ -14,7 +14,9 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "ts-node prisma/seed.ts"
+    "db:seed": "ts-node prisma/seed.ts",
+    "openapi": "ts-node scripts/export-openapi.ts",
+    "backup": "bash scripts/backup.sh"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -38,6 +40,7 @@
     "@nestjs/core": "^11.2.11",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.2.11",
+    "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^11.4.8",
     "@nestjs/throttler": "^6.8.0",
     "@prisma/client": "^6.19.3",
@@ -56,6 +59,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/jest": "^29.5.14",
+    "@types/multer": "^2.3.0",
     "@types/node": "^22.20.5",
     "@types/supertest": "^7.2.1",
     "eslint": "^9.39.5",

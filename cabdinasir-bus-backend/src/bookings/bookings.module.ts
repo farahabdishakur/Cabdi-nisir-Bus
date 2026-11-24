@@ -5,7 +5,7 @@ import { AuthUser } from '../common/auth-user';
 import { IdempotencyKey } from '../common/idempotency';
 import { TripsModule } from '../trips/trips.module';
 import { BookingsService } from './bookings.service';
-import { BookingQuery, CreateBookingDto, VoidBookingDto } from './bookings.dto';
+import { BookingQuery, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
 
 @ApiTags('bookings')
 @ApiBearerAuth()
@@ -37,11 +37,21 @@ export class BookingsController {
     return this.bookings.void(user, id, dto);
   }
 
+  @Post(':id/transfer')
+  transfer(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: TransferBookingDto) {
+    return this.bookings.transfer(user, id, dto);
+  }
+
+  @Post(':id/reprint')
+  reprint(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.bookings.reprint(user, id);
+  }
+
   @Post(':id/board')
   board(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.bookings.board(user, id);
   }
 }
 
-@Module({ imports: [TripsModule], controllers: [BookingsController], providers: [BookingsService] })
+@Module({ imports: [TripsModule], controllers: [BookingsController], providers: [BookingsService], exports: [BookingsService] })
 export class BookingsModule {}

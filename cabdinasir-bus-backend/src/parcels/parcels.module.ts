@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Module, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Module, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Response } from 'express';
+import { ApiBearerAuth, ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsUUID } from 'class-validator';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
@@ -78,6 +81,23 @@ export class ParcelsController {
     return this.parcels.deliver(user, id, dto);
   }
 
+  @Post(':id/reprint')
+  reprint(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.parcels.reprint(user, id);
+  }
+
+  @ApiConsumes('multipart/form-data')
+  @Post(':id/photo')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }))
+  photo(@CurrentUser() user: AuthUser, @Param('id') id: string, @UploadedFile() file?: Express.Multer.File) {
+    return this.parcels.savePhoto(user, id, file);
+  }
+
+  @Get(':id/photo')
+  async getPhoto(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() res: Response) {
+    res.sendFile(await this.parcels.photoPath(user, id));
+  }
+
   @Roles(...MANAGERS)
   @Post(':id/void')
   void(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: VoidParcelDto) {
@@ -97,5 +117,5 @@ export class ParcelsController {
   }
 }
 
-@Module({ imports: [TripsModule], controllers: [ParcelsController], providers: [ParcelsService] })
+@Module({ imports: [TripsModule], controllers: [ParcelsController], providers: [ParcelsService], exports: [ParcelsService] })
 export class ParcelsModule {}

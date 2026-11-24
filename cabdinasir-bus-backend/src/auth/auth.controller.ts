@@ -47,6 +47,15 @@ export class AuthController {
     return this.auth.me(user.id);
   }
 
+  /** Ka bax qalab kasta (taleefan lumay, password la xaday) */
+  @ApiBearerAuth()
+  @Post('logout-all')
+  @HttpCode(204)
+  async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
+    await this.auth.revokeAll(user.id);
+    res.clearCookie(COOKIE, { path: '/api/v1/auth' });
+  }
+
   @ApiBearerAuth()
   @Post('change-password')
   @HttpCode(204)

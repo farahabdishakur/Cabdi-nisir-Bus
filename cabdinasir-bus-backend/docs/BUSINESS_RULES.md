@@ -107,7 +107,48 @@ parcel  = max(parcel, route.parcel_min_fee_cents)
 5. **Inter-branch:** COD alaabta laanta B ku qaadato iyadoo laanta A dirtay — warbixin muujinaysa dakhli laan kasta.
 6. Rasiidku waa taxane; lambar booday (gap) lama oggola.
 
-## 8. Notifications (Phase 2)
-- Alaab la diiwaangeliyay → SMS qaataha: koodh + PIN.
-- Alaab gaadhay → SMS qaataha.
-- Alaab aan la qaadin 3 maalmood → xusuusin.
+## 8. Kharashka (Expenses)
+- Karraani/Manager wuxuu diiwaangeliyaa kharash ka baxa sanduuqiisa: shidaal, mushahar darawal, dayactir, kiro, adeegyo, mushahar, kale.
+- Waa `Payment` taban (`EXPENSE`) → lacagta la filayo sanduuqa way yaraanaysaa (variance ma keeno).
+- Sanduuqa kama bixi karto lacag ka badan inta ku jirta (`INSUFFICIENT_CASH`).
+- Void: **Manager** + sabab, kaliya inta sanduuqii furan yahay (lacagta dib ayay ugu noqotaa). Sanduuq xiran → sixitaan cusub.
+- Warbixinada: dakhli − kharash = **net**.
+
+## 9. Deposits (Wareejinta lacagta)
+- Lacagta sanduuqa waxaa loo wareejiyaa **xafiiska guud / bangi / mobile money** → `Payment` taban (`DEPOSIT`).
+- Deposit **dakhli ma aha, kharashna ma aha** — warbixinada si gooni ah ayay uga muuqataa.
+- **Super Admin** ayaa xaqiijiya inuu helay (`confirm`). Deposit aan la xaqiijin = su'aal (warbixin `unconfirmed=true`).
+- Silsiladda lacagta: macmiil → sanduuqa karraaniga → (xiritaan + variance) → deposit → Super Admin xaqiijiyay.
+
+## 10. Codsiyada Void (Void Requests)
+- Karraanigu void ma sameeyo: wuxuu sameeyaa **codsi** (sabab + lacag celin haa/maya).
+- Hal codsi oo sugaya hal shay kasta (`REQUEST_PENDING`).
+- Manager-ka laanta ayaa **ansixiya** (void-ka dhabta ah waa la fuliyaa) ama **diida**. Qofku codsigiisa ma ansixin karo.
+
+## 11. Beddelka Tigidhka (Transfer)
+- Ka hor bixitaanka: safar kale (isla laanta laga baxayo) ama kursi kale.
+- Discount-kii hore wuu sii jiraa. Farqiga qiimaha: kordhay → lacag la qaado (`PAYMENT_REQUIRED`); dhimay → lacag celin. (`TRANSFER_DIFF`)
+- Audit: safarkii/kursigii hore iyo kan cusub.
+
+## 12. Dib u Daabacid (Reprint)
+- Rasiid/label dib loo daabaco waa la tiriyaa (`printCount`) + audit — rasiid nuqul ah si khiyaano looguma isticmaali karo.
+
+## 13. SMS (Notifications)
+| Dhacdo | Cidda | Fariinta |
+|---|---|---|
+| Alaab la diiwaangeliyay | Qaataha | koodh + **PIN** + lacagta COD |
+| Alaab gaadhay | Qaataha | koodh + laanta + COD |
+| Alaab aan la qaadin (3 maalmood, 6 maalmood) | Qaataha | xusuusin + khidmadda kaydka |
+| Alaab la wareejiyay | Diraha | xaqiijin |
+- Kaliya lambarada mobile-ka (06x) — landline (610700) SMS ma helaan.
+- Outbox: fariinta waxaa la kaydiyaa isla transaction-ka ficilka; worker ayaa diraya; 5 isku day.
+- PIN-ka laguma kaydiyo database-ka marka SMS-ka la diro (`PIN: ****`).
+
+## 14. Offline
+- Alaab diiwaangelin offline waa la oggol yahay (sync + Idempotency-Key + PIN client-ka).
+- Tigidh iib, wareejin alaab, void, xiritaan sanduuq — **online kaliya**.
+- Faahfaahin: `docs/DEPLOYMENT.md §4`.
+
+## 15. Tracking Dadweyne
+- Koodhka + 4-ta god ee ugu dambeeya taleefanka qaataha/diraha → xaaladda alaabta.
+- Magac iyo taleefan lama muujiyo. 10 isku day / daqiiqo.

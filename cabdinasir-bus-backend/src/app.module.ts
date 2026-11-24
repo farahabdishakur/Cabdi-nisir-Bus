@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { validateEnv } from './config/env';
+import { RequestLoggerMiddleware } from './common/request-logger.middleware';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -9,6 +11,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { SettingsModule } from './settings/settings.module';
 import { CashModule } from './cash/cash.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { BranchesModule } from './branches/branches.module';
 import { UsersModule } from './users/users.module';
 import { RoutesModule } from './routes/routes.module';
@@ -18,18 +21,29 @@ import { ParcelCategoriesModule } from './parcel-categories/parcel-categories.mo
 import { TripsModule } from './trips/trips.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { ParcelsModule } from './parcels/parcels.module';
+import { FinanceModule } from './finance/finance.module';
+import { VoidRequestsModule } from './void-requests/void-requests.module';
 import { ReportsModule } from './reports/reports.module';
+import { CustomersModule } from './customers/customers.module';
+import { PublicModule } from './public/public.module';
+import { SyncModule } from './sync/sync.module';
+import { JobsModule } from './jobs/jobs.module';
 import { HealthController } from './health.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env' }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
+      validate: validateEnv,
+    }),
+    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 300 }], skipIf: () => process.env.THROTTLE_DISABLED === 'true' }),
     PrismaModule,
     AuditModule,
     AuthModule,
     SettingsModule,
     CashModule,
+    NotificationsModule,
     BranchesModule,
     UsersModule,
     RoutesModule,
@@ -39,7 +53,13 @@ import { HealthController } from './health.controller';
     TripsModule,
     BookingsModule,
     ParcelsModule,
+    FinanceModule,
+    VoidRequestsModule,
     ReportsModule,
+    CustomersModule,
+    PublicModule,
+    SyncModule,
+    JobsModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -48,4 +68,8 @@ import { HealthController } from './health.controller';
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*path');
+  }
+}

@@ -15,7 +15,7 @@ import { SettingsService } from '../settings/settings.service';
 import { CashService } from '../cash/cash.service';
 import { AuditService } from '../audit/audit.service';
 import { TripsService } from '../trips/trips.service';
-import { BookingQuery, CreateBookingDto, VoidBookingDto } from './bookings.dto';
+import { BookingQuery, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
 
 const include = { payments: true, trip: { include: { route: { include: { fromBranch: true, toBranch: true } }, vehicle: true } } } satisfies Prisma.BookingInclude;
 
@@ -157,6 +157,65 @@ export class BookingsService {
       await this.audit.log(tx, user, 'VOID', 'bookings', id, { status: b.status }, { status: 'VOIDED', reason: dto.reason, refunded: dto.refund ? paid : 0 });
       return updated;
     });
+  }
+
+  /**
+   * Beddel safarka / kursiga (ka hor bixitaanka). Discount-kii hore wuu sii jiraa.
+   * Farqiga qiimaha: kordhay → lacag la qaado; dhimay → lacag celin (TRANSFER_DIFF).
+   */
+  async transfer(user: AuthUser, id: string, dto: TransferBookingDto) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const b = await tx.booking.findUnique({ where: { id }, include });
+        if (!b) throw Errors.notFound('Booking', id);
+        if (b.status !== BookingStatus.CONFIRMED) throw Errors.conflict('BOOKING_NOT_ACTIVE', 'Only confirmed tickets can be transferred');
+        if (!['SCHEDULED', 'BOARDING'].includes(b.trip.status)) throw Errors.conflict('TRIP_DEPARTED', 'Original trip already departed');
+        const trip = await this.trips.getForUser(tx, user, dto.tripId);
+        this.trips.assertCanSell(user, trip);
+        if (trip.route.fromBranchId !== b.branchId) throw Errors.bad('TRIP_ROUTE_MISMATCH', 'New trip must depart from the same branch');
+        const { layout, seats } = parseSeatLayout(trip.vehicle.seatLayout);
+        if (!seats.includes(dto.seatNo)) throw Errors.bad('SEAT_NOT_FOUND', `Seat ${dto.seatNo} does not exist`);
+        const hold = await tx.seatHold.findUnique({ where: { tripId_seatNo: { tripId: trip.id, seatNo: dto.seatNo } } });
+        if (hold && hold.userId !== user.id && hold.expiresAt > new Date()) throw Errors.conflict('SEAT_HELD', `Seat ${dto.seatNo} is being sold by someone else`);
+
+        const price = ticketPrice({
+          ticketPriceCents: trip.route.ticketPriceCents,
+          frontSeatSurchargeCents: trip.route.frontSeatSurchargeCents,
+          isFrontSeat: (layout.front ?? []).includes(dto.seatNo),
+          discountCents: b.discountCents,
+        });
+        const diff = price.totalCents - b.priceCents;
+        if (diff > 0 && !dto.payment) throw Errors.bad('PAYMENT_REQUIRED', 'Collect the price difference', { diffCents: diff });
+
+        const updated = await tx.booking.update({
+          where: { id },
+          data: {
+            tripId: trip.id, seatNo: dto.seatNo, priceCents: price.totalCents,
+            priceBreakdown: price as unknown as Prisma.InputJsonValue,
+            transferredFromTripId: b.tripId,
+          },
+        });
+        if (diff !== 0) {
+          const orig = b.payments.find((p) => p.kind === PaymentKind.TICKET);
+          const pay = dto.payment ?? { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined };
+          await this.cash.recordPayment(tx, user, b.branchId, PaymentKind.TRANSFER_DIFF, diff, pay, { bookingId: id });
+        }
+        await tx.seatHold.deleteMany({ where: { tripId: trip.id, seatNo: dto.seatNo } });
+        await this.audit.log(tx, user, 'TRANSFER', 'bookings', id, { tripId: b.tripId, seatNo: b.seatNo, priceCents: b.priceCents }, { tripId: trip.id, seatNo: dto.seatNo, priceCents: updated.priceCents });
+        return tx.booking.findUniqueOrThrow({ where: { id }, include });
+      });
+    } catch (e) {
+      if (isUniqueViolation(e)) throw Errors.conflict('SEAT_TAKEN', `Seat ${dto.seatNo} is already sold`);
+      throw e;
+    }
+  }
+
+  /** Dib u daabac rasiidka — waa la tiriyaa oo audit ayuu galaa (rasiid nuqul ah lagu khiyaanayn). */
+  async reprint(user: AuthUser, id: string) {
+    const b = await this.get(user, id);
+    const updated = await this.prisma.booking.update({ where: { id: b.id }, data: { printCount: { increment: 1 } }, include });
+    await this.audit.log(this.prisma, user, 'REPRINT', 'bookings', b.id, { printCount: b.printCount }, { printCount: updated.printCount });
+    return updated;
   }
 
   async board(user: AuthUser, id: string) {
