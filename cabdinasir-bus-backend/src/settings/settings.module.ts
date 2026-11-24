@@ -16,6 +16,8 @@ export class UpdateSettingsDto {
   @IsOptional() @IsInt() @Min(1) @Max(90) uncollectedDays?: number;
   @IsOptional() @IsInt() @Min(0) @Max(10_000_000) storageFeePerDayCents?: number;
   @IsOptional() @IsInt() @Min(0) @Max(1) shareTripsWithinCity?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(1440) reservationCutoffMinutes?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(14) maxReservationsPerPhone?: number;
 }
 export class UpdateCompanyDto {
   @IsOptional() @IsString() @Length(2, 80) name?: string;

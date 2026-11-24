@@ -23,6 +23,24 @@ export class VoidBookingDto {
   @IsOptional() @ValidateNested() @Type(() => PaymentInputDto) refundPayment?: PaymentInputDto;
 }
 
+/** Ballan taleefan: macmiilku wuu soo wacay — kursi lacag la'aan ah, wakhti leh. */
+export class ReserveBookingDto {
+  @IsUUID() tripId: string;
+  @IsString() @Length(1, 4) seatNo: string;
+  @IsString() @Length(2, 80) passengerName: string;
+  @Matches(PHONE_RE) passengerPhone: string;
+}
+
+/** Macmiilka ballanta lahaa wuu yimid oo wuu bixiyay. */
+export class ConfirmReservationDto {
+  @IsOptional() @IsInt() @Min(0) @Max(10_000_000) discountCents?: number;
+  @ValidateNested() @Type(() => PaymentInputDto) payment: PaymentInputDto;
+}
+
+export class CancelReservationDto {
+  @IsString() @Length(3, 300) reason: string;
+}
+
 export class CorrectBookingDto {
   @IsOptional() @IsString() @Length(2, 80) passengerName?: string;
   @IsOptional() @Matches(PHONE_RE) passengerPhone?: string;

@@ -87,7 +87,7 @@ Xawaash/Raashin · Kabo · Dhar · Elektaroonig · Dukumenti · Qalab guri · Da
 
 **Trip:** `SCHEDULED → BOARDING → DEPARTED → ARRIVED → CLOSED` (· `CANCELLED` ka hor `DEPARTED`)
 
-**Booking:** `CONFIRMED → BOARDED` · `CONFIRMED → VOIDED`
+**Booking:** `RESERVED → CONFIRMED | VOIDED | EXPIRED` · `CONFIRMED → BOARDED | VOIDED`
 
 **Parcel:**
 ```
@@ -201,3 +201,19 @@ Maalin kasta 08:00 nidaamku wuxuu hubiyaa, haddii dhibaato jirtana **SMS ayuu u 
 - Deposit aan la xaqiijin > 72 saac · alaab jidka ku jirta > 48 saac · safar baxay oo aan imaan > 24 saac
 - SMS fashilmay
 Warbixin: `GET /reports/integrity` — liis madhan = wax walba waa sax.
+
+## 24. Ballan Taleefan (Phone Reservation)
+Macmiilku wuu soo wacayaa → karraanigu kursi ayuu u qabanayaa **lacag la'aan** → macmiilku xafiiska ayuu ku bixiyaa.
+| Shay | Xeerka |
+|---|---|
+| Xogta | Safar, kursi, magac, taleefan. Sanduuq furan **looma baahna** (lacag ma jirto). |
+| Wakhtiga | Kursiga waa la hayaa ilaa **`reservationCutoffMinutes` (default 60) daqiiqo ka hor bixitaanka**. Ka dib → `EXPIRED`, kursigu wuu furmayaa (daqiiqad kasta + isla markiiba marka seat map la furo). |
+| Goor dambe | Haddii wakhtigaas la gaaray → ballan lama samayn karo (`RESERVATION_CLOSED`) — iib lacag leh kaliya. |
+| Xad | Hal taleefan ugu badnaan **`maxReservationsPerPhone` (default 4)** ballan hal safar (`RESERVATION_LIMIT`). |
+| SMS | Macmiilka: kursiga, safarka, lambarka ballanta, qiimaha, wakhtiga ugu dambeeya ee bixinta. |
+| Bixin | `confirm` → tigidh dhab ah (`CONFIRMED`), lacag (sanduuq furan waajib). Laan kasta oo magaalada ah way xaqiijin kartaa (Boorama 1 ama 2); lacagtu waxay gashaa laantaas. Discount: Manager kaliya. |
+| Joojin | Macmiilku wuu ka noqday → karraanigu wuu sii daayaa (`cancel-reservation`, sabab). Lacag ma jirto. |
+| Bixitaan | Ballan aan la bixin marka gaarigu baxo → `EXPIRED` (ma iman). Safar leh ballamo kaliya waa la joojin karaa. |
+| Warbixino | Dakhliga & tirada rakaabka: **tigidhada la bixiyay oo keliya**. Manifest: `reservedUnpaid` gooni. |
+| Dami | `reservationCutoffMinutes = 0` → ballan taleefan lama oggola. |
+| Online (mustaqbal) | Isla nidaamkan ayaa loo isticmaali doonaa marka macmiilku online ka dalbado. |

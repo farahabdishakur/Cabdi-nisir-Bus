@@ -12,9 +12,11 @@ export const TRIP_TRANSITIONS: Record<TripStatus, TripStatus[]> = {
 };
 
 export const BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+  RESERVED: ['CONFIRMED', 'VOIDED', 'EXPIRED'],
   CONFIRMED: ['BOARDED', 'VOIDED'],
   BOARDED: [],
   VOIDED: [],
+  EXPIRED: [],
 };
 
 export const PARCEL_TRANSITIONS: Record<ParcelStatus, ParcelStatus[]> = {

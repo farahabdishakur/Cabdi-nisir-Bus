@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
 import { ReportsService } from '../reports/reports.service';
+import { EventsService } from '../events/events.service';
+import { expireReservations } from '../common/booking-status';
 
 const DAY_MS = 86400_000;
 const REMIND_AFTER_DAYS = 3;
@@ -22,6 +24,7 @@ export class JobsService {
     private readonly settings: SettingsService,
     private readonly config: ConfigService,
     private readonly reports: ReportsService,
+    private readonly events: EventsService,
   ) {}
 
   private get enabled() {
@@ -52,6 +55,23 @@ export class JobsService {
   async reminders() {
     if (!this.enabled) return;
     await this.runReminders();
+  }
+
+  /** Ballamaha wakhtigoodu dhacay → kursigu wuu furmayaa (daqiiqad kasta) + seat map-ka si toos ah ayuu u cusboonaadaa */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async expireReservationsJob() {
+    if (!this.enabled) return;
+    await this.runExpireReservations();
+  }
+
+  async runExpireReservations() {
+    const expired = await expireReservations(this.prisma);
+    for (const tripId of new Set(expired.map((e) => e.tripId))) {
+      const branches = expired.filter((e) => e.tripId === tripId).map((e) => e.branchId);
+      this.events.publish('SEAT_CHANGED', branches, { tripId, expired: true });
+    }
+    if (expired.length) this.logger.log(`Reservations expired: ${expired.length}`);
+    return { expired: expired.length };
   }
 
   /** 08:00 Africa/Mogadishu (05:00 UTC): hubinta lacagta → SMS Super Admin haddii dhibaato jirto */

@@ -6,7 +6,9 @@ import { IdempotencyKey } from '../common/idempotency';
 import { TripsModule } from '../trips/trips.module';
 import { EmitEvent } from '../events/emit';
 import { BookingsService } from './bookings.service';
-import { BookingQuery, CorrectBookingDto, CreateBookingDto, TransferBookingDto, VoidBookingDto } from './bookings.dto';
+import {
+  BookingQuery, CancelReservationDto, ConfirmReservationDto, CorrectBookingDto, CreateBookingDto, ReserveBookingDto, TransferBookingDto, VoidBookingDto,
+} from './bookings.dto';
 
 @ApiTags('bookings')
 @ApiBearerAuth()
@@ -20,6 +22,26 @@ export class BookingsController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBookingDto, @IdempotencyKey() key?: string) {
     return this.bookings.create(user, dto, key);
+  }
+
+  /** Ballan taleefan (lacag la'aan, wakhti leh) */
+  @ApiHeader({ name: 'Idempotency-Key', required: false })
+  @EmitEvent('SEAT_CHANGED', (b) => ({ branchIds: [b.trip?.route?.fromBranchId, b.branchId], data: { tripId: b.tripId, seatNo: b.seatNo, reserved: true } }))
+  @Post('reserve')
+  reserve(@CurrentUser() user: AuthUser, @Body() dto: ReserveBookingDto, @IdempotencyKey() key?: string) {
+    return this.bookings.reserve(user, dto, key);
+  }
+
+  @EmitEvent('SEAT_CHANGED', (b) => ({ branchIds: [b.trip?.route?.fromBranchId, b.branchId], data: { tripId: b.tripId, seatNo: b.seatNo } }))
+  @Post(':id/confirm')
+  confirm(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: ConfirmReservationDto) {
+    return this.bookings.confirm(user, id, dto);
+  }
+
+  @EmitEvent('SEAT_CHANGED', (b) => ({ branchIds: [b.trip?.route?.fromBranchId, b.branchId], data: { tripId: b.tripId, seatNo: b.seatNo } }))
+  @Post(':id/cancel-reservation')
+  cancelReservation(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: CancelReservationDto) {
+    return this.bookings.cancelReservation(user, id, dto);
   }
 
   @Get()

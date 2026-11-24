@@ -1,6 +1,6 @@
 # Warbixinta Backend-ka — Cabdinasir Bus API
 
-**Repo:** `cabdinasir-bus-backend` · **Version:** 0.4.0 · **Xaaladda:** Backend-ka waa dhammaystiran yahay + dib-u-eegis amni madax-bannaan (10 arrimood, dhammaan la saxay) — tijaabiyay · **Taariikh:** 2026-11-24
+**Repo:** `cabdinasir-bus-backend` · **Version:** 0.5.0 · **Xaaladda:** Backend-ka waa dhammaystiran yahay + dib-u-eegis amni madax-bannaan (10 arrimood, dhammaan la saxay) — tijaabiyay · **Taariikh:** 2026-11-24
 
 Dokumentiyada kale: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) (xeerarka ganacsiga) · [`DEPLOYMENT.md`](DEPLOYMENT.md) (internet, server, offline, backup) · Swagger: `/api/docs` · `openapi.json`
 
@@ -57,7 +57,7 @@ Ilaalinta heerka database-ka (code-ka kaliya kuma tiirsana):
 
 Schema buuxa: `prisma/schema.prisma`.
 
-## 5. API Endpoints (`/api/v1`) — 90
+## 5. API Endpoints (`/api/v1`) — 93
 | Qayb | Endpoints | Roles |
 |---|---|---|
 | Auth | `POST /auth/login` `/refresh` `/logout` `/logout-all` `/change-password` · `GET /auth/me` | all |
@@ -65,7 +65,7 @@ Schema buuxa: `prisma/schema.prisma`.
 | Settings | `GET/PUT /pricing-settings` `/exchange-rates/today` `/company` · `GET /exchange-rates` (taariikh) | read: all (company: public) · write: SA |
 | Users | `GET/POST /users` · `PATCH /users/:id` · `POST /users/:id/reset-password` | SA, BM |
 | Trips | `GET/POST /trips` · `POST /trips/bulk` · `GET/PATCH /trips/:id` · `PATCH /trips/:id/status` · `GET /trips/:id/seats` `/manifest` · `POST/DELETE /trips/:id/seats/:no/hold` · `POST /trips/:id/move-bookings` (BM+) | staff (create: BM+; manifest: +DRIVER) |
-| Bookings | `GET/POST /bookings` · `GET/PATCH /bookings/:id` · `POST /bookings/:id/void` (BM+) `/transfer` `/reprint` `/board` | staff |
+| Bookings | `GET/POST /bookings` · **`POST /bookings/reserve`** (ballan taleefan) · **`POST /bookings/:id/confirm`** (bixi) · **`POST /bookings/:id/cancel-reservation`** · `GET/PATCH /bookings/:id` · `POST /bookings/:id/void` (BM+) `/transfer` `/reprint` `/board` | staff |
 | Parcels | `POST /parcels/quote` · `GET/POST /parcels` · `GET /parcels/incoming` `/outgoing` `/:code` · `POST /parcels/arrive-batch` · `PATCH /parcels/:id` (sixitaan) · `POST /parcels/:id/load` `/unload` `/arrive` `/deliver` `/reprint` `/reset-pin` · `GET/POST /parcels/:id/photo` · `POST /parcels/:id/void` `/mark-missing` `/mark-damaged` (BM+) | staff |
 | Cash | `GET /cash-sessions` `/current` · `POST /cash-sessions/open` `/:id/close` · `/:id/force-close` `/:id/approve` (BM+) | staff |
 | Finance | `GET/POST /expenses` · `POST /expenses/:id/void` (BM+) · `GET/POST /deposits` · `POST /deposits/:id/confirm` (SA) | staff |
@@ -114,6 +114,7 @@ Error format: `{ "error": { "code": "SEAT_TAKEN", "message": "…", "details": {
 |---|---|---|
 | Unit | 24 | qiimaynta, taleefannada, CSV, state machines, waqtiga UTC+3, SMS templates, seat layout |
 | E2E — `flow` | 14 | maalin buuxa: tigidh → alaab COD → rar → bixitaan → gaadhay → wareejin PIN → xiritaan sanduuq → warbixino; void/refund; **4 qof oo isku mar hal kursi** → 1 guul |
+| E2E — `reservations` | 11 | ballan taleefan: sanduuq la'aan, SMS, kursi la qabtay, bixin, xad taleefan, wakhti dhacay (lazy + job), joojin, goor dambe, warbixino/integrity, bixitaan → no-show, safar joojin |
 | E2E — `city-security` | 12 | Boorama 2 laamood (wadaag safar, lacag gooni, alaab labada laamood, ARRIVED magaalo), shareTripsWithinCity, token dhac isla markiiba, role DB, password ku-meel-gaar, payload 200 alaab, health/integrity + SMS digniin, PIN brute force |
 | E2E — `review-fixes` | 13 | dib-u-eegista amniga: void laba jeer, lacag vs xiritaan sanduuq, kharash isku mar, transfer celin, darawallo laan kale, PIN isku mar, login lockout, refresh isku mar, dashboard, idempotency qof kale, lacag aad u weyn, laba sanduuq, SMS PIN, SSE go'id |
 | E2E — `hardening` | 12 | badhan laba jeer (kharash/deposit), sixitaan alaab/tigidh, PIN lumay, gaari xumaaday (move), force-close, faa'iidada safarka, taariikhda sicirka, saacad offline khaldan, jadwal dadweyne, login audit, **live events laan kasta** |
@@ -138,7 +139,7 @@ Error format: `{ "error": { "code": "SEAT_TAKEN", "message": "…", "details": {
 `DISCOUNT_TOO_HIGH` `BOOKING_NOT_ACTIVE` ·
 `ROUTE_NOT_FOUND` `CATEGORY_NOT_FOUND` `PARCEL_PROHIBITED` `DECLARED_VALUE_REQUIRED` `PAYMENT_REQUIRED` `INVALID_PIN` `PARCEL_NOT_ON_TRIP` `FILE_REQUIRED` `INVALID_FILE_TYPE` ·
 `NO_OPEN_SESSION` `SESSION_ALREADY_OPEN` `SESSION_CLOSED` `SESSION_OPEN` `SESSION_APPROVED` `REFERENCE_REQUIRED` `NO_EXCHANGE_RATE` `INSUFFICIENT_CASH` `ALREADY_VOIDED` `ALREADY_CONFIRMED` ·
-`REQUEST_PENDING` `REQUEST_DECIDED` `NOT_FAILED` · `SAME_CITY` `SESSION_REVOKED` `PASSWORD_CHANGE_REQUIRED` `SAME_PASSWORD` `TOO_MANY_ATTEMPTS` `PIN_LOCKED` `PIN_SMS_EXPIRED` `IDEMPOTENCY_KEY_REUSED` `NOT_A_DRIVER_ACCOUNT` · `PARCEL_CLOSED` `NOTHING_TO_CHANGE` `NOT_ENOUGH_SEATS` `SAME_TRIP` `USE_NORMAL_CLOSE` `OFFLINE_TIME_INVALID` · `WRONG_PASSWORD` `CANNOT_DEACTIVATE_SELF` `INVALID_IDEMPOTENCY_KEY`
+`REQUEST_PENDING` `REQUEST_DECIDED` `NOT_FAILED` · `RESERVATION_CLOSED` `RESERVATION_EXPIRED` `RESERVATION_LIMIT` `RESERVATIONS_DISABLED` · `SAME_CITY` `SESSION_REVOKED` `PASSWORD_CHANGE_REQUIRED` `SAME_PASSWORD` `TOO_MANY_ATTEMPTS` `PIN_LOCKED` `PIN_SMS_EXPIRED` `IDEMPOTENCY_KEY_REUSED` `NOT_A_DRIVER_ACCOUNT` · `PARCEL_CLOSED` `NOTHING_TO_CHANGE` `NOT_ENOUGH_SEATS` `SAME_TRIP` `USE_NORMAL_CLOSE` `OFFLINE_TIME_INVALID` · `WRONG_PASSWORD` `CANNOT_DEACTIVATE_SELF` `INVALID_IDEMPOTENCY_KEY`
 
 ## 10. Waxa Weli Furan (aan code ahayn)
 | Shay | Cidda | Xaalad |
@@ -151,7 +152,8 @@ Error format: `{ "error": { "code": "SEAT_TAKEN", "message": "…", "details": {
 | Domain + VPS | Mulkiilaha | ❓ |
 | Zaad/eDahab API (xaqiijin automatic) | Mustaqbal | Hadda: reference gacanta lagu qoro |
 | Alaab aan la qaadin muddo dheer → dib ugu celin diraha (return flow) | Mulkiilaha (siyaasad) | ❓ Hadda: xusuusin + khidmad kayd |
-| Ballan tigidh taleefan (lacag la'aan, bixi marka la fuulo)? | Mulkiilaha (siyaasad) | ❓ Hadda: tigidh = lacag isla markaas |
+| Ballan tigidh taleefan | Mulkiilaha | ✅ v0.5.0 — lacag la'aan, ilaa 60 daqiiqo ka hor bixitaanka (BUSINESS_RULES §24) |
+| Online booking (macmiilku laftiisa) | Mustaqbal | ⏳ Waxay isticmaali doontaa isla nidaamka ballanta |
 | Dockerfile build | — | Sandbox-ka lama tijaabin karin (Docker Hub rate limit + proxy); server dhab ah ku tijaabi |
 
 ## 11. Changelog
@@ -160,3 +162,4 @@ Error format: `{ "error": { "code": "SEAT_TAKEN", "message": "…", "details": {
 - **2026-11-24** — v0.2.0: dhammaystir backend — kharash, deposits, codsiyada void, transfer, reprint, sawirada alaabta, SMS outbox + jobs, tracking dadweyne, autofill, offline sync, daily-close, cashier report, CSV, company profile, bulk trips, logout-all, env validation, request logging, graceful shutdown, Caddy + docker-compose.prod, backup/restore scripts, openapi export, DEPLOYMENT.md. Tests: 24 unit + 30 e2e.
 - **2026-11-24** — v0.3.0: idempotency kharash/deposit, sixitaan alaab & tigidh, reset PIN, move-bookings (gaari xumaaday), force-close sanduuq, trips-profit, taariikhda sicirka, jadwal dadweyne, live events (SSE), login audit, hubinta saacadda offline, CI (GitHub Actions). Tests: 24 unit + 42 e2e.
 - **2026-11-24** — v0.4.0: Boorama 2 laamood (wadaagga safarada magaalada), tokens dhac isla markiiba, password ku-meel-gaar ah, login/PIN brute-force, health details, integrity + SMS digniin subax kasta, body 2MB, Swagger off production · **dib-u-eegis amni madax-bannaan**: 10 arrimood (void laba jeer, lacag sanduuq xiran, kharash isku mar, transfer celin, darawallo laan kale, PIN race, login DoS + trust proxy, refresh race, dashboard karraani, SSE/idempotency/lacag xad/SMS retry/laba sanduuq) — dhammaan la saxay + regression tests. Tests: 24 unit + 67 e2e.
+- **2026-11-24** — v0.5.0: **ballan taleefan** (RESERVED → CONFIRMED / EXPIRED): kursi lacag la'aan ah ilaa 60 daqiiqo ka hor bixitaanka, SMS, xad 4 taleefan kasta, job daqiiqad kasta, seat map `RESERVED`, warbixinada = tigidh la bixiyay kaliya. Tests: 24 unit + 78 e2e.

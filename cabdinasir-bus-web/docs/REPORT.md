@@ -120,6 +120,7 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 - Kharash/deposit: dir `Idempotency-Key`.
 - **v0.4.0 (amni):** `SESSION_REVOKED` → u dir login · `PASSWORD_CHANGE_REQUIRED` → bogga beddelka password-ka (kaliya kan) · `change-password` wuxuu soo celiyaa tokens cusub · `TOO_MANY_ATTEMPTS` / `PIN_LOCKED` (→ badhanka "PIN cusub") · dashboard-ka laanta = Manager+ (karraaniga: safarada maanta + alaabta imanaysa + sanduuqiisa).
 - **Boorama 2 laamood:** karraaniga BO2 wuxuu arkaa safarada BO1 → WAJ (isla seat map); rasiidku waa `BO2-T-…`. Liiska laanta loo dirayo ha muujin laanta isku magaalada ah (`SAME_CITY`).
+- **v0.5.0 — Ballan taleefan:** seat map-ka kursi `RESERVED` (midab kale + wakhtiga uu dhacayo). Foomka tigidhka: badhan "**Ballan (taleefan)**" (magac + taleefan, lacag la'aan) iyo "**Iib (lacag)**". Liiska "Ballamaha maanta" (`GET /bookings?status=RESERVED`) → badhanka **Bixi** (`confirm`) iyo **Jooji** (`cancel-reservation`). Error: `RESERVATION_CLOSED` → "ka iibi lacag".
 - Super Admin: bogga **Integrity** (`GET /reports/integrity`) + **Xaaladda nidaamka** (`GET /health/details`).
 
 ## 9. Changelog / Xaaladda

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BookingStatus, ParcelStatus, Prisma, Role, TripStatus } from '@prisma/client';
+import { ParcelStatus, Prisma, Role, TripStatus } from '@prisma/client';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
 import { Errors } from '../common/errors';
@@ -9,6 +9,7 @@ import { parseSeatLayout } from '../vehicles/seat-layout';
 import { SettingsService } from '../settings/settings.service';
 import { AuditService } from '../audit/audit.service';
 import { BranchDirectory } from '../common/branch-directory.service';
+import { expireReservations, seatTaken, sold } from '../common/booking-status';
 import { BulkTripsDto, CreateTripDto, MoveBookingsDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
 const VEHICLE_GAP_MS = 3 * 3600_000; // hal gaari laba safar oo 3 saac gudahood ah ma yeelan karo
@@ -72,11 +73,22 @@ export class TripsService {
     const trips = await this.prisma.trip.findMany({ where, include: tripInclude, orderBy: { departureAt: 'asc' }, take: 200 });
     const counts = await this.prisma.booking.groupBy({
       by: ['tripId'],
-      where: { tripId: { in: trips.map((t) => t.id) }, status: { not: BookingStatus.VOIDED } },
+      where: { tripId: { in: trips.map((t) => t.id) }, status: seatTaken },
       _count: true,
     });
-    const sold = new Map(counts.map((c) => [c.tripId, c._count]));
-    return trips.map((t) => ({ ...t, seatsSold: sold.get(t.id) ?? 0, seatsAvailable: t.vehicle.capacity - (sold.get(t.id) ?? 0) }));
+    const reserved = await this.prisma.booking.groupBy({
+      by: ['tripId'],
+      where: { tripId: { in: trips.map((t) => t.id) }, status: 'RESERVED', reservedUntil: { gt: new Date() } },
+      _count: true,
+    });
+    const taken = new Map(counts.map((c) => [c.tripId, c._count]));
+    const res = new Map(reserved.map((c) => [c.tripId, c._count]));
+    return trips.map((t) => ({
+      ...t,
+      seatsReserved: res.get(t.id) ?? 0,
+      seatsSold: (taken.get(t.id) ?? 0) - (res.get(t.id) ?? 0),
+      seatsAvailable: t.vehicle.capacity - (taken.get(t.id) ?? 0),
+    }));
   }
 
   async create(user: AuthUser, dto: CreateTripDto) {
@@ -108,11 +120,11 @@ export class TripsService {
     this.assertManagerOf(user, trip.route.fromBranchId);
     if (!['SCHEDULED', 'BOARDING'].includes(trip.status)) throw Errors.conflict('TRIP_LOCKED', 'Trip already departed');
     if (dto.vehicleId && dto.vehicleId !== trip.vehicleId) {
-      const booked = await this.prisma.booking.count({ where: { tripId: id, status: { not: 'VOIDED' } } });
+      const booked = await this.prisma.booking.count({ where: { tripId: id, status: seatTaken } });
       if (booked > 0) {
         const v = await this.prisma.vehicle.findUniqueOrThrow({ where: { id: dto.vehicleId } });
         const { seats } = parseSeatLayout(v.seatLayout);
-        const used = await this.prisma.booking.findMany({ where: { tripId: id, status: { not: 'VOIDED' } }, select: { seatNo: true } });
+        const used = await this.prisma.booking.findMany({ where: { tripId: id, status: seatTaken }, select: { seatNo: true } });
         const missing = used.filter((b) => !seats.includes(b.seatNo)).map((b) => b.seatNo);
         if (missing.length) throw Errors.conflict('SEATS_NOT_IN_VEHICLE', 'New vehicle lacks booked seats', { seats: missing });
       }
@@ -139,13 +151,17 @@ export class TripsService {
 
       if (to === 'CANCELLED') {
         if (!dto.reason) throw Errors.bad('REASON_REQUIRED', 'Cancellation needs a reason');
-        const active = await tx.booking.count({ where: { tripId: id, status: { not: 'VOIDED' } } });
+        // ballamaha (lacag la'aan) si toos ah ayaa loo joojiyaa; tigidhada la bixiyay waa in la void-gareeyo ama la raro
+        await tx.booking.updateMany({ where: { tripId: id, status: 'RESERVED' }, data: { status: 'EXPIRED' } });
+        const active = await tx.booking.count({ where: { tripId: id, status: sold } });
         if (active > 0) throw Errors.conflict('TRIP_HAS_BOOKINGS', 'Void or move bookings before cancelling', { active });
         await this.moveParcels(tx, user, id, ParcelStatus.LOADED, ParcelStatus.REGISTERED, 'Trip cancelled', true);
       }
       if (to === 'DEPARTED') {
         data.manifestLockedAt = new Date();
         await tx.seatHold.deleteMany({ where: { tripId: id } });
+        // ballan aan la bixin = ma iman (no-show) → kursigu wuu dhacay
+        await tx.booking.updateMany({ where: { tripId: id, status: 'RESERVED' }, data: { status: 'EXPIRED' } });
         await this.moveParcels(tx, user, id, ParcelStatus.LOADED, ParcelStatus.IN_TRANSIT, 'Vehicle departed');
       }
       const updated = await tx.trip.update({ where: { id }, data, include: tripInclude });
@@ -171,9 +187,9 @@ export class TripsService {
       if (!sameWay) throw Errors.bad('TRIP_ROUTE_MISMATCH', 'Target trip must go between the same cities');
       if (!['SCHEDULED', 'BOARDING'].includes(dst.status)) throw Errors.conflict('TRIP_CLOSED_FOR_SALE', 'Target trip is not open');
 
-      const moving = await tx.booking.findMany({ where: { tripId: id, status: { not: 'VOIDED' } }, orderBy: { createdAt: 'asc' } });
+      const moving = await tx.booking.findMany({ where: { tripId: id, status: seatTaken }, orderBy: { createdAt: 'asc' } });
       const { seats } = parseSeatLayout(dst.vehicle.seatLayout);
-      const taken = new Set((await tx.booking.findMany({ where: { tripId: dst.id, status: { not: 'VOIDED' } }, select: { seatNo: true } })).map((b) => b.seatNo));
+      const taken = new Set((await tx.booking.findMany({ where: { tripId: dst.id, status: seatTaken }, select: { seatNo: true } })).map((b) => b.seatNo));
       const held = new Set((await tx.seatHold.findMany({ where: { tripId: dst.id, expiresAt: { gt: new Date() } } })).map((h) => h.seatNo));
       const free = seats.filter((s) => !taken.has(s) && !held.has(s));
       if (free.length < moving.length) {
@@ -201,9 +217,10 @@ export class TripsService {
   /** Khariidadda kuraasta: bannaan / la hayo (hold) / la iibiyay. */
   async seatMap(user: AuthUser, id: string) {
     const trip = await this.getForUser(this.prisma, user, id);
+    await expireReservations(this.prisma, { tripId: id });
     const { layout, seats } = parseSeatLayout(trip.vehicle.seatLayout);
     const [bookings, holds] = await Promise.all([
-      this.prisma.booking.findMany({ where: { tripId: id, status: { not: 'VOIDED' } } }),
+      this.prisma.booking.findMany({ where: { tripId: id, status: seatTaken } }),
       this.prisma.seatHold.findMany({ where: { tripId: id, expiresAt: { gt: new Date() } } }),
     ]);
     const showPassenger = user.role !== Role.CASHIER || this.dir.sameCity(user.branchId, trip.route.fromBranchId);
@@ -212,7 +229,8 @@ export class TripsService {
       if (b) {
         return {
           seatNo,
-          state: 'BOOKED' as const,
+          state: b.status === 'RESERVED' ? ('RESERVED' as const) : ('BOOKED' as const),
+          ...(b.status === 'RESERVED' && { reservedUntil: b.reservedUntil }),
           booking: showPassenger ? { id: b.id, receiptNo: b.receiptNo, passengerName: b.passengerName, status: b.status } : undefined,
         };
       }
@@ -229,7 +247,8 @@ export class TripsService {
       this.assertCanSell(user, trip);
       const { seats } = parseSeatLayout(trip.vehicle.seatLayout);
       if (!seats.includes(seatNo)) throw Errors.bad('SEAT_NOT_FOUND', `Seat ${seatNo} does not exist`);
-      const booked = await tx.booking.findFirst({ where: { tripId: id, seatNo, status: { not: 'VOIDED' } } });
+      await expireReservations(tx, { tripId: id });
+      const booked = await tx.booking.findFirst({ where: { tripId: id, seatNo, status: seatTaken } });
       if (booked) throw Errors.conflict('SEAT_TAKEN', `Seat ${seatNo} is already sold`);
       const { seatHoldSeconds } = await this.settings.get(tx);
       const expiresAt = new Date(Date.now() + seatHoldSeconds * 1000);
@@ -251,7 +270,7 @@ export class TripsService {
     const trip = await this.getForUser(this.prisma, user, id);
     const [bookings, parcels] = await Promise.all([
       this.prisma.booking.findMany({
-        where: { tripId: id, status: { not: 'VOIDED' } },
+        where: { tripId: id, status: seatTaken },
         select: { seatNo: true, passengerName: true, passengerPhone: true, receiptNo: true, status: true },
         orderBy: { seatNo: 'asc' },
       }),
@@ -269,7 +288,8 @@ export class TripsService {
       passengers: bookings.sort((a, b) => a.seatNo.localeCompare(b.seatNo, undefined, { numeric: true })),
       parcels,
       totals: {
-        passengers: bookings.length,
+        passengers: bookings.filter((b) => b.status !== 'RESERVED').length,
+        reservedUnpaid: bookings.filter((b) => b.status === 'RESERVED').length,
         parcels: parcels.length,
         pieces: parcels.reduce((s, p) => s + p.pieces, 0),
         codToCollectCents: parcels.filter((p) => p.payer === 'RECEIVER' && !p.paidAt).reduce((s, p) => s + p.feeCents, 0),

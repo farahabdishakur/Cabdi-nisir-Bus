@@ -1574,6 +1574,120 @@
         ]
       }
     },
+    "/api/v1/bookings/reserve": {
+      "post": {
+        "operationId": "BookingsController_reserve",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveBookingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/confirm": {
+      "post": {
+        "operationId": "BookingsController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmReservationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/cancel-reservation": {
+      "post": {
+        "operationId": "BookingsController_cancelReservation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelReservationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
     "/api/v1/bookings/{id}": {
       "get": {
         "operationId": "BookingsController_get",
@@ -2963,7 +3077,7 @@
   "info": {
     "title": "Cabdinasir Bus API",
     "description": "",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "contact": {}
   },
   "tags": [],
@@ -3086,6 +3200,18 @@
         "properties": {}
       },
       "CreateBookingDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReserveBookingDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ConfirmReservationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CancelReservationDto": {
         "type": "object",
         "properties": {}
       },

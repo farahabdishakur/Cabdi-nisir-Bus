@@ -13,6 +13,10 @@ export interface PricingSettings {
   storageFeePerDayCents: number;
   /** 1 = laamaha isku magaalada ah (Boorama 1 & 2) waxay wadaagaan safarada; 0 = laan kasta gooni */
   shareTripsWithinCity: number;
+  /** Ballan taleefan: kursiga waa la hayaa ilaa N daqiiqo ka hor bixitaanka (0 = ballan lama oggola) */
+  reservationCutoffMinutes: number;
+  /** Ballamo ugu badan hal taleefan hal safar */
+  maxReservationsPerPhone: number;
 }
 
 export const DEFAULT_SETTINGS: PricingSettings = {
@@ -23,6 +27,8 @@ export const DEFAULT_SETTINGS: PricingSettings = {
   uncollectedDays: 7,
   storageFeePerDayCents: 50,
   shareTripsWithinCity: 1,
+  reservationCutoffMinutes: 60,
+  maxReservationsPerPhone: 4,
 };
 
 /** Macluumaadka shirkadda ee rasiidka/label-ka ka muuqda (boodhka xafiiska). */

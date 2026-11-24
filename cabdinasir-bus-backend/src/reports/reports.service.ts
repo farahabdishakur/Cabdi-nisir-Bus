@@ -72,7 +72,7 @@ export class ReportsService {
     const branchId = branchFilter(user, q.branchId);
     const trips = await this.prisma.trip.findMany({
       where: { departureAt: { gte: r.start, lt: r.end }, status: { not: 'CANCELLED' }, route: branchId ? { fromBranchId: { in: await this.cityMates(branchId) } } : undefined },
-      include: { vehicle: true, driver: true, route: { include: { fromBranch: true, toBranch: true } }, _count: { select: { bookings: { where: { status: { not: 'VOIDED' } } } } } },
+      include: { vehicle: true, driver: true, route: { include: { fromBranch: true, toBranch: true } }, _count: { select: { bookings: { where: { status: { in: ['CONFIRMED', 'BOARDED'] } } } } } },
       orderBy: { departureAt: 'asc' },
     });
     const rows = trips.map((t) => ({
@@ -183,7 +183,7 @@ export class ReportsService {
       this.prisma.payment.groupBy({ by: ['kind', 'method', 'currency'], where: { branchId, createdAt: inDay }, _sum: { amount: true, amountUsdCents: true }, _count: true }),
       this.prisma.expense.findMany({ where: { branchId, createdAt: inDay }, include: { payment: { select: { amount: true, currency: true, amountUsdCents: true } } } }),
       this.prisma.deposit.findMany({ where: { branchId, createdAt: inDay }, include: { payment: { select: { amount: true, currency: true, amountUsdCents: true } } } }),
-      this.prisma.booking.count({ where: { branchId, createdAt: inDay, status: { not: 'VOIDED' } } }),
+      this.prisma.booking.count({ where: { branchId, createdAt: inDay, status: { in: ['CONFIRMED', 'BOARDED'] } } }),
       this.prisma.parcel.count({ where: { fromBranchId: branchId, createdAt: inDay, status: { not: 'VOIDED' } } }),
       this.prisma.parcel.count({ where: { toBranchId: branchId, deliveredAt: inDay } }),
     ]);
@@ -215,7 +215,7 @@ export class ReportsService {
     const staff = await this.prisma.user.findMany({ where: { branchId, role: { in: ['CASHIER', 'BRANCH_MANAGER'] } }, select: { id: true, name: true, role: true, branchId: true } });
     const ids = staff.map((s) => s.id);
     const [tickets, parcels, deliveries, money, sessions] = await Promise.all([
-      this.prisma.booking.groupBy({ by: ['soldById'], where: { soldById: { in: ids }, createdAt: inRange, status: { not: 'VOIDED' } }, _count: true }),
+      this.prisma.booking.groupBy({ by: ['soldById'], where: { soldById: { in: ids }, createdAt: inRange, status: { in: ['CONFIRMED', 'BOARDED'] } }, _count: true }),
       this.prisma.parcel.groupBy({ by: ['registeredById'], where: { registeredById: { in: ids }, createdAt: inRange, status: { not: 'VOIDED' } }, _count: true }),
       this.prisma.parcel.groupBy({ by: ['deliveredById'], where: { deliveredById: { in: ids }, deliveredAt: inRange }, _count: true }),
       this.prisma.payment.groupBy({ by: ['cashierId'], where: { cashierId: { in: ids }, createdAt: inRange, kind: { in: INCOME_KINDS } }, _sum: { amountUsdCents: true } }),
@@ -262,7 +262,7 @@ export class ReportsService {
         SELECT e."tripId" AS trip_id, COALESCE(SUM(-p."amountUsdCents"), 0)::bigint AS usd
         FROM "expenses" e JOIN "payments" p ON p.id = e."paymentId"
         WHERE e."tripId" = ANY(${ids}) AND e."voidedAt" IS NULL GROUP BY 1`,
-      this.prisma.booking.groupBy({ by: ['tripId'], where: { tripId: { in: ids }, status: { not: 'VOIDED' } }, _count: true }),
+      this.prisma.booking.groupBy({ by: ['tripId'], where: { tripId: { in: ids }, status: { in: ['CONFIRMED', 'BOARDED'] } }, _count: true }),
     ]);
     const rows = trips.map((t) => {
       const tickets = Number(ticketMoney.find((x) => x.trip_id === t.id)?.usd ?? 0);
@@ -322,7 +322,7 @@ export class ReportsService {
           select: { id: true, trackingCode: true, feeCents: true, deliveredAt: true, deliveredById: true }, take,
         }),
         this.prisma.booking.findMany({
-          where: { branchId, priceCents: { gt: 0 }, status: { not: 'VOIDED' }, payments: { none: { kind: 'TICKET' } } },
+          where: { branchId, priceCents: { gt: 0 }, status: { in: ['CONFIRMED', 'BOARDED'] }, payments: { none: { kind: 'TICKET' } } },
           select: { id: true, receiptNo: true, priceCents: true, soldById: true, createdAt: true }, take,
         }),
         this.prisma.deposit.findMany({ where: { branchId, confirmedAt: null, createdAt: { lt: hoursAgo(72) } }, include: { payment: { select: { amount: true, currency: true } } }, take }),

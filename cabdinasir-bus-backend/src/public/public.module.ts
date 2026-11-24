@@ -66,7 +66,7 @@ export class PublicController {
       include: {
         route: { include: { fromBranch: true, toBranch: true } },
         vehicle: { select: { capacity: true } },
-        _count: { select: { bookings: { where: { status: { not: 'VOIDED' } } } } },
+        _count: { select: { bookings: { where: { status: { in: ['RESERVED', 'CONFIRMED', 'BOARDED'] } } } } },
       },
       orderBy: { departureAt: 'asc' },
     });

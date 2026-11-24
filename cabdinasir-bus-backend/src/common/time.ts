@@ -20,3 +20,9 @@ export function businessDayRange(date: string): { start: Date; end: Date } {
 export function businessRange(from: string, to: string): { start: Date; end: Date } {
   return { start: businessDayRange(from).start, end: businessDayRange(to).end };
 }
+
+/** "24/11 14:30" — waqtiga ganacsiga (SMS). */
+export function formatBusinessTime(d: Date): string {
+  const x = new Date(d.getTime() + OFFSET_MS).toISOString();
+  return `${x.slice(8, 10)}/${x.slice(5, 7)} ${x.slice(11, 16)}`;
+}

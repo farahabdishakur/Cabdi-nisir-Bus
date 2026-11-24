@@ -27,9 +27,11 @@ enum TripStatus {
 }
 
 enum BookingStatus {
+  RESERVED // ballan taleefan — lacag la'aan, wakhti leh
   CONFIRMED
   BOARDED
   VOIDED
+  EXPIRED // ballan aan la bixin wakhtigii → kursigu wuu furmay
 }
 
 enum ParcelStatus {
@@ -282,15 +284,20 @@ model Booking {
   idempotencyKey String?       @unique
   printCount     Int           @default(0)
   transferredFromTripId String?
+  /// Ballan: kursiga waa la hayaa ilaa waqtigan; kadib EXPIRED
+  reservedUntil  DateTime?
+  reservedById   String?
+  confirmedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   payments Payment[]
 
   // Unique "kursi firfircoon" waxaa lagu sameeyay migration gaar ah (partial index):
-  // CREATE UNIQUE INDEX bookings_active_seat ON bookings(trip_id, seat_no) WHERE status <> 'VOIDED'
+  // bookings_active_seat ON (tripId, seatNo) WHERE status IN ('RESERVED','CONFIRMED','BOARDED')
   @@index([tripId])
   @@index([branchId, createdAt])
+  @@index([status, reservedUntil])
   @@map("bookings")
 }
 
