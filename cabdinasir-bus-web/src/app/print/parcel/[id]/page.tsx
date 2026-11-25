@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import { useBootstrap } from '@/lib/queries';
 import { dateTime, money, phone, usd } from '@/lib/format';
 import type { Parcel } from '@/lib/types';
-import { Hr, PrintShell, Qr, Row } from '@/components/print';
+import { PrintShell, Qr, VAmount, VField, VFooter, Voucher } from '@/components/print';
 import { usePriceLabel } from '@/components/domain';
 
 /**
@@ -55,44 +55,38 @@ export default function ParcelPrint({ params }: { params: Promise<{ id: string }
     <PrintShell ready={!!p && !!c}>
       {p && c && (
         <>
-          <div className="receipt">
-            <p className="text-center text-base font-bold">{c.name}</p>
-            <p className="text-center">{from?.name} · {from?.phones.join(' / ')}</p>
-            <Hr />
-            <p className="text-center text-lg font-bold">📦 {p.trackingCode}</p>
-            <p className="text-center">{t('booking.receipt')} {p.receiptNo}</p>
-            {p.printCount > 0 && <p className="text-center">({t('common.reprint')} #{p.printCount})</p>}
-            <Hr />
-            <Row k={t('parcel.to')} v={p.toBranch.name} bold />
-            <Row k={t('parcel.sender')} v={`${p.senderName} ${phone(p.senderPhone)}`} />
-            <Row k={t('parcel.receiver')} v={`${p.receiverName} ${phone(p.receiverPhone)}`} />
-            <Row k={t('parcel.category')} v={p.category.nameSo} />
-            <Row k={t('parcel.pieces')} v={`${p.pieces}× · ${String(p.weightKg)} kg${p.isFragile ? ' · ⚠️' : ''}`} />
-            {p.declaredValueCents ? <Row k={t('parcel.declared')} v={usd(p.declaredValueCents)} /> : null}
-            <Hr />
-            {p.priceBreakdown.lines.map((l) => <Row key={l.label} k={priceLabel(l.label)} v={usd(l.cents)} />)}
-            <Row k={t('common.total')} v={usd(p.feeCents)} bold />
-            {cod ? <p className="text-center text-sm font-bold">COD — {t('parcel.payerReceiver')}</p> : income.map((x) => (
-              <div key={x.id}>
-                <Row k={`${t(`method.${x.method}`)}${x.method !== 'CASH' ? ' ✓' : ''}`} v={money(x.amount, x.currency)} />
-                {x.reference && <Row k={t('payment.reference')} v={x.reference} />}
-              </div>
-            ))}
-            {p.status === 'DELIVERED' && <Row k={t('parcel.receivedBy')} v={`${p.deliveredToName} ${dateTime(p.deliveredAt)}`} />}
-            {pin && (
-              <>
-                <Hr />
-                <p className="text-center">{t('parcel.pin')}</p>
-                <p className="text-center text-2xl font-bold tracking-widest">{pin}</p>
-              </>
+          <Voucher title={t('voucher.parcel')} no={p.trackingCode} company={c} phones={from?.phones} copy={p.printCount > 0 ? t('voucher.copy', { n: p.printCount }) : undefined}>
+            <div className="my-1">
+              <p className="text-[15px] font-black leading-tight">{(from?.city ?? '').toUpperCase()} → {p.toBranch.name.toUpperCase()}</p>
+              <p className="text-[10px]">{t('booking.receipt')} {p.receiptNo}</p>
+            </div>
+            <VField k={t('voucher.date')} v={dateTime(p.offlineCreatedAt ?? p.createdAt)} />
+            <VField k={t('voucher.sender')} v={`${p.senderName} · ${phone(p.senderPhone)}`} />
+            <VField k={t('voucher.receiver')} v={`${p.receiverName} · ${phone(p.receiverPhone)}`} />
+            <VField k={t('voucher.goods')} v={`${p.category.nameSo} · ${p.pieces}× · ${String(p.weightKg)} kg${p.isFragile ? ' · ⚠️' : ''}`} />
+            {p.declaredValueCents ? <VField k={t('parcel.declared')} v={usd(p.declaredValueCents)} /> : null}
+            {p.status === 'DELIVERED' && <VField k={t('parcel.receivedBy')} v={`${p.deliveredToName} ${dateTime(p.deliveredAt)}`} />}
+            <VAmount
+              label={t('voucher.amount')}
+              value={usd(p.feeCents)}
+              sub={cod ? `COD — ${t('voucher.cod')}` : income.map((x) => `${t(`method.${x.method}`)}${x.method !== 'CASH' ? ' ✓' : ''} ${money(x.amount, x.currency)}${x.reference ? ` · ${x.reference}` : ''}`).join(' · ')}
+            />
+            {p.priceBreakdown.lines.length > 1 && (
+              <p className="text-[9px] leading-tight">{p.priceBreakdown.lines.map((l) => `${priceLabel(l.label)} ${usd(l.cents)}`).join(' · ')}</p>
             )}
-            <Row k={t('common.date')} v={dateTime(p.offlineCreatedAt ?? p.createdAt)} />
-            <Hr />
-            <div className="flex justify-center py-1"><Qr value={`${typeof window !== 'undefined' ? window.location.origin : ''}/track?code=${p.trackingCode}`} /></div>
-            <p className="text-center text-[10px]">{t('public.trackOnline')}: /track</p>
-            <p className="text-[10px]">{c.parcelRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>
-            <p className="text-center">{c.receiptFooter}</p>
-          </div>
+            {pin && (
+              <div className="mt-1 rounded border border-dashed border-current py-0.5 text-center">
+                <span className="text-[10px] font-bold">{t('voucher.pin')}</span>
+                <span className="ml-2 text-xl font-black tracking-[0.3em]">{pin}</span>
+              </div>
+            )}
+            <VFooter
+              qr={`${typeof window !== 'undefined' ? window.location.origin : ''}/track?code=${p.trackingCode}`}
+              signLabel={t('voucher.signature')}
+              extra={<p className="text-[9px] leading-tight"><b>{t('voucher.track')}: /track</b> · {c.parcelRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>}
+            />
+            <p className="mt-1 text-center text-[10px] font-bold">{c.receiptFooter}</p>
+          </Voucher>
 
           {/* label xabbad kasta */}
           {Array.from({ length: p.pieces }, (_, i) => (

@@ -101,6 +101,11 @@ describe('Accounting: driver pay, cashbook, P&L (e2e)', () => {
     expect(st.body).toMatchObject({ earnedCents: 500, paidCents: 300, closingCents: 200, trips: 1 });
     expect(st.body.lines.map((l: { type: string }) => l.type)).toEqual(['TRIP', 'ADVANCE', 'DEDUCTION']);
 
+    const v = await manager.get(`/driver-pay/payments/${adv.body.id}/voucher`).expect(200);
+    expect(v.body).toMatchObject({ kind: 'ADVANCE', amountCents: 200, method: 'CASH', currency: 'USD', paidAmount: 200, earnedTotalCents: 500, paidTotalCents: 200, balanceBeforeCents: 500, balanceAfterCents: 300 });
+    expect(v.body.driver.name).toBeTruthy();
+    expect((await manager.get('/driver-pay/payments/00000000-0000-0000-0000-000000000000/voucher')).status).toBe(404);
+
     await manager.post(`/driver-pay/payments/${adv.body.id}/void`, { reason: 'qalad baa dhacay' }).expect(201);
     st = await manager.get(`/driver-pay/${base.driver.id}/statement`).expect(200);
     expect(st.body.closingCents).toBe(400);

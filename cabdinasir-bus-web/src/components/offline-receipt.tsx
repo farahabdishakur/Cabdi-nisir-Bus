@@ -4,7 +4,7 @@ import { useI18n } from '@/lib/i18n';
 import { loadBootstrap, type OfflineItem } from '@/lib/offline';
 import type { Bootstrap } from '@/lib/queries';
 import { dateTime, phone, usd } from '@/lib/format';
-import { Hr, Qr, Row } from './print';
+import { VAmount, VField, VFooter, Voucher } from './print';
 
 /**
  * Rasiid OFFLINE (internet la'aan): koodh ku-meel-gaar ah + PIN + qiimaha (qiyaas) + label xabbad kasta.
@@ -17,27 +17,24 @@ export function OfflineReceipt({ item }: { item: OfflineItem }) {
   const code = item.trackingCode ?? `OFFLINE-${item.idempotencyKey.slice(0, 8).toUpperCase()}`;
   return (
     <div className="print-area hidden print:block">
-      <div className="receipt">
-        <p className="text-center text-base font-bold">{c?.name ?? 'Cabdinasir Bus'}</p>
-        <Hr />
-        <p className="text-center text-lg font-bold">📦 {code}</p>
-        {!item.trackingCode && <p className="text-center font-bold">📴 OFFLINE — {t('offline.receiptNote')}</p>}
-        <Hr />
-        <Row k={t('parcel.to')} v={item.toBranchName} bold />
-        <Row k={t('parcel.sender')} v={`${item.parcel.senderName} ${phone(item.parcel.senderPhone)}`} />
-        <Row k={t('parcel.receiver')} v={`${item.parcel.receiverName} ${phone(item.parcel.receiverPhone)}`} />
-        <Row k={t('parcel.pieces')} v={`${item.parcel.pieces}× · ${item.parcel.weightKg} kg${item.parcel.isFragile ? ' · ⚠️' : ''}`} />
-        <Row k={t('common.total')} v={`≈ ${usd(item.estimateCents)}`} bold />
-        <Row k={t('parcel.payer')} v={item.parcel.payer === 'SENDER' ? t('parcel.payerSender') : t('parcel.payerReceiver')} />
-        {item.parcel.payment?.reference && <Row k={t('payment.reference')} v={item.parcel.payment.reference} />}
-        <Hr />
-        <p className="text-center">{t('parcel.pin')}</p>
-        <p className="text-center text-2xl font-bold tracking-widest">{item.pickupPin}</p>
-        <Row k={t('common.date')} v={dateTime(item.offlineCreatedAt)} />
-        <Hr />
-        <div className="flex justify-center py-1"><Qr value={code} /></div>
-        {c && <p className="text-[10px]">{c.parcelRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>}
-      </div>
+      <Voucher title={t('voucher.parcel')} no={code} company={c ?? { name: 'Cabdinasir Bus' }}>
+        {!item.trackingCode && <p className="text-center text-[11px] font-black">📴 OFFLINE — {t('offline.receiptNote')}</p>}
+        <VField k={t('voucher.date')} v={dateTime(item.offlineCreatedAt)} />
+        <VField k={t('voucher.to')} v={item.toBranchName} big />
+        <VField k={t('voucher.sender')} v={`${item.parcel.senderName} · ${phone(item.parcel.senderPhone)}`} />
+        <VField k={t('voucher.receiver')} v={`${item.parcel.receiverName} · ${phone(item.parcel.receiverPhone)}`} />
+        <VField k={t('voucher.goods')} v={`${item.parcel.pieces}× · ${item.parcel.weightKg} kg${item.parcel.isFragile ? ' · ⚠️' : ''}`} />
+        <VAmount
+          label={t('voucher.amount')}
+          value={`≈ ${usd(item.estimateCents)}`}
+          sub={[item.parcel.payer === 'SENDER' ? t('parcel.payerSender') : `COD — ${t('voucher.cod')}`, item.parcel.payment?.reference].filter(Boolean).join(' · ')}
+        />
+        <div className="mt-1 rounded border border-dashed border-current py-0.5 text-center">
+          <span className="text-[10px] font-bold">{t('voucher.pin')}</span>
+          <span className="ml-2 text-xl font-black tracking-[0.3em]">{item.pickupPin}</span>
+        </div>
+        <VFooter qr={code} signLabel={t('voucher.signature')} extra={c && <p className="text-[9px] leading-tight">{c.parcelRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>} />
+      </Voucher>
       {Array.from({ length: item.parcel.pieces }, (_, i) => (
         <div key={i} className="receipt mt-4 border border-black p-2" style={{ breakBefore: 'page' }}>
           <p className="text-2xl font-black leading-tight">{item.toBranchName.toUpperCase()}</p>

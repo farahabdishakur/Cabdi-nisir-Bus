@@ -197,7 +197,7 @@ async function main() {
   // 8b. reprint is counted (anti-fraud)
   await page.getByRole('cell', { name: 'BO1-T-000001' }).click();
   const [rp] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('dialog').getByRole('button', { name: /Daabac/ }).click()]);
-  await rp.getByText(/Dib u daabac #1/).waitFor();
+  await rp.getByText(/Nuqul #1/).waitFor();
   await rp.close();
   log('reprint counted on the receipt (#1)');
 
@@ -289,8 +289,19 @@ async function main() {
   await page.getByLabel(/Qoraal/).last().fill('E2E bonus');
   await page.getByRole('button', { name: 'Kaydi' }).click();
   await page.getByText('E2E bonus').waitFor();
+  await page.getByRole('button', { name: 'Goyn', exact: true }).click();
+  await page.getByLabel(/Goyn \(\$\)/).fill('0.50');
+  await page.getByLabel(/Qoraal/).last().fill('E2E goyn');
+  await page.getByRole('button', { name: 'Kaydi' }).click();
+  await page.getByText('E2E goyn').waitFor();
   await page.screenshot({ path: `${SHOTS}16-driver-statement.png` });
-  log('driver pay: rule set + bonus on statement');
+  log('driver pay: rule set + bonus + deduction on statement');
+  const [dv] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('row', { name: /E2E goyn/ }).getByRole('button', { name: '🖨' }).click()]);
+  await dv.getByText('PAYMENT VOUCHER').waitFor();
+  await dv.getByText('$1.50').first().waitFor();
+  await dv.screenshot({ path: `${SHOTS}16b-driver-voucher.png`, fullPage: true });
+  await dv.close();
+  log('driver payment voucher: paid + total earned + still owed ($1.50)');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: "Faa'iido & khasaare" }).click();
   await page.getByText("Faa'iidada baabuur kasta").waitFor();

@@ -43,6 +43,50 @@ body {
   color: #000;
 }
 
+/* Receipt Voucher — qaabka warqadda shirkadda */
+.voucher {
+  width: 72mm;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #0b2f7a;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  padding: 6px 8px 8px;
+  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;
+}
+.voucher-brand {
+  font-family: Impact, 'Arial Black', 'Helvetica Neue', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
+.voucher-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+.voucher-title {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border-bottom: 1.5px solid currentColor;
+}
+.voucher-line {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 1px dotted currentColor;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+@media print {
+  .voucher {
+    color: #000;
+  }
+}
+
 /* Daabacaad isla bogga (offline — tab cusub lama furi karo internet la'aan): kaliya .print-area ayaa la daabacaa */
 @media print {
   body:has(.print-area) * {

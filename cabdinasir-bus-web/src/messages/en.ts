@@ -98,6 +98,14 @@ const en: DeepPartial<Messages> = {
   },
   voidReq: { title: 'Void requests', approve: 'Approve', reject: 'Reject', requested: 'Request sent', PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected' },
   priceLine: { base_fee: 'Base fee', weight: 'Weight ({kg} kg)', fragile: 'Fragile', insurance: 'Insurance', minimum_fee_adjustment: 'Minimum fee adjustment', route_fare: 'Fare', front_seat: 'Front seat', discount: 'Discount', estimate: 'Estimate (offline)' },
+  voucher: {
+    receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Copy #{n}',
+    date: 'Date', customer: 'Customer name', phone: 'Phone', time: 'Time', vehicle: 'Vehicle', from: 'From', to: 'To', seat: 'Seat',
+    amount: 'Amount', signature: 'Signature', sender: 'Sender', receiver: 'Receiver', goods: 'Goods', pin: 'Receiver PIN (secret)',
+    cod: 'Receiver pays', track: 'Track your parcel', driver: 'Driver', kind: 'Type', note: 'Details', cashier: 'Cashier',
+    earnedTotal: 'Total earned', paidTotal: 'Total paid', before: 'Balance before', owed: 'Still owed', overpaid: 'Overpaid (owes company)',
+    driverSign: 'Driver signature', cashierSign: 'Cashier signature', voided: 'VOIDED', print: 'Receipt',
+  },
   books: {
     title: 'Accounts',
     branch: 'Branch cashbook', office: 'Head office book', pnl: 'Profit & loss', drivers: 'Driver pay',

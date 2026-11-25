@@ -400,7 +400,10 @@ function DriverStatement({ driver, range, onClose }: { driver: DriverRow; range:
         const cents = parseUsd(amount);
         if (!cents) throw new Error('x');
         if (action === 'BONUS') await api(`/driver-pay/${driver.driverId}/bonus`, { method: 'POST', body: { amountCents: cents, note } });
-        else await api(`/driver-pay/${driver.driverId}/payments`, { method: 'POST', idempotencyKey: key.current, body: { kind: action, amountCents: cents, note: note || undefined } });
+        else {
+          const res = await api<{ id: string }>(`/driver-pay/${driver.driverId}/payments`, { method: 'POST', idempotencyKey: key.current, body: { kind: action, amountCents: cents, note: note || undefined } });
+          if (action !== 'DEDUCTION') window.open(`/print/driver-payment/${res.id}`, '_blank');
+        }
       }
       key.current = newKey();
       setAction('');
@@ -472,7 +475,12 @@ function DriverStatement({ driver, range, onClose }: { driver: DriverRow; range:
                 <Td className="text-emerald-700">{l.inCents ? usd(l.inCents) : ''}</Td>
                 <Td className="text-red-700">{l.outCents ? usd(l.outCents) : ''}</Td>
                 <Td className="font-mono">{usd(l.balanceCents)}</Td>
-                <Td>{!l.voided && <Button size="sm" variant="ghost" onClick={() => setVoiding({ id: l.id, earning: l.inCents > 0 })}>{t('booking.void')}</Button>}</Td>
+                <Td>
+                  <div className="flex gap-1">
+                    {l.outCents > 0 && <Button size="sm" variant="ghost" onClick={() => window.open(`/print/driver-payment/${l.id}`, '_blank')}>🖨</Button>}
+                    {!l.voided && <Button size="sm" variant="ghost" onClick={() => setVoiding({ id: l.id, earning: l.inCents > 0 })}>{t('booking.void')}</Button>}
+                  </div>
+                </Td>
               </tr>
             ))}
           </Table>

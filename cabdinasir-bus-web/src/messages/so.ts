@@ -310,6 +310,14 @@ const so = {
     discount: 'Qiimo dhimis',
     estimate: 'Qiyaas (offline)',
   },
+  voucher: {
+    receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Nuqul #{n}',
+    date: 'Taariikh', customer: 'Magaca macmilka', phone: 'Taleefan', time: 'Waqtiga', vehicle: 'Gaadhiga', from: 'Ka', to: 'Ku', seat: 'Kursi',
+    amount: 'Lacagta', signature: 'Saxeexa', sender: 'Diraha', receiver: 'Qaataha', goods: 'Alaabta', pin: 'PIN-ka qaataha (qarsoodi)',
+    cod: 'Qaataha ayaa bixinaya', track: 'Raadi alaabtaada', driver: 'Darawal', kind: 'Nooca', note: 'Faahfaahin', cashier: 'Karraani',
+    earnedTotal: 'Wadarta kasbashada', paidTotal: 'Wadarta la siiyay', before: 'Haraaga ka hor', owed: 'Lagu leeyahay (haraaga)', overpaid: 'Wuu ka qaatay (deyn)',
+    driverSign: 'Saxeexa darawalka', cashierSign: 'Saxeexa karraaniga', voided: 'LA VOID-GAREEYAY', print: 'Rasiid',
+  },
   books: {
     title: 'Xisaabaadka',
     branch: 'Buugga laanta', office: 'Buugga xafiiska', pnl: "Faa'iido & khasaare", drivers: 'Mushaharka darawallada',

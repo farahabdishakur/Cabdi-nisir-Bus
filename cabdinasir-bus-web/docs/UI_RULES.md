@@ -35,9 +35,12 @@ Isticmaalayaashu waa karraaniyo xafiis mashquul ah ku jira, macmiilna hor taagan
 ## 5. Daabacaadda
 | Waxa | Cabbir | Waxa ku jira |
 |---|---|---|
+> Rasiidyada 80mm waxay raacaan qaabka **"Receipt Voucher"** ee warqadda shirkadda: sanduuq xariiq leh, magaca shirkadda far waaweyn, `TRANSPORTATION & LOGISTICS`, taleefannada laanta, meelo la buuxiyay (Taariikh, Magaca macmilka, Waqtiga, Gaadhiga, Ku, Lacagta, Saxeexa) + QR yar dhinac. Component: `Voucher / VField / VAmount / VFooter` (`components/print.tsx`).
+
 | Rasiidka tigidhka | 80mm thermal | logo, lambar rasiid, safarka, kursiga, magaca, qiimaha, karraaniga, QR |
 | Rasiidka alaabta | 80mm | tracking code, diraha/qaataha, nooca, kg, qiimaha, cidda bixinaysa (COD), shuruudaha 5-ta |
 | Label/sticker alaabta | 80×50mm | barcode/QR tracking code, laanta loo dirayo (far waaweyn), qaataha + taleefan, xabbad `1/3` |
+| Rasiidka bixinta darawalka | 80mm | lacagta la siiyay, wadarta kasbashada & bixinta, haraaga ka hor, **inta weli lagu leeyahay**, saxeexa darawalka & karraaniga |
 | Manifest safarka | A4 | rakaabka + alaabta, saxiixa darawalka & karraaniga |
 - Daabacaadda kadib rasiid si toos ah — badhan "Dib u daabac" (re-print waa la diiwaangeliyaa).
 

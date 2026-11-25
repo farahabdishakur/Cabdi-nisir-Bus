@@ -44,7 +44,7 @@ export interface CompanyProfile {
 
 export const DEFAULT_COMPANY: CompanyProfile = {
   name: 'Cabdinasir Bus',
-  tagline: 'Borama iyo Wajaale — Qaadista dadka iyo alaabada',
+  tagline: 'Transportation & Logistics',
   mission:
     'Ujeeddadeennu waa inaan ku gaadhsiino dadka iyo alaabada meesha ay ku socdaan si ammaan ah, degdeg ah oo laguna kalsoonaan karo.',
   slogans: ['Macmiil kalsoonidaadu waa mudnaantayada', 'Badbaadadaaduna waa masuuliyadayada'],

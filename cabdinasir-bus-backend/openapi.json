@@ -741,6 +741,34 @@
         ]
       }
     },
+    "/api/v1/driver-pay/payments/{id}/voucher": {
+      "get": {
+        "operationId": "DriverPayController_voucher",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
     "/api/v1/driver-pay/payments/{id}/void": {
       "post": {
         "operationId": "DriverPayController_voidPayment",

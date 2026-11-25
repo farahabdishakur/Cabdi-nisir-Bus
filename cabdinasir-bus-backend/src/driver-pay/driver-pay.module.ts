@@ -47,6 +47,12 @@ export class DriverPayController {
     return this.svc.bonus(u, id, dto.amountCents, dto.note);
   }
 
+  /** Rasiidka bixinta (daabacaad) */
+  @Get('payments/:id/voucher')
+  voucher(@CurrentUser() u: AuthUser, @Param('id') id: string) {
+    return this.svc.voucher(u, id);
+  }
+
   @Post('payments/:id/void')
   voidPayment(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: VoidDto) {
     return this.svc.voidPayment(u, id, dto.reason);

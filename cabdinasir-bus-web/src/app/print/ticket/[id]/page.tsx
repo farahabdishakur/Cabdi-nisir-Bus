@@ -6,9 +6,9 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useBootstrap } from '@/lib/queries';
-import { dateTime, money, phone, usd } from '@/lib/format';
+import { date, dateTime, money, phone, time, usd } from '@/lib/format';
 import type { Booking } from '@/lib/types';
-import { Hr, PrintShell, Qr, Row } from '@/components/print';
+import { PrintShell, VAmount, VField, VFooter, Voucher } from '@/components/print';
 
 /** Rasiidka tigidhka — 80mm thermal (UI_RULES §5). */
 export default function TicketPrint({ params }: { params: Promise<{ id: string }> }) {
@@ -35,41 +35,37 @@ export default function TicketPrint({ params }: { params: Promise<{ id: string }
   return (
     <PrintShell ready={!!bk && !!c}>
       {bk && c && (
-        <div className="receipt">
-          <p className="text-center text-base font-bold">{c.name}</p>
-          <p className="text-center">{c.tagline}</p>
-          {branch && <p className="text-center">{branch.name} · {branch.phones.join(' / ')}</p>}
-          <Hr />
-          <p className="text-center text-sm font-bold">🎫 {t('booking.receipt')} {bk.receiptNo}</p>
-          {bk.printCount > 0 && <p className="text-center">({t('common.reprint')} #{bk.printCount})</p>}
-          <Hr />
+        <Voucher title={t('voucher.receipt')} no={bk.receiptNo} company={c} phones={branch?.phones} copy={bk.printCount > 0 ? t('voucher.copy', { n: bk.printCount }) : undefined}>
+          {bk.trip && (
+            <div className="my-1 flex items-center justify-between gap-2">
+              <span className="text-[15px] font-black leading-tight">{bk.trip.route.fromBranch.city.toUpperCase()} → {bk.trip.route.toBranch.city.toUpperCase()}</span>
+              <span className="rounded border-2 border-current px-2 text-center leading-none">
+                <span className="block text-[9px] font-bold">{t('voucher.seat').toUpperCase()}</span>
+                <span className="block text-2xl font-black">{bk.seatNo}</span>
+              </span>
+            </div>
+          )}
+          <VField k={t('voucher.date')} v={date(bk.trip?.departureAt ?? bk.createdAt)} />
+          <VField k={t('voucher.customer')} v={bk.passengerName} />
+          <VField k={t('voucher.phone')} v={phone(bk.passengerPhone)} />
           {bk.trip && (
             <>
-              <Row k={t('trips.route')} v={`${bk.trip.route.fromBranch.city} → ${bk.trip.route.toBranch.city}`} bold />
-              <Row k={t('trips.departure')} v={dateTime(bk.trip.departureAt)} bold />
-              <Row k={t('trips.vehicle')} v={bk.trip.vehicle.plate} />
+              <VField k={t('voucher.time')} v={time(bk.trip.departureAt)} big />
+              <VField k={t('voucher.vehicle')} v={bk.trip.vehicle.plate} />
+              <VField k={t('voucher.to')} v={bk.trip.route.toBranch.name} />
             </>
           )}
-          <Row k={t('booking.seat')} v={<span className="text-lg">{bk.seatNo}</span>} bold />
-          <Row k={t('booking.passenger')} v={bk.passengerName} />
-          <Row k={t('common.phone')} v={phone(bk.passengerPhone)} />
-          <Hr />
-          {bk.discountCents > 0 && <Row k={t('booking.discount')} v={usd(-bk.discountCents)} />}
-          <Row k={t('common.total')} v={usd(bk.priceCents)} bold />
-          {income.map((p) => (
-            <div key={p.id}>
-              <Row k={`${t(`method.${p.method}`)}${p.method !== 'CASH' ? ' ✓' : ''}`} v={money(p.amount, p.currency)} />
-              {p.reference && <Row k={t('payment.reference')} v={p.reference} />}
-              {p.payerPhone && <Row k={t('payment.payerPhone')} v={phone(p.payerPhone)} />}
-            </div>
-          ))}
-          <Row k={t('common.date')} v={dateTime(bk.createdAt)} />
-          <Hr />
-          <div className="flex justify-center py-1"><Qr value={bk.receiptNo} /></div>
-          <p className="text-[10px]">{c.passengerRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>
-          <Hr />
-          <p className="text-center">{c.receiptFooter}</p>
-        </div>
+          <VAmount
+            label={t('voucher.amount')}
+            value={usd(bk.priceCents)}
+            sub={[
+              bk.discountCents > 0 ? `${t('booking.discount')} ${usd(bk.discountCents)}` : '',
+              ...income.map((p) => `${t(`method.${p.method}`)}${p.method !== 'CASH' ? ' ✓' : ''} ${money(p.amount, p.currency)}${p.reference ? ` · ${p.reference}` : ''}`),
+            ].filter(Boolean).join(' · ')}
+          />
+          <VFooter qr={bk.receiptNo} signLabel={t('voucher.signature')} extra={<p className="text-[9px] leading-tight">{dateTime(bk.createdAt)} · {c.passengerRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>} />
+          <p className="mt-1 text-center text-[10px] font-bold">{c.receiptFooter}</p>
+        </Voucher>
       )}
     </PrintShell>
   );

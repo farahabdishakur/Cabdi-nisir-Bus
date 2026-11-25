@@ -246,6 +246,45 @@ export class DriverPayService {
 
   // ------------------------------------------------------------------ statement & summary
 
+  /** Rasiidka bixinta darawalka (voucher): lacagta la siiyay + wadarta kasbashada/bixinta ilaa markaas + haraaga. */
+  async voucher(user: AuthUser, id: string) {
+    const dp = await this.prisma.driverPayment.findUnique({ where: { id }, include: { driver: true } });
+    if (!dp) throw Errors.notFound('DriverPayment', id);
+    await this.driverFor(user, dp.driverId);
+    const upTo = { lte: dp.createdAt };
+    const [earned, paid, payment, entry, by] = await Promise.all([
+      this.prisma.driverEarning.aggregate({ where: { driverId: dp.driverId, voidedAt: null, createdAt: upTo }, _sum: { amountCents: true } }),
+      this.prisma.driverPayment.aggregate({ where: { driverId: dp.driverId, voidedAt: null, createdAt: upTo }, _sum: { amountCents: true } }),
+      dp.paymentId ? this.prisma.payment.findUnique({ where: { id: dp.paymentId } }) : null,
+      dp.ledgerEntryId ? this.prisma.ledgerEntry.findUnique({ where: { id: dp.ledgerEntryId } }) : null,
+      this.prisma.user.findUnique({ where: { id: dp.createdById }, select: { name: true } }),
+    ]);
+    const earnedCents = earned._sum.amountCents ?? 0;
+    const paidCents = paid._sum.amountCents ?? 0;
+    const thisCents = dp.voidedAt ? 0 : dp.amountCents;
+    return {
+      id: dp.id,
+      kind: dp.kind,
+      amountCents: dp.amountCents,
+      note: dp.note,
+      createdAt: dp.createdAt,
+      voided: !!dp.voidedAt,
+      voidReason: dp.voidReason,
+      driver: { id: dp.driver.id, name: dp.driver.name, phone: dp.driver.phone },
+      branchId: payment?.branchId ?? dp.driver.branchId,
+      method: payment?.method ?? entry?.method ?? null,
+      currency: payment?.currency ?? entry?.currency ?? 'USD',
+      paidAmount: payment ? -payment.amount : entry?.amount ?? null,
+      reference: payment?.reference ?? entry?.reference ?? null,
+      createdBy: by?.name ?? null,
+      earnedTotalCents: earnedCents,
+      paidTotalCents: paidCents,
+      balanceBeforeCents: earnedCents - paidCents + thisCents,
+      balanceAfterCents: earnedCents - paidCents,
+    };
+  }
+
+
   private async balanceBefore(driverId: string, before?: Date) {
     const at = before ? { lt: before } : undefined;
     const [earned, paid] = await Promise.all([
