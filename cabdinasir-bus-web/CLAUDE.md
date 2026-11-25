@@ -16,7 +16,7 @@ Akhri ka hor intaadan wax beddelin:
 - **Data:** TanStack Query (server state) · React state (forms) — validation-ka dhabta ah waa backend-ka
 - **i18n:** `src/lib/i18n.tsx` + `src/messages/so.ts` (default) / `en.ts` — next-intl lama isticmaalin (fudud, client-side)
 - **Live:** SSE `GET /events` (`@microsoft/fetch-event-source`, Authorization header) → queries-ka ayaa is-cusboonaysiiya
-- **Offline:** `public/sw.js` (static cache-first · bogag & RSC network-first · `/api` weligiis) + IndexedDB queue (`lib/offline.ts`) → `POST /sync/parcels`. Alaab kaliya; tigidh/wareejin online kaliya.
+- **Offline:** `public/sw.js` (static cache-first · bogag & RSC network-first · `/api` weligiis) + IndexedDB: alaab (`lib/offline.ts` → `POST /sync/parcels`) + tigidh qoondada laanta (`lib/offline-tickets.ts` → `POST /sync/bookings`). Wareejin online kaliya.
 - **Daabacaad:** CSS print 80mm (thermal) + A4 manifest · QR: `qrcode`
 - **Tests:** Vitest (unit) · Playwright (e2e browser dhab ah: `e2e/run.mjs`)
 

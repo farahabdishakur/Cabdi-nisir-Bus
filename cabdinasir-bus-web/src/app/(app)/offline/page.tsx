@@ -40,7 +40,7 @@ export default function OfflinePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t('offline.title')} actions={<Button onClick={sync} loading={busy} disabled={!online}>⟳ {t('offline.syncNow')}</Button>} />
+      <PageHeader title={t('offline.title')} actions={<><Link href="/offline/ticket"><Button variant="navy">🎫 {t('offTicket.link')}</Button></Link><Button onClick={sync} loading={busy} disabled={!online}>⟳ {t('offline.syncNow')}</Button></>} />
       <Alert tone={online ? 'blue' : 'yellow'}>{online ? t('offline.hintOnline') : t('offline.banner')}</Alert>
       {msg && <Alert tone="green">{msg}</Alert>}
       <Card>

@@ -365,6 +365,15 @@ const so = {
     ticketTitle: 'TIGIDH SAFAR', printHint: 'Lambarada {first} ilaa {last}. A4 — 4 tigidh boggii. Daabacaha (print shop) u dir, ama printer-ka xafiiska.',
     booklet: 'Buugga tigidhada warqadda', bookletHint: 'Daabac tigidhada gacanta lagu qoro (lambar taxane ah laan kasta). Lambar kasta hal mar ayaa nidaamka la gelin karaa.', open: 'Fur bogga daabacaadda',
   },
+  offTicket: {
+    title: 'Tigidh iib offline', save: 'Kaydi (offline)', queue: 'Tigidhada offline',
+    hintOffline: 'Internet ma jiro — waxaad iibin kartaa KALIYA kuraasta laantaada (cagaar). Marka internet-ku soo noqdo si toos ah ayay u gudbayaan.',
+    hintOnline: 'Internet waa jiraa — iibka caadiga ah isticmaal (Safka gaadiidka). Boggan waa marka internet-ku go\'o.',
+    noPack: 'Xogta offline-ka weli lama soo dejin — hal mar internet ku xir (bogga hore fur).',
+    packAge: 'Xogta offline-ka: {at}', noTrips: 'Safar iib u furan ma jiro (xogta ugu dambeysay).',
+    mine: 'Kuraastaada (bannaan)', taken: 'La qabtay', otherBranch: 'Laanta kale', freeCount: '{n} kursi oo aad offline ku iibin karto',
+    seatChanged: 'kursi {from} → {to}', link: 'Tigidh iib offline',
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Nuqul #{n}',
     date: 'Taariikh', customer: 'Magaca macmilka', phone: 'Taleefan', time: 'Waqtiga', vehicle: 'Gaadhiga', from: 'Ka', to: 'Ku', seat: 'Kursi',
@@ -520,6 +529,7 @@ const so = {
     editUserHint: 'Doorka ama laanta marka la beddelo, qofka waa laga saarayaa (mar kale ayuu soo galayaa).',
   },
   errors: {
+    NO_SEAT_AVAILABLE: 'Gaarigu wuu buuxsamay — rakaabka u wareeji gaariga xiga.',
     PAPER_TICKET_REQUIRED: 'Geli lambarka tigidhka warqadda.',
     PAPER_TICKET_USED: 'Lambarkan tigidh warqad horay ayaa loo isticmaalay ({receiptNo}).',
     VEHICLE_BUSY: 'Gaarigan ama darawalkan safar socda ayuu ku jiraa.',

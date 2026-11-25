@@ -155,6 +155,15 @@ const en: DeepPartial<Messages> = {
     ticketTitle: 'PASSENGER TICKET', printHint: 'Numbers {first} to {last}. A4 — 4 tickets per page. Send to a print shop or use the office printer.',
     booklet: 'Paper ticket booklet', bookletHint: 'Print handwritten tickets (serial numbers per branch). Each number can be entered in the system only once.', open: 'Open print page',
   },
+  offTicket: {
+    title: 'Offline ticket sale', save: 'Save (offline)', queue: 'Offline tickets',
+    hintOffline: 'No internet — you can sell ONLY your branch seats (green). They are sent automatically when the internet returns.',
+    hintOnline: 'Internet is on — use the normal sale (Vehicle queue). This page is for when the internet is down.',
+    noPack: 'Offline data not downloaded yet — connect to the internet once (open the home page).',
+    packAge: 'Offline data: {at}', noTrips: 'No trip open for sale (last data).',
+    mine: 'Your seats (free)', taken: 'Taken', otherBranch: 'Other branch', freeCount: '{n} seats you can sell offline',
+    seatChanged: 'seat {from} → {to}', link: 'Offline ticket sale',
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Copy #{n}',
     date: 'Date', customer: 'Customer name', phone: 'Phone', time: 'Time', vehicle: 'Vehicle', from: 'From', to: 'To', seat: 'Seat',
@@ -246,6 +255,7 @@ const en: DeepPartial<Messages> = {
     shareTripsWithinCity: '1 = Boorama 1 & 2 share one seat map',
   },
   errors: {
+    NO_SEAT_AVAILABLE: 'The bus is full — move the passenger to the next bus.',
     PAPER_TICKET_REQUIRED: 'Enter the paper ticket number.',
     PAPER_TICKET_USED: 'This paper ticket number was already used ({receiptNo}).',
     VEHICLE_BUSY: 'This vehicle or driver is on an active trip.',

@@ -10,6 +10,10 @@ import { SettingsService } from '../settings/settings.service';
 import { ParcelsModule } from '../parcels/parcels.module';
 import { ParcelsService } from '../parcels/parcels.service';
 import { CreateParcelDto } from '../parcels/parcels.dto';
+import { BookingsModule } from '../bookings/bookings.module';
+import { BookingsService } from '../bookings/bookings.service';
+import { CreateBookingDto } from '../bookings/bookings.dto';
+import { DispatchService } from '../dispatch/dispatch.service';
 import { EmitEvent } from '../events/emit';
 import { AppError, Errors } from '../common/errors';
 
@@ -22,6 +26,17 @@ class OfflineParcelDto {
   @ValidateNested() @Type(() => CreateParcelDto) parcel: CreateParcelDto;
 }
 
+class OfflineBookingDto {
+  @Matches(/^[A-Za-z0-9_-]{8,100}$/) idempotencyKey: string;
+  @IsDateString() offlineCreatedAt: string;
+  @ValidateNested() @Type(() => CreateBookingDto) booking: CreateBookingDto;
+}
+
+class SyncBookingsDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => OfflineBookingDto)
+  items: OfflineBookingDto[];
+}
+
 class SyncParcelsDto {
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => OfflineParcelDto)
   items: OfflineParcelDto[];
@@ -29,7 +44,7 @@ class SyncParcelsDto {
 
 /**
  * Offline mode (UI_RULES §6): internet-ku marka uu go'o, website-ku alaabta wuu kaydiyaa (IndexedDB),
- * marka uu soo noqdo halkan ayuu u soo diraa. Tigidh offline lama iibiyo (kursi laba jeer ayaa la iibin karaa).
+ * marka uu soo noqdo halkan ayuu u soo diraa. Tigidhada offline: kaliya qoondada kuraasta laanta (BUSINESS_RULES §32).
  */
 @ApiTags('sync')
 @ApiBearerAuth()
@@ -40,7 +55,36 @@ export class SyncController {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly parcels: ParcelsService,
+    private readonly bookings: BookingsService,
+    private readonly dispatch: DispatchService,
   ) {}
+
+  /** Xirmada offline-ka: safarada iib u furan (magaaladayda) + kuraasta la qabtay + qoondadayda */
+  @Get('offline-pack')
+  offlinePack(@CurrentUser() user: AuthUser) {
+    return this.dispatch.offlinePack(user);
+  }
+
+  /** Tigidhada offline lagu iibiyay → mid kasta natiijadiisa (ok · kursi la beddelay · khalad) */
+  @EmitEvent('SEAT_CHANGED', (r, req) => ({ branchIds: [req.user?.branchId], data: { synced: r.synced } }))
+  @Post('bookings')
+  async bookingsSync(@CurrentUser() user: AuthUser, @Body() dto: SyncBookingsDto) {
+    const results = [];
+    for (const item of dto.items) {
+      try {
+        const at = new Date(item.offlineCreatedAt);
+        if (at.getTime() > Date.now() + 5 * 60_000 || at.getTime() < Date.now() - 2 * 86400_000) {
+          throw Errors.bad('OFFLINE_TIME_INVALID', 'offlineCreatedAt must be within the last 2 days (check the PC clock)');
+        }
+        const b = (await this.bookings.create(user, item.booking, item.idempotencyKey, { at })) as { id: string; receiptNo: string; seatNo: string; tripId: string; seatChangedFrom?: string };
+        results.push({ idempotencyKey: item.idempotencyKey, ok: true, id: b.id, receiptNo: b.receiptNo, seatNo: b.seatNo, seatChangedFrom: b.seatChangedFrom ?? null });
+      } catch (e) {
+        const err = e instanceof AppError ? { code: e.code, message: e.message, details: e.details } : { code: 'INTERNAL_ERROR', message: 'Could not save this ticket' };
+        results.push({ idempotencyKey: item.idempotencyKey, ok: false, error: err });
+      }
+    }
+    return { synced: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length, results };
+  }
 
   /** Xogta tixraaca ee website-ku kaydiyo si uu offline u shaqeeyo (qiimaha, laamaha, noocyada …). */
   @Get('bootstrap')
@@ -93,5 +137,5 @@ export class SyncController {
   }
 }
 
-@Module({ imports: [ParcelsModule], controllers: [SyncController] })
+@Module({ imports: [ParcelsModule, BookingsModule], controllers: [SyncController] })
 export class SyncModule {}

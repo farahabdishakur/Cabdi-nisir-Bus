@@ -327,6 +327,8 @@ model Booking {
   voidedAt              DateTime?
   idempotencyKey        String?       @unique
   /// Lambarka tigidhka warqadda (buugga hore loo daabacay) — gacanta lagu qoro; laan kasta hal mar
+  /// Waqtiga dhabta ah ee la iibiyay haddii offline (sync kadib)
+  offlineCreatedAt      DateTime?
   paperTicketNo         String?
   printCount            Int           @default(0)
   transferredFromTripId String?

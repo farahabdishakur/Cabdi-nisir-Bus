@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useHotkeys, useIdleLogout } from '@/lib/hotkeys';
 import { loadQueue, pruneSynced, syncQueue, useOfflineQueue, useOnline } from '@/lib/offline';
+import { loadTickets, pruneTickets, refreshPack, syncTickets, useOfflineTickets } from '@/lib/offline-tickets';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
@@ -48,24 +49,36 @@ export function AppShell({ children }: { children: ReactNode }) {
   // offline: alaabta sugaysa → si toos ah u dir marka internet-ku soo noqdo (+ daqiiqad kasta)
   const online = useOnline();
   const queue = useOfflineQueue();
-  const pending = queue.filter((i) => i.status !== 'synced').length;
+  const tickets = useOfflineTickets();
+  const pending = queue.filter((i) => i.status !== 'synced').length + tickets.filter((i) => i.status !== 'synced').length;
   const qc = useQueryClient();
   useEffect(() => {
     if (!active_) return;
     void loadQueue().then(() => pruneSynced());
+    void loadTickets().then(() => pruneTickets());
   }, [active_]);
   useEffect(() => {
     if (!active_ || !online) return;
-    const run = () =>
-      syncQueue()
+    const run = () => {
+      void syncQueue()
         .then((r) => {
           if (r?.synced) void qc.invalidateQueries({ queryKey: ['parcels'] });
         })
         .catch(() => undefined);
+      // tigidhada offline → server · kadib xirmada (qoondada + kuraasta la qabtay) cusboonaysii
+      void syncTickets()
+        .then((r) => {
+          if (r?.synced) void qc.invalidateQueries({ queryKey: ['trips'] });
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (user?.branchId) void refreshPack();
+        });
+    };
     void run();
     const h = setInterval(run, 60_000);
     return () => clearInterval(h);
-  }, [active_, online, qc]);
+  }, [active_, online, qc, user?.branchId]);
 
   useEffect(() => {
     if (loading) return;
@@ -96,6 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { href: '/parcels/outgoing', key: 'nav.outgoing', icon: '📤', show: staff && !!user.branchId },
     { href: '/parcels/deliver', key: 'nav.deliver', icon: '🤝', show: staff && !!user.branchId },
     { href: '/parcels', key: 'nav.parcels', icon: '🔎', show: staff },
+    { href: '/offline/ticket', key: 'offTicket.link', icon: '🎫', show: staff && !!user.branchId },
     { href: '/offline', key: 'nav.offline', icon: '📴', show: staff && !!user.branchId },
     { href: '/cash', key: 'nav.cash', icon: '💵', show: staff && !!user.branchId },
     { href: '/void-requests', key: 'nav.voidRequests', icon: '↩️', show: staff },

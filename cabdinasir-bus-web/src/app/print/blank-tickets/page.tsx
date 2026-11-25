@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useBootstrap } from '@/lib/queries';
@@ -25,7 +25,7 @@ export default function BlankTicketsPage() {
     if (q.get('from')) setFrom(Math.max(1, Number(q.get('from')) || 1));
     if (q.get('count')) setCount(Math.min(400, Math.max(1, Number(q.get('count')) || 40)));
   }, []);
-  const branches = boot.data?.branches ?? [];
+  const branches = useMemo(() => boot.data?.branches ?? [], [boot.data]);
   useEffect(() => {
     if (!prefix && branches.length) setPrefix((branches.find((b) => b.id === user?.branchId) ?? branches[0]).code);
   }, [prefix, branches, user?.branchId]);

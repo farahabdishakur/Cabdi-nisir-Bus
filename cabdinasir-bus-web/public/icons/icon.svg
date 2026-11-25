@@ -1,20 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Cabdinasir Bus — icon ku-meel-gaar ah (beddel: public/icons/README.md) -->
+  <!-- Cabdinasir Bus — icon (boodhka shirkadda: Hiace casaan/caddaan, boorsooyin saqafka, goobaabin buluug, asal casaan) -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3a8f"/><stop offset="1" stop-color="#1a2560"/></linearGradient>
-    <linearGradient id="bus" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e02535"/><stop offset="1" stop-color="#a8141f"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d81f2e"/><stop offset="1" stop-color="#a3111d"/></linearGradient>
+    <radialGradient id="disc" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6ebf7"/></radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe5f2"/></linearGradient>
+    <linearGradient id="win" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b4fa8"/><stop offset="1" stop-color="#1b2766"/></linearGradient>
+    <clipPath id="c"><circle cx="256" cy="256" r="196"/></clipPath>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <!-- bus (hore) -->
-  <rect x="126" y="92" width="260" height="276" rx="44" fill="url(#bus)"/>
-  <rect x="150" y="116" width="212" height="22" rx="11" fill="#ffffff" opacity=".9"/>
-  <rect x="150" y="154" width="212" height="112" rx="18" fill="#dbe6ff"/>
-  <path d="M150 230 L362 196 L362 266 L150 266 Z" fill="#b9cbff" opacity=".7"/>
-  <rect x="146" y="290" width="54" height="30" rx="12" fill="#ffd166"/>
-  <rect x="312" y="290" width="54" height="30" rx="12" fill="#ffd166"/>
-  <rect x="216" y="296" width="80" height="16" rx="8" fill="#7a0d16"/>
-  <rect x="150" y="368" width="54" height="44" rx="12" fill="#11183f"/>
-  <rect x="308" y="368" width="54" height="44" rx="12" fill="#11183f"/>
-  <!-- CB -->
-  <text x="256" y="468" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="64" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="6">CB</text>
+  <circle cx="256" cy="256" r="214" fill="#1f2a6b"/>
+  <circle cx="256" cy="256" r="196" fill="url(#disc)"/>
+  <g clip-path="url(#c)">
+    <!-- dhulka / waddo -->
+    <path d="M40 352 Q256 326 472 352 L472 472 L40 472Z" fill="#1f2a6b" opacity=".08"/>
+    <g transform="translate(256 236) scale(0.84) translate(-265 -236)">
+    <!-- boorsooyinka saqafka -->
+    <rect x="160" y="132" width="44" height="56" rx="7" fill="#e53945"/>
+    <rect x="166" y="124" width="32" height="10" rx="4" fill="#7a0d16"/>
+    <rect x="206" y="120" width="54" height="68" rx="8" fill="#2b3f9e"/>
+    <rect x="216" y="111" width="34" height="11" rx="4" fill="#16205a"/>
+    <rect x="262" y="140" width="42" height="48" rx="7" fill="#7cc242"/>
+    <rect x="306" y="128" width="46" height="60" rx="8" fill="#f28c28"/>
+    <rect x="316" y="119" width="26" height="11" rx="4" fill="#8a4a0d"/>
+    <rect x="152" y="186" width="210" height="8" rx="4" fill="#1f2a6b"/>
+    <!-- baska (Hiace, dhinaca) -->
+    <path d="M118 210 H362 Q392 210 404 236 L420 276 Q426 290 426 304 V338 Q426 350 414 350 H118 Q104 350 104 336 V226 Q104 210 118 210Z" fill="url(#body)" stroke="#1f2a6b" stroke-width="6"/>
+    <!-- xariiqda casaan + buluug -->
+    <path d="M106 300 H424 V336 Q424 348 412 348 H118 Q106 348 106 336Z" fill="#d81f2e"/>
+    <path d="M106 292 H424 V302 H106Z" fill="#1f2a6b"/>
+    <!-- daaqadaha -->
+    <rect x="126" y="226" width="58" height="46" rx="8" fill="url(#win)"/>
+    <rect x="194" y="226" width="58" height="46" rx="8" fill="url(#win)"/>
+    <rect x="262" y="226" width="58" height="46" rx="8" fill="url(#win)"/>
+    <path d="M330 226 H364 Q384 226 392 244 L402 272 H330Z" fill="url(#win)"/>
+    <rect x="406" y="306" width="18" height="12" rx="4" fill="#ffd166"/>
+    <!-- giraangiraha -->
+    <circle cx="168" cy="352" r="30" fill="#151c46"/><circle cx="168" cy="352" r="13" fill="#c9cfdf"/>
+    <circle cx="364" cy="352" r="30" fill="#151c46"/><circle cx="364" cy="352" r="13" fill="#c9cfdf"/>
+    </g>
+    <text x="256" y="402" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="38" font-weight="900" fill="#1f2a6b" text-anchor="middle">CABDINASIR</text>
+    <text x="256" y="430" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#d81f2e" text-anchor="middle" letter-spacing="8">BUS</text>
+  </g>
 </svg>

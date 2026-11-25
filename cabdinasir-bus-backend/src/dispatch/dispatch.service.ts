@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 import { AuditService } from '../audit/audit.service';
 import { EventsService } from '../events/events.service';
 import { parseSeatLayout } from '../vehicles/seat-layout';
+import { seatQuota } from './seat-quota';
 
 const OPEN: DispatchStatus[] = ['WAITING', 'LOADING'];
 /** Gaari safar firfircoon ku jira (wuu socdaa ama wuu buuxsamayaa) — saf kale lama gelin karo */
@@ -232,6 +233,46 @@ export class DispatchService {
       await tx.dispatchEntry.update({ where: { id: w.id }, data: { status: 'LOADING', tripId: trip.id, loadingAt: new Date() } });
       return;
     }
+  }
+
+  // ------------------------------------------------------------------ offline: qoondada kuraasta
+
+  /** Laamaha magaalada laga baxayo (koodh ahaan) → kuraasta laan kasta */
+  async quotaFor(db: Tx | PrismaService, fromBranchId: string, seats: string[]) {
+    const from = await db.branch.findUniqueOrThrow({ where: { id: fromBranchId } });
+    const branches = await db.branch.findMany({ where: { city: from.city, isActive: true }, orderBy: { code: 'asc' }, select: { id: true } });
+    return seatQuota(seats, branches.map((b) => b.id));
+  }
+
+  /**
+   * Xirmada offline-ka (website-ku wuu kaydiyaa daqiiqad kasta): safarada iib u furan ee magaaladayda
+   * (gaariga buuxsamaya + jadwalka maanta) + kuraasta la qabtay + qoondadayda.
+   */
+  async offlinePack(user: AuthUser) {
+    if (!user.branchId) return { generatedAt: new Date(), trips: [] };
+    const me = await this.prisma.branch.findUniqueOrThrow({ where: { id: user.branchId } });
+    const trips = await this.prisma.trip.findMany({
+      where: { status: { in: ['SCHEDULED', 'BOARDING'] }, route: { fromBranch: { city: me.city } }, departureAt: { lt: new Date(Date.now() + 36 * 3600_000) } },
+      include: { route: { include: { fromBranch: true, toBranch: true } }, vehicle: true, driver: { select: { name: true } } },
+      orderBy: { departureAt: 'asc' },
+      take: 20,
+    });
+    const taken = await this.prisma.booking.findMany({ where: { tripId: { in: trips.map((t) => t.id) }, status: seatTaken }, select: { tripId: true, seatNo: true } });
+    const queue = await this.prisma.dispatchEntry.findMany({ where: { tripId: { in: trips.map((t) => t.id) } }, select: { tripId: true, status: true } });
+    const out = [];
+    for (const t of trips) {
+      const { layout, seats } = parseSeatLayout(t.vehicle.seatLayout);
+      const quota = await this.quotaFor(this.prisma, t.route.fromBranchId, seats);
+      out.push({
+        id: t.id, departureAt: t.departureAt, status: t.status, loading: queue.some((q) => q.tripId === t.id && q.status === 'LOADING'),
+        route: { id: t.routeId, from: t.route.fromBranch.name, fromCity: t.route.fromBranch.city, to: t.route.toBranch.name, ticketPriceCents: t.route.ticketPriceCents, frontSeatSurchargeCents: t.route.frontSeatSurchargeCents },
+        vehicle: { plate: t.vehicle.plate, seatLayout: layout },
+        driver: t.driver.name,
+        taken: taken.filter((b) => b.tripId === t.id).map((b) => b.seatNo),
+        myQuota: quota[user.branchId] ?? [],
+      });
+    }
+    return { generatedAt: new Date(), branchId: user.branchId, trips: out };
   }
 
   // ------------------------------------------------------------------ hooks (trips / bookings)

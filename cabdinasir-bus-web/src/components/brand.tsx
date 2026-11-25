@@ -12,11 +12,9 @@ export function BrandMark({ src, size = 36, className }: { src?: string | null; 
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]); // logo cusub → isku day mar kale
   if (!url || failed) {
-    return (
-      <span className={cx('flex shrink-0 items-center justify-center rounded-full bg-brand font-black text-white', className)} style={{ width: size, height: size, fontSize: size * 0.38 }}>
-        CB
-      </span>
-    );
+    // logo la soo gelin → icon-ka app-ka (bas + boorsooyin)
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src="/icons/icon-192.png" alt="Cabdinasir Bus" width={size} height={size} className={cx('shrink-0 rounded-xl', className)} style={{ width: size, height: size }} />;
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={url} alt="Cabdinasir Bus" width={size} height={size} onError={() => setFailed(true)} className={cx('shrink-0 rounded-lg bg-white object-contain', className)} style={{ width: size, height: size }} />;

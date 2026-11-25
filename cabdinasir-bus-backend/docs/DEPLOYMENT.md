@@ -65,11 +65,11 @@ Website-ku (PWA) wuxuu kaydiyaa xogta tixraaca (`GET /sync/bootstrap`): laamaha,
 | **Alaab diiwaangelin** + rasiid + label | ✅ | Koodh ku-meel-gaar ah (`OFFLINE-…`) + PIN client-ka; marka internet-ku soo noqdo → `POST /sync/parcels` (Idempotency-Key — laba jeer ma noqoto) |
 | Qiimaha alaabta xisaabi | ✅ | Qaacidada + qiimayaasha la kaydiyay (server-ka ayaa mar kale hubiya marka sync la sameeyo) |
 | Raadi alaab hore loo kaydiyay | ✅ (kaliya wixii la kaydiyay) | |
-| **Tigidh iib (kursi)** | ❌ | Laba laamood isla kursiga ayay iibin karaan — server-ka kaliya ayaa damaanad qaadi kara |
+| **Tigidh iib (kursi)** | ✅ (qoondada laanta) | Laamaha isku magaalada (Boorama 1 & 2) kuraasta way kala qaybsadaan (`/sync/offline-pack`) → laba laamood isku kursi ma iibin karaan. Sync: `POST /sync/bookings`; kursi la qaatay → mid kale (BUSINESS_RULES §32) |
 | **Alaab wareejin** | ❌ | Laba jeer ayaa la wareejin karaa; PIN-ka server-ka ayaa hubiya |
 | Void, discount, xiritaanka sanduuqa | ❌ | Ansixin & lacag — server-ka |
 
-**Haddii tigidh la iibiyo internet la'aan (xaalad degdeg):** qor buug gacan + rasiid gacan, kadib marka internet-ku soo noqdo geli nidaamka (Manager ayaa xaqiijiya). Tani waa xeer shaqo, ma aha mid software.
+**Tigidh offline:** bogga `/offline/ticket` — kaliya kuraasta cagaaran (qoondada laantaada). Tigidhka warqadda ayaa la qoraa; marka internet-ku soo noqdo si toos ah ayuu u gudbaa oo rasiidka dhabta ah (`BO1-T-…`) ayaa la helaa.
 
 **Marka sync la sameeyo:** natiijada item kasta (`ok` / `error`) ayaa soo laabata — tusaale alaab mamnuuc ah ama route aan jirin → karraanigu wuu arkaa oo wuu saxaa.
 
@@ -108,31 +108,24 @@ Provider-ka VPS-ka snapshot toddobaadle ah ayaa sidoo kale la daaraa.
 
 ---
 
-## 8. Dejinta Server-ka (Tallaabooyin)
+## 8. Dejinta Server-ka (Hal Amar)
+
+Hage tallaabo-tallaabo ah (iibsashada VPS + domain): **`../ONLINE.md`** (folder-ka ugu sarreeya).
 
 ```bash
-# 1. Server Ubuntu 24.04 + Docker
-curl -fsSL https://get.docker.com | sh
-
-# 2. Code (labada repo isku meel)
-git clone <backend-repo> /opt/cabdinasir/api
-git clone <web-repo>     /opt/cabdinasir/web
-cd /opt/cabdinasir/api
-cp .env.example .env && nano .env      # NODE_ENV=production, secrets cusub, CORS_ORIGIN, SMS_*
-
-# 3. Kici (API + website + Postgres + Caddy HTTPS)
-docker compose -f docker-compose.prod.yml up -d --build
-
-# 4. Xogta aasaasiga (hal mar)
-docker compose -f docker-compose.prod.yml exec api node dist/prisma/seed.js
-
-# 5. Backup cron
-echo "0 23 * * * cd /opt/cabdinasir/api && DATABASE_URL=... ./scripts/backup.sh >> /var/log/cabdinasir-backup.log 2>&1" | crontab -
+# Server Ubuntu 24.04 (root) — code-ka ku soo deji /opt/cabdinasir
+git clone https://github.com/<owner>/<repo>.git /opt/cabdinasir && cd /opt/cabdinasir
+sudo bash cabdinasir-bus-backend/scripts/setup-server.sh cabdinasirbus.com
 ```
 
-DNS: `api.cabdinasirbus.com` iyo `app.cabdinasirbus.com` → IP-ga server-ka. Caddy wuxuu si automatic ah u helaa shahaadada HTTPS (Let's Encrypt).
+Script-ku (`scripts/setup-server.sh`) wuxuu sameeyaa: Docker → firewall (22/80/443) → `.env` sir cusub (random) →
+`docker compose -f docker-compose.prod.yml up -d --build` → xogta aasaasiga (seed) → backup maalinle 23:00 (30 maalmood) →
+wuxuu daabacaa link-ga iyo password-ka Super Admin-ka. Mar labaad haddii la socodsiiyo `.env`-ka hore ma beddelo.
 
-**Cusboonaysiin (version cusub):** `git pull && docker compose -f docker-compose.prod.yml up -d --build` — migrations-ka si automatic ah ayay u socdaan marka API-gu kaco.
+DNS (ka hor script-ka): `A @ → IP-ga server-ka` iyo `A api → IP-ga server-ka`. Caddy wuxuu si automatic ah u helaa HTTPS (Let's Encrypt).
+Website: `https://cabdinasirbus.com` · API: `https://api.cabdinasirbus.com`.
+
+**Cusboonaysiin (version cusub):** `cd /opt/cabdinasir && git pull && cd cabdinasir-bus-backend && docker compose -f docker-compose.prod.yml up -d --build` — migrations-ku si automatic ah ayay u socdaan.
 
 ---
 

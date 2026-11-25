@@ -4,12 +4,12 @@
  * - bogagga (navigation): network-first → haddii internet-ku go'o, nuqulkii ugu dambeeyay
  * - /api/* : WEligiis lama kaydiyo (xog lacageed — had iyo jeer server-ka)
  */
-const VERSION = 'cb-v3';
+const VERSION = 'cb-v6';
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(PAGES).then((c) => c.addAll(['/', '/parcels/new', '/offline']).catch(() => undefined)));
+  e.waitUntil(caches.open(PAGES).then((c) => c.addAll(['/', '/parcels/new', '/offline', '/offline/ticket']).catch(() => undefined)));
   self.skipWaiting();
 });
 
@@ -31,6 +31,23 @@ self.addEventListener('fetch', (e) => {
         const res = await fetch(e.request);
         if (res.ok) c.put(e.request, res.clone());
         return res;
+      }),
+    );
+    return;
+  }
+
+  // icon-ka / manifest-ka: stale-while-revalidate (offline-na logo-gu wuu muuqdaa)
+  if (url.pathname.startsWith('/icons/') || url.pathname === '/manifest.webmanifest') {
+    e.respondWith(
+      caches.open(STATIC).then(async (c) => {
+        const hit = await c.match(e.request);
+        const net = fetch(e.request)
+          .then((res) => {
+            if (res.ok) c.put(e.request, res.clone());
+            return res;
+          })
+          .catch(() => hit || Response.error());
+        return hit || net;
       }),
     );
     return;

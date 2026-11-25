@@ -77,7 +77,7 @@ export function PaperCopyHost() {
           <Line k={t('voucher.amount')} v={<>{usd(b.priceCents)}{paid.length > 0 && <span className="ml-1 text-xs font-semibold text-gray-500">({paid.map((p) => `${t(`method.${p.method}`)} ${money(p.amount, p.currency)}`).join(', ')})</span>}</>} />
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => window.open(`/print/ticket/${b.id}`, '_blank')}>🖨 {t('paper.printAnyway')}</Button>
+          {!b.id.startsWith('offline:') && <Button variant="secondary" onClick={() => window.open(`/print/ticket/${b.id}`, '_blank')}>🖨 {t('paper.printAnyway')}</Button>}
           <Button className="flex-1" size="lg" variant="success" onClick={() => setB(null)}>✓ {t('paper.done')}</Button>
         </div>
       </div>

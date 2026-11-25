@@ -261,6 +261,21 @@ async function main() {
   await page.getByLabel('Laanta loo dirayo').waitFor();
   if (page.url().includes('/login')) fail('offline reload logged the cashier out');
   log('offline reload: page served from cache, still signed in');
+  // 8f. OFFLINE ticket: kaliya kuraasta laantayda (qoonda) → kaydi → marka internet-ku yimaado wuu gudbayaa
+  await page.goto(`${WEB}/offline/ticket`).catch(() => undefined);
+  await page.getByText('Tigidh iib offline').first().waitFor();
+  const freeSeat = page.locator('button[aria-label^="Kursi "]:not([disabled])').first();
+  await freeSeat.waitFor();
+  const offSeat = (await freeSeat.getAttribute('aria-label'))?.replace('Kursi ', '');
+  await freeSeat.click();
+  await page.getByLabel('Taleefan', { exact: false }).first().fill('0634600600');
+  await page.getByLabel(/^Magac/).first().fill('Rakaab Offline');
+  await page.getByLabel(/Lambarka tigidhka warqadda/).fill('BO1-1050');
+  await page.getByRole('button', { name: /Kaydi \(offline\)/ }).click();
+  await page.getByText('Ku qor tigidhka warqadda').waitFor();
+  await page.screenshot({ path: `${SHOTS}17b-offline-ticket.png`, fullPage: true });
+  await page.getByRole('button', { name: /Waan qoray/ }).click();
+  log(`offline ticket: seat ${offSeat} from the branch quota sold without internet (paper BO1-1050)`);
   await ctx.setOffline(false);
   await page.goto(`${WEB}/offline`);
   await page.getByText('Online', { exact: true }).first().waitFor(); // internet-ku wuu soo noqday (topbar)
@@ -268,6 +283,9 @@ async function main() {
   await page.getByText(/CB-BO1-000002/).waitFor();
   await page.screenshot({ path: `${SHOTS}18-offline-synced.png` });
   log('back online: parcel synced → real code CB-BO1-000002');
+  await page.goto(`${WEB}/offline/ticket`);
+  await page.getByText(/✓ BO1-T-/).first().waitFor({ timeout: 90_000 });
+  log('back online: offline ticket synced automatically → real receipt BO1-T-…');
 
   // 9. manager: reports + Zaad reconciliation
   await page.getByRole('button', { name: /ka bax/i }).click();
@@ -419,7 +437,7 @@ async function main() {
   await sp.getByRole('button', { name: 'Dejinta', exact: true }).click();
   const logo = { name: 'logo.png', mimeType: 'image/png', buffer: await sp.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 120, height: 120 } }) };
   await sp.locator('label', { hasText: 'Soo geli logo' }).locator('input[type=file]').setInputFiles(logo);
-  await sp.locator('aside img[alt="Cabdinasir Bus"]').waitFor();
+  await sp.locator('aside img[src*="/public/logo"]').waitFor();
   log('super admin: company logo uploaded → shown in the sidebar');
   await sp.getByRole('button', { name: 'Gaadiidka', exact: true }).click();
   await sp.getByRole('button', { name: '+ Ku dar' }).click();

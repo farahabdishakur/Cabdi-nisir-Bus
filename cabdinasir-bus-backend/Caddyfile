@@ -22,7 +22,7 @@
 }
 
 # api.*: API toos ah (mustaqbalka: app taleefan / integrations)
-{$API_DOMAIN} {
+{$API_DOMAIN:api.localhost} {
 	@compressible not path /api/v1/events
 	encode @compressible gzip
 	reverse_proxy api:3000

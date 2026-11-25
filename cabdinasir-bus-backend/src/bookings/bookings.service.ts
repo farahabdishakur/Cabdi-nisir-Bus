@@ -20,7 +20,7 @@ import { BranchDirectory } from '../common/branch-directory.service';
 import {
   BookingQuery, CancelReservationDto, ConfirmReservationDto, CorrectBookingDto, CreateBookingDto, ReserveBookingDto, TransferBookingDto, VoidBookingDto,
 } from './bookings.dto';
-import { expireReservations } from '../common/booking-status';
+import { expireReservations, seatTaken } from '../common/booking-status';
 import { NotificationsService } from '../notifications/notifications.service';
 import { formatBusinessTime } from '../common/time';
 import { formatUsd } from '../common/money';
@@ -55,7 +55,12 @@ export class BookingsService {
     return no;
   }
 
-  async create(user: AuthUser, dto: CreateBookingDto, idempotencyKey?: string) {
+  /**
+   * offline: tigidh internet la'aan lagu iibiyay (qoondada laanta) → sync. Haddii kursigu inta lagu jiray la qaatay →
+   * kursi kale oo bannaan (qoondada laanta marka hore) ayaa si toos ah loo siiyaa (`seatChangedFrom`).
+   * Gaarigu haddii uu baxay KADIB iibka offline-ka → waa la diiwaangelinayaa (rakaabku wuu raacay).
+   */
+  async create(user: AuthUser, dto: CreateBookingDto, idempotencyKey?: string, offline?: { at: Date }) {
     if (idempotencyKey) {
       const prev = await this.prisma.booking.findUnique({ where: { idempotencyKey }, include });
       if (prev) return this.ownReplay(user, prev.soldById, prev);
@@ -63,14 +68,35 @@ export class BookingsService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const trip = await this.trips.getForUser(tx, user, dto.tripId, 'share');
-        this.trips.assertCanSell(user, trip);
+        const soldBeforeDeparture = offline && trip.status === 'DEPARTED' && trip.manifestLockedAt && offline.at <= trip.manifestLockedAt;
+        if (soldBeforeDeparture) {
+          if (!isSuperAdmin(user) && !this.dir.sameCity(user.branchId, trip.route.fromBranchId)) throw Errors.forbidden('Tickets are sold in the departure city');
+        } else {
+          this.trips.assertCanSell(user, trip);
+        }
         await expireReservations(tx, { tripId: trip.id });
         const { layout, seats } = parseSeatLayout(trip.vehicle.seatLayout);
         if (!seats.includes(dto.seatNo)) throw Errors.bad('SEAT_NOT_FOUND', `Seat ${dto.seatNo} does not exist`);
 
-        const hold = await tx.seatHold.findUnique({ where: { tripId_seatNo: { tripId: trip.id, seatNo: dto.seatNo } } });
-        if (hold && hold.userId !== user.id && hold.expiresAt > new Date()) {
-          throw Errors.conflict('SEAT_HELD', `Seat ${dto.seatNo} is being sold by someone else`);
+        let seatChangedFrom: string | null = null;
+        if (offline) {
+          const busy = new Set([
+            ...(await tx.booking.findMany({ where: { tripId: trip.id, status: seatTaken }, select: { seatNo: true } })).map((b) => b.seatNo),
+            ...(await tx.seatHold.findMany({ where: { tripId: trip.id, userId: { not: user.id }, expiresAt: { gt: new Date() } }, select: { seatNo: true } })).map((h) => h.seatNo),
+          ]);
+          if (busy.has(dto.seatNo)) {
+            const quota = await this.dispatch.quotaFor(tx, trip.route.fromBranchId, seats);
+            const mine = (user.branchId && quota[user.branchId]) || [];
+            const alt = [...mine, ...seats].find((x) => !busy.has(x));
+            if (!alt) throw Errors.conflict('NO_SEAT_AVAILABLE', 'The bus is full — move the passenger to the next bus', { seatNo: dto.seatNo });
+            seatChangedFrom = dto.seatNo;
+            dto = { ...dto, seatNo: alt };
+          }
+        } else {
+          const hold = await tx.seatHold.findUnique({ where: { tripId_seatNo: { tripId: trip.id, seatNo: dto.seatNo } } });
+          if (hold && hold.userId !== user.id && hold.expiresAt > new Date()) {
+            throw Errors.conflict('SEAT_HELD', `Seat ${dto.seatNo} is being sold by someone else`);
+          }
         }
 
         const discount = dto.discountCents ?? 0;
@@ -113,6 +139,7 @@ export class BookingsService {
             soldById: user.id,
             branchId: branch.id,
             idempotencyKey,
+            offlineCreatedAt: offline?.at ?? null,
           },
         });
         if (price.totalCents > 0) {
@@ -120,7 +147,8 @@ export class BookingsService {
         }
         await tx.seatHold.deleteMany({ where: { tripId: trip.id, seatNo: dto.seatNo } });
         await this.dispatch.afterSeatChange(tx, trip.id, user.id); // gaariga buuxsamay → kan xiga ha furmo
-        return tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include });
+        const full = await tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include });
+        return seatChangedFrom ? { ...full, seatChangedFrom } : full;
       });
     } catch (e) {
       if (isMobileRefViolation(e)) throw Errors.conflict('MOBILE_REFERENCE_USED', 'This Zaad/eDahab transaction was already used');

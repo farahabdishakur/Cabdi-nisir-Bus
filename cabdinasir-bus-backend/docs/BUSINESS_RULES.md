@@ -278,3 +278,11 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 3. **Xogta buuxda waxaa la geliyaa nidaamka** (magac, taleefan, kursi, lacag, lambarka warqadda); karraanigu warqadda wuxuu ku qoraa xogta kooban (isla kala horreynta kaarka "Ku qor tigidhka warqadda"). Daabacaaddu waa ikhtiyaari.
 4. **Lambar warqadeed hal mar oo keliya laan kasta** (DB index) — xataa haddii tigidhkii la void-gareeyo (`PAPER_TICKET_USED`). Lambar khaldan: maamulaha "sax" (audit).
 5. **Xisaab celin:** nuqulka buugga (stub) lambar kasta waa inuu nidaamka ku jiraa — lambar buugga ku jira oo nidaamka aan ku jirin = lacag maqan.
+
+## 32. Tigidh Offline — Qoondada Kuraasta
+1. **Laamaha isku magaalada** (Boorama 1 & Boorama 2) kuraasta safar kasta way kala qaybsadaan (lambarka laanta → kala horreyn): tusaale 14 kursi → 7 / 7. Laan keli ah (Wajaale) → kuraasta oo dhan.
+2. **Online:** daqiiqad kasta browser-ku wuxuu kaydiyaa `GET /sync/offline-pack` (safarada 36 saacadood gudahood, kuraasta la qabtay, qoondada laanta). Online-ka qoondadu wax ma xaddiddo.
+3. **Offline:** karraanigu kaliya kuraasta qoondadiisa ee bannaan ayuu iibin karaa → laba laamood isku kursi ma iibin karaan. Tigidhka warqadda ayaa la qoraa (§31).
+4. **Sync** (`POST /sync/bookings`, Idempotency-Key): waqtiga dhabta ah ee iibka (`offlineCreatedAt`) ayaa la kaydiyaa; waqti ka badan 2 maalmood ama mustaqbal → `OFFLINE_TIME_INVALID`.
+5. **Kursi la qaatay intii offline la ahaa** (iib online ah) → rakaabka waxaa la siiyaa kursi kale (qoondada laanta marka hore, kadib kursi kasta) — karraanigu wuu arkaa (`seatChangedFrom`) oo rakaabka ayuu u sheegaa. Kursi la'aan → `NO_SEAT_AVAILABLE` (lacagta celi).
+6. **Gaari baxay:** iibkii ka horreeyay bixitaanka (`offlineCreatedAt ≤ manifestLockedAt`) waa la qoraa; iibkii ka dambeeyay waa la diidaa (`TRIP_CLOSED_FOR_SALE`).
