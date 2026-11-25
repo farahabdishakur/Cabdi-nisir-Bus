@@ -66,6 +66,7 @@ Tigidhka: lambarka warqadda tusaale `BO1-1001`, `BO1-1002` …
 | Dhibaato | Xal |
 |---|---|
 | `'npm' is not recognized` | Node.js lama rakibin ama kombiyuutarka dib uma kicin |
+| `npm.ps1 cannot be loaded … running scripts is disabled` | PowerShell ayaa xiran: terminal-ka ku qor `npm.cmd` halkii `npm` (tusaale `npm.cmd install`), ama hal mar: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` → `Y` |
 | *Port 3000/3001 is already in use* | Wax kale ayaa isticmaalaya — jooji (ama kombiyuutarka dib u kici) |
 | Login: "isku day badan" | 5 isku day oo khaldan daqiiqaddii → sug 1 daqiiqo (ilaalin) |
 | Xogta tijaabada bilow cusub | *Terminal → Run Task → 🧹 Tirtir xogta tijaabada* → mar kale kici |
