@@ -217,3 +217,15 @@ Macmiilku wuu soo wacayaa → karraanigu kursi ayuu u qabanayaa **lacag la'aan**
 | Warbixino | Dakhliga & tirada rakaabka: **tigidhada la bixiyay oo keliya**. Manifest: `reservedUnpaid` gooni. |
 | Dami | `reservationCutoffMinutes = 0` → ballan taleefan lama oggola. |
 | Online (mustaqbal) | Isla nidaamkan ayaa loo isticmaali doonaa marka macmiilku online ka dalbado. |
+
+## 25. Lacagta Zaad / eDahab
+Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kasta lambarkeeda — Super Admin ayaa dejiya; rasiidka, SMS-ka ballanta iyo bogga dadweynaha ayuu ka muuqdaa).
+| Shay | Xeerka |
+|---|---|
+| Waxa la qoro | **Lambarka transaction-ka** (SMS-ka Zaad) + **lambarka taleefanka lacagta laga soo diray** (waajib — ma aha qasab inuu yahay rakaabka). |
+| Xaqiijin | Karraanigu wuxuu arkaa SMS-ka Zaad ee taleefanka laanta → isla markiiba tigidhka/alaabta ayuu bixiyaa (Manager ma sugo). |
+| Khiyaano | **Hal transaction = hal lacag.** Transaction hore loo isticmaalay → `MOBILE_REFERENCE_USED` (+ rasiidkii lagu isticmaalay). Database-ka laftiisa ayaa diida (laba karraani isku mar). Karraanigu ka hor wuu hubin karaa: `GET /payments/lookup`. |
+| Calaamad | Tigidh/alaab kasta waxay muujinaysaa habka lacagta (Zaad/eDahab/Cash) + transaction-ka. Liisaska: `?paidVia=ZAAD`. |
+| Sanduuqa | Zaad/eDahab **kuma jiraan** lacagta gacanta (expected cash) — sanduuqa xiritaankiisa kaliya cash ayaa la tiriyaa. |
+| Celin | Void + celin → isla habkii (Zaad → Zaad) isla lambarkii laga soo diray. |
+| Barbar dhig (reconcile) | Dhammaadka maalinta Manager-ku `GET /payments/mobile` wuxuu la barbar dhigaa bayaanka Zaad/eDahab → "la hubiyay". Lacag aan bayaanka ku jirin → void + baadhis. Aan la hubin > 48 saac → digniinta integrity (SMS Super Admin). |

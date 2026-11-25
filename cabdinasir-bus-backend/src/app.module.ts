@@ -22,6 +22,7 @@ import { TripsModule } from './trips/trips.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { ParcelsModule } from './parcels/parcels.module';
 import { FinanceModule } from './finance/finance.module';
+import { PaymentsModule } from './payments/payments.module';
 import { VoidRequestsModule } from './void-requests/void-requests.module';
 import { ReportsModule } from './reports/reports.module';
 import { CustomersModule } from './customers/customers.module';
@@ -59,6 +60,7 @@ import { EmitInterceptor } from './events/emit';
     BookingsModule,
     ParcelsModule,
     FinanceModule,
+    PaymentsModule,
     VoidRequestsModule,
     ReportsModule,
     CustomersModule,

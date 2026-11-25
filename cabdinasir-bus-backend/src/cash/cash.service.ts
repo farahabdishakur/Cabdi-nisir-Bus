@@ -12,6 +12,9 @@ import { businessDayRange } from '../common/time';
 
 type Money = { USD: number; SLSH: number };
 
+/** Lacag macmiil (ma aha celin/kharash) — transaction Zaad/eDahab hal mar kaliya. Kayd (STORAGE) wuxuu wadaagaa transaction-ka COD. */
+export const MOBILE_UNIQUE_KINDS: PaymentKind[] = ['TICKET', 'PARCEL', 'TRANSFER_DIFF'];
+
 @Injectable()
 export class CashService {
   constructor(
@@ -69,6 +72,23 @@ export class CashService {
     if (pay.method !== PaymentMethod.CASH && !pay.reference) {
       throw Errors.bad('REFERENCE_REQUIRED', 'Mobile money payments need the transaction reference');
     }
+    const mobile = pay.method !== PaymentMethod.CASH;
+    const reference = pay.reference ? pay.reference.replace(/\s/g, '').toUpperCase() : undefined;
+    const payerPhone = pay.payerPhone ? pay.payerPhone.replace(/\s/g, '') : undefined;
+    const incoming = amount > 0 && MOBILE_UNIQUE_KINDS.includes(kind);
+    if (mobile && incoming) {
+      if (!payerPhone) throw Errors.bad('PAYER_PHONE_REQUIRED', 'Enter the phone number the Zaad/eDahab money was sent from');
+      // Hal SMS Zaad = hal lacag: transaction-ka hore loo isticmaalay → khiyaano ama qalad
+      const used = await db.payment.findFirst({
+        where: { method: pay.method, reference, kind: { in: MOBILE_UNIQUE_KINDS }, amount: { gt: 0 } },
+        include: { booking: { select: { receiptNo: true } }, parcel: { select: { trackingCode: true } } },
+      });
+      if (used) {
+        throw Errors.conflict('MOBILE_REFERENCE_USED', 'This Zaad/eDahab transaction was already used', {
+          reference, usedOn: used.booking?.receiptNo ?? used.parcel?.trackingCode ?? null, usedAt: used.createdAt,
+        });
+      }
+    }
     const session = await this.requireOpenSession(db, user);
     void branchId; // lacagtu waxay gashaa laanta sanduuqa (meesha lacagtu jirto) — mar walba
     let exchangeRate: number | null = null;
@@ -86,7 +106,8 @@ export class CashService {
         amount,
         amountUsdCents,
         exchangeRate,
-        reference: pay.reference,
+        reference,
+        payerPhone,
         cashierId: user.id,
         cashSessionId: session.id,
         branchId: session.branchId,

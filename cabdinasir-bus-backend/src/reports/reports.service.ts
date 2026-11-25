@@ -307,6 +307,11 @@ export class ReportsService {
     const now = Date.now();
     const hoursAgo = (h: number) => new Date(now - h * 3600_000);
     const take = 50;
+    const unreconciledMobile = await this.prisma.payment.findMany({
+      where: { branchId, method: { in: ['ZAAD', 'EDAHAB'] }, amount: { gt: 0 }, reconciledAt: null, createdAt: { lt: hoursAgo(48) } },
+      select: { id: true, method: true, reference: true, payerPhone: true, amountUsdCents: true, createdAt: true },
+      take,
+    });
     const [staleSessions, unapproved, senderUnpaid, codDeliveredUnpaid, ticketsUnpaid, unconfirmedDeposits, stuckParcels, tripsNotArrived, failedSms] =
       await Promise.all([
         this.prisma.cashSession.findMany({ where: { branchId, closedAt: null, openedAt: { lt: hoursAgo(24) } }, take }),
@@ -344,6 +349,7 @@ export class ReportsService {
       ticketsWithoutPayment: ticketsUnpaid,
       depositsUnconfirmedOver72h: unconfirmedDeposits,
       parcelsInTransitOver48h: stuckParcels,
+      mobilePaymentsUnreconciledOver48h: unreconciledMobile,
       tripsDepartedNotArrivedOver24h: tripsNotArrived,
     };
     const issues = Object.values(checks).reduce((s, list) => s + list.length, 0) + (failedSms > 0 ? 1 : 0);

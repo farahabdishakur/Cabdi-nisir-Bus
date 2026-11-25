@@ -2643,6 +2643,111 @@
         ]
       }
     },
+    "/api/v1/payments/mobile": {
+      "get": {
+        "operationId": "PaymentsController_mobile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/lookup": {
+      "get": {
+        "operationId": "PaymentsController_lookup",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/{id}/reconcile": {
+      "post": {
+        "operationId": "PaymentsController_reconcileOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/reconcile": {
+      "post": {
+        "operationId": "PaymentsController_reconcileBatch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
     "/api/v1/void-requests": {
       "post": {
         "operationId": "VoidRequestsController_create",
@@ -3077,7 +3182,7 @@
   "info": {
     "title": "Cabdinasir Bus API",
     "description": "",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "contact": {}
   },
   "tags": [],
@@ -3268,6 +3373,14 @@
         "properties": {}
       },
       "CreateDepositDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReconcileDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReconcileBatchDto": {
         "type": "object",
         "properties": {}
       },

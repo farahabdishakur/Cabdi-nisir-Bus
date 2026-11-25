@@ -176,7 +176,10 @@ export class ParcelsService {
   async list(user: AuthUser, q: ParcelQuery) {
     const branchId = isSuperAdmin(user) ? q.branchId : user.branchId!;
     if (!isSuperAdmin(user) && q.branchId && q.branchId !== user.branchId) throw Errors.forbiddenBranch();
-    const where: Prisma.ParcelWhereInput = { status: q.status, tripId: q.tripId };
+    const where: Prisma.ParcelWhereInput = {
+      status: q.status, tripId: q.tripId,
+      ...(q.paidVia && { payments: { some: { method: q.paidVia, amount: { gt: 0 } } } }),
+    };
     const dir = q.direction ?? 'all';
     if (branchId) {
       if (dir === 'incoming') where.toBranchId = branchId;
@@ -337,7 +340,7 @@ export class ParcelsService {
       const updated = await this.transition(tx, user, p, 'VOIDED', { voidReason: dto.reason }, dto.reason);
       if (dto.refund && paid > 0) {
         const orig = p.payments[0];
-        const pay = dto.refundPayment ?? { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined };
+        const pay = dto.refundPayment ?? { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined, payerPhone: orig?.payerPhone ?? undefined };
         await this.cash.recordPayment(tx, user, p.fromBranchId, PaymentKind.REFUND, -paid, pay, { parcelId: p.id });
       }
       await this.audit.log(tx, user, 'VOID', 'parcels', id, { status: p.status }, { status: 'VOIDED', reason: dto.reason, refunded: dto.refund ? paid : 0 });

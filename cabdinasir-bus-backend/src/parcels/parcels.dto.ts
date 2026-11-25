@@ -3,7 +3,7 @@ import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length,
   Matches, Max, Min, ValidateNested,
 } from 'class-validator';
-import { ParcelStatus, Payer } from '@prisma/client';
+import { ParcelStatus, Payer, PaymentMethod } from '@prisma/client';
 import { PaymentInputDto } from '../cash/payment.dto';
 import { PageQuery } from '../common/pagination';
 import { PHONE_RE } from '../bookings/bookings.dto';
@@ -77,4 +77,5 @@ export class ParcelQuery extends PageQuery {
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   /** koodh, rasiid, taleefan ama magac */
   @IsOptional() @IsString() q?: string;
+  @IsOptional() @IsEnum(PaymentMethod) paidVia?: PaymentMethod;
 }

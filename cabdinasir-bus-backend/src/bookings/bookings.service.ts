@@ -6,7 +6,7 @@ import { Errors } from '../common/errors';
 import { branchFilter } from '../common/branch-scope';
 import { assertTransition, BOOKING_TRANSITIONS } from '../common/state-machine';
 import { nextNumber } from '../common/sequences';
-import { isUniqueViolation } from '../common/idempotency';
+import { isMobileRefViolation, isUniqueViolation } from '../common/idempotency';
 import { businessDayRange } from '../common/time';
 import { pageArgs, paged } from '../common/pagination';
 import { ticketPrice } from '../pricing/pricing';
@@ -103,6 +103,7 @@ export class BookingsService {
         return tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include });
       });
     } catch (e) {
+      if (isMobileRefViolation(e)) throw Errors.conflict('MOBILE_REFERENCE_USED', 'This Zaad/eDahab transaction was already used');
       // P2002: kursiga waa la iibiyay (partial unique index) ama isla Idempotency-Key ayaa isku mar yimid
       if (isUniqueViolation(e)) {
         if (idempotencyKey) {
@@ -122,7 +123,10 @@ export class BookingsService {
   }
 
   async list(user: AuthUser, q: BookingQuery) {
-    const where: Prisma.BookingWhereInput = { tripId: q.tripId, status: q.status, branchId: branchFilter(user, q.branchId) };
+    const where: Prisma.BookingWhereInput = {
+      tripId: q.tripId, status: q.status, branchId: branchFilter(user, q.branchId),
+      ...(q.paidVia && { payments: { some: { method: q.paidVia, amount: { gt: 0 } } } }),
+    };
     if (user.role === Role.CASHIER && !q.tripId) where.soldById = user.id;
     if (q.date) {
       const { start, end } = businessDayRange(q.date);
@@ -173,7 +177,7 @@ export class BookingsService {
       const paid = b.payments.reduce((s, p) => s + p.amountUsdCents, 0);
       if (dto.refund && paid > 0) {
         const original = b.payments.find((p) => p.kind === PaymentKind.TICKET);
-        const pay = dto.refundPayment ?? { method: original?.method ?? PaymentMethod.CASH, currency: original?.currency ?? 'USD', reference: original?.reference ?? undefined };
+        const pay = dto.refundPayment ?? { method: original?.method ?? PaymentMethod.CASH, currency: original?.currency ?? 'USD', reference: original?.reference ?? undefined, payerPhone: original?.payerPhone ?? undefined };
         await this.cash.recordPayment(tx, user, b.branchId, PaymentKind.REFUND, -paid, pay, { bookingId: id });
       }
       await this.audit.log(tx, user, 'VOID', 'bookings', id, { status: b.status }, { status: 'VOIDED', reason: dto.reason, refunded: dto.refund ? paid : 0 });
@@ -228,7 +232,7 @@ export class BookingsService {
         const updated = await tx.booking.findUniqueOrThrow({ where: { id } });
         if (diff !== 0) {
           const orig = b.payments.find((p) => p.kind === PaymentKind.TICKET);
-          const original = { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined };
+          const original = { method: orig?.method ?? PaymentMethod.CASH, currency: orig?.currency ?? 'USD', reference: orig?.reference ?? undefined, payerPhone: orig?.payerPhone ?? undefined };
           // celin: habkii lagu bixiyay (Zaad → Zaad); qaadis: habka macmiilku doorto
           const pay = diff < 0 ? original : dto.payment ?? original;
           await this.cash.recordPayment(tx, user, b.branchId, PaymentKind.TRANSFER_DIFF, diff, pay, { bookingId: id });
@@ -238,6 +242,7 @@ export class BookingsService {
         return tx.booking.findUniqueOrThrow({ where: { id }, include });
       });
     } catch (e) {
+      if (isMobileRefViolation(e)) throw Errors.conflict('MOBILE_REFERENCE_USED', 'This Zaad/eDahab transaction was already used');
       if (isUniqueViolation(e)) throw Errors.conflict('SEAT_TAKEN', `Seat ${dto.seatNo} is already sold`);
       throw e;
     }
@@ -293,6 +298,7 @@ export class BookingsService {
         await this.notifications.enqueue(tx, phone, 'BOOKING_RESERVED', {
           seat: dto.seatNo, from: trip.route.fromBranch.city, to: trip.route.toBranch.city, departure: formatBusinessTime(trip.departureAt),
           receipt: receiptNo, price: formatUsd(price.totalCents), until: formatBusinessTime(until),
+          pay: payHint(branch),
         });
         return tx.booking.findUniqueOrThrow({ where: { id: b.id }, include });
       });
@@ -395,6 +401,12 @@ export class BookingsService {
     assertTransition('Booking', BOOKING_TRANSITIONS, b.status, BookingStatus.BOARDED);
     return this.prisma.booking.update({ where: { id: b.id }, data: { status: BookingStatus.BOARDED } });
   }
+}
+
+/** " (Zaad 063…, eDahab 065…)" — haddii laantu lambarro leedahay */
+function payHint(b: { zaadNumber?: string | null; edahabNumber?: string | null }) {
+  const parts = [b.zaadNumber && `Zaad ${b.zaadNumber}`, b.edahabNumber && `eDahab ${b.edahabNumber}`].filter(Boolean);
+  return parts.length ? ` (${parts.join(', ')}; ku qor lambarka ballanta)` : '';
 }
 
 export const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);

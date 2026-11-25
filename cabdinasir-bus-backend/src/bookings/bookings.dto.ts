@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, PaymentMethod } from '@prisma/client';
 import { PaymentInputDto } from '../cash/payment.dto';
 import { PageQuery } from '../common/pagination';
 
@@ -60,4 +60,6 @@ export class BookingQuery extends PageQuery {
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @IsString() q?: string;
   @IsOptional() @IsEnum(BookingStatus) status?: BookingStatus;
+  /** ZAAD / EDAHAB / CASH — tigidhada lagu bixiyay habkaas */
+  @IsOptional() @IsEnum(PaymentMethod) paidVia?: PaymentMethod;
 }

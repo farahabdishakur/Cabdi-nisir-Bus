@@ -14,6 +14,12 @@ export const IdempotencyKey = createParamDecorator((_d: unknown, ctx: ExecutionC
   return v;
 });
 
+/** Transaction Zaad/eDahab mar labaad (race on payments_mobile_ref_unique). */
+export function isMobileRefViolation(e: unknown): boolean {
+  const err = e as { code?: string; meta?: { target?: unknown }; message?: string };
+  return err?.code === 'P2002' && /mobile_ref|reference/.test(String(err.meta?.target ?? '') + String(err.message ?? ''));
+}
+
 export function isUniqueViolation(e: unknown, target?: string): boolean {
   const err = e as { code?: string; meta?: { target?: unknown } };
   if (err?.code !== 'P2002') return false;

@@ -19,6 +19,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { status: e.getStatus(), body: { code: e.code, message: e.message, details: e.details } };
     }
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === 'P2002' && /mobile_ref|reference/.test(String(e.meta?.target ?? '') + e.message)) {
+        return { status: HttpStatus.CONFLICT, body: { code: 'MOBILE_REFERENCE_USED', message: 'This Zaad/eDahab transaction was already used' } };
+      }
       if (e.code === 'P2002') {
         return {
           status: HttpStatus.CONFLICT,

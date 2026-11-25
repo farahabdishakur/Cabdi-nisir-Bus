@@ -13,6 +13,9 @@ export class CreateBranchDto {
   @IsString() @Length(2, 60) name: string;
   @IsString() @Length(2, 60) city: string;
   @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) phones?: string[];
+  /** Lambarka Zaad / eDahab ee laanta — meesha macmiilku lacagta u soo diro */
+  @IsOptional() @Matches(/^\+?[0-9 ]{6,20}$/) zaadNumber?: string;
+  @IsOptional() @Matches(/^\+?[0-9 ]{6,20}$/) edahabNumber?: string;
 }
 export class UpdateBranchDto extends PartialType(CreateBranchDto) {
   @IsOptional() @IsBoolean() isActive?: boolean;

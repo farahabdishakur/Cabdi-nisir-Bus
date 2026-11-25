@@ -116,6 +116,9 @@ model Branch {
   name      String
   city      String
   phones    String[]
+  /// Lambarka Zaad / eDahab ee laantan (macmiilku halkan ayuu lacagta u soo diraa) — rasiidka & SMS-ka
+  zaadNumber   String?
+  edahabNumber String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -402,6 +405,12 @@ model Payment {
   amountUsdCents Int
   exchangeRate   Int? // 1 USD = ? SLSH (marka currency = SLSH)
   reference      String? // Zaad/eDahab transaction id
+  /// Lambarka Zaad/eDahab ee lacagta laga soo diray (ma aha qasab inuu yahay rakaabka)
+  payerPhone     String?
+  /// Manager-ku wuxuu la barbar dhigay bayaanka Zaad/eDahab (dhammaadka maalinta)
+  reconciledAt   DateTime?
+  reconciledById String?
+  reconcileNote  String?
   cashierId      String
   cashSessionId  String
   cashSession    CashSession   @relation(fields: [cashSessionId], references: [id])

@@ -83,7 +83,7 @@ export class PublicController {
   /** Laamaha iyo taleefannada (bogga xiriirka) */
   @Get('branches')
   branches() {
-    return this.prisma.branch.findMany({ where: { isActive: true }, select: { code: true, name: true, city: true, phones: true }, orderBy: { name: 'asc' } });
+    return this.prisma.branch.findMany({ where: { isActive: true }, select: { code: true, name: true, city: true, phones: true, zaadNumber: true, edahabNumber: true }, orderBy: { name: 'asc' } });
   }
 }
 
