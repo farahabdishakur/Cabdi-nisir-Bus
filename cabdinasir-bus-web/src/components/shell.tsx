@@ -1,5 +1,6 @@
 'use client';
 
+import { BrandMark } from './brand';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -10,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useLiveEvents } from '@/lib/live';
 import { can, isManager } from '@/lib/permissions';
-import { useCashSession, useMyBranch } from '@/lib/queries';
+import { useBootstrap, useCashSession, useMyBranch } from '@/lib/queries';
 import { cx } from '@/lib/format';
 import { Spinner } from './ui';
 
@@ -28,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const path = usePathname();
   const branch = useMyBranch();
+  const boot = useBootstrap();
   const session = useCashSession();
   const live = useLiveEvents(!!user && !user.mustChangePassword);
   const [menu, setMenu] = useState(false);
@@ -124,7 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="no-print hidden w-60 shrink-0 bg-navy lg:block">
         <div className="flex h-16 items-center gap-2 border-b border-white/10 px-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-black text-white">CB</span>
+          <BrandMark src={boot.data?.company.logoUrl ?? null} size={36} />
           <span className="font-black text-white">{t('common.appName')}</span>
         </div>
         {nav}

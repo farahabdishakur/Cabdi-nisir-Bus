@@ -194,9 +194,9 @@ export function Td({ children, className }: { children: ReactNode; className?: s
 
 export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: 'red' | 'green' }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={cx('mt-1 text-2xl font-bold', tone === 'red' ? 'text-red-700' : tone === 'green' ? 'text-emerald-700' : 'text-navy')}>{value}</p>
+    <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+      <p className="truncate text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={cx('mt-1 break-words text-xl font-bold sm:text-2xl', tone === 'red' ? 'text-red-700' : tone === 'green' ? 'text-emerald-700' : 'text-navy')}>{value}</p>
     </div>
   );
 }

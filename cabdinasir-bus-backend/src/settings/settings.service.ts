@@ -43,6 +43,10 @@ export interface CompanyProfile {
   passengerRules: string[];
   parcelRules: string[];
   receiptFooter: string;
+  /** Logo-ga shirkadda (dadweyne): `/api/v1/public/logo?v=…` — null = logo ma jiro */
+  logoUrl?: string | null;
+  /** Meesha faylka (gudaha) */
+  logoPath?: string | null;
 }
 
 export const DEFAULT_COMPANY: CompanyProfile = {

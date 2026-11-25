@@ -56,6 +56,7 @@ export default function ClaimPage({ params }: { params: Promise<{ id: string }> 
   ];
 
   const resolve = async () => {
+    if (decision === 'ACCEPTED' && comp.trim() && parseUsd(comp) === null) return setError(t('errors.VALIDATION_ERROR'));
     setBusy(true);
     setError('');
     try {

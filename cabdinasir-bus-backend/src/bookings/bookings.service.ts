@@ -45,7 +45,7 @@ export class BookingsService {
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const trip = await this.trips.getForUser(tx, user, dto.tripId);
+        const trip = await this.trips.getForUser(tx, user, dto.tripId, 'share');
         this.trips.assertCanSell(user, trip);
         await expireReservations(tx, { tripId: trip.id });
         const { layout, seats } = parseSeatLayout(trip.vehicle.seatLayout);
@@ -197,7 +197,7 @@ export class BookingsService {
         if (!isSuperAdmin(user) && user.branchId !== b.branchId) throw Errors.forbiddenBranch();
         if (b.status !== BookingStatus.CONFIRMED) throw Errors.conflict('BOOKING_NOT_ACTIVE', 'Only confirmed tickets can be transferred');
         if (!['SCHEDULED', 'BOARDING'].includes(b.trip.status)) throw Errors.conflict('TRIP_DEPARTED', 'Original trip already departed');
-        const trip = await this.trips.getForUser(tx, user, dto.tripId);
+        const trip = await this.trips.getForUser(tx, user, dto.tripId, 'share');
         this.trips.assertCanSell(user, trip);
         if (!this.dir.sameCity(trip.route.fromBranchId, b.trip.route.fromBranchId)) {
           throw Errors.bad('TRIP_ROUTE_MISMATCH', 'New trip must depart from the same city');
@@ -262,7 +262,7 @@ export class BookingsService {
     const phone = dto.passengerPhone.replace(/\s/g, '');
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const trip = await this.trips.getForUser(tx, user, dto.tripId);
+        const trip = await this.trips.getForUser(tx, user, dto.tripId, 'share');
         this.trips.assertCanSell(user, trip);
         const settings = await this.settings.get(tx);
         if (settings.reservationCutoffMinutes <= 0) throw Errors.bad('RESERVATIONS_DISABLED', 'Phone reservations are turned off');
@@ -322,7 +322,7 @@ export class BookingsService {
     return this.prisma.$transaction(async (tx) => {
       const b = await tx.booking.findUnique({ where: { id }, include });
       if (!b) throw Errors.notFound('Booking', id);
-      const trip = await this.trips.getForUser(tx, user, b.tripId);
+      const trip = await this.trips.getForUser(tx, user, b.tripId, 'share');
       this.trips.assertCanSell(user, trip);
       if (b.status !== BookingStatus.RESERVED) {
         throw Errors.conflict(b.status === 'EXPIRED' ? 'RESERVATION_EXPIRED' : 'BOOKING_NOT_ACTIVE', `Booking is ${b.status}`);

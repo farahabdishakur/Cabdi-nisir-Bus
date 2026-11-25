@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { EvidenceCapture } from '@/components/evidence';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, newKey } from '@/lib/api';
+import { api, ApiError, newKey, pendingTab } from '@/lib/api';
 import { enqueue, randomPin, useOnline, type OfflineItem } from '@/lib/offline';
 import { estimateParcel } from '@/lib/pricing';
 import { OfflineReceipt } from '@/components/offline-receipt';
@@ -132,14 +132,16 @@ export default function NewParcelPage() {
       setBusy(false);
       return;
     }
+    const tab = pendingTab();
     try {
       const p = await api<Parcel>('/parcels', { method: 'POST', idempotencyKey: key.current, body });
       setDone(p);
       qc.invalidateQueries({ queryKey: ['parcels'] });
       qc.invalidateQueries({ queryKey: ['cash'] });
       if (p.pickupPin) sessionStorage.setItem(`pin:${p.id}`, p.pickupPin);
-      window.open(`/print/parcel/${p.id}`, '_blank');
+      tab.go(`/print/parcel/${p.id}`, (w) => p.pickupPin && w.sessionStorage.setItem(`pin:${p.id}`, p.pickupPin));
     } catch (e) {
+      tab.cancel();
       // internet-ku hadda ayuu go'ay → isla key-ga ayaa offline lagu kaydinayaa (sync-ka laba jeer ma noqonayo)
       if (e instanceof ApiError && e.code === 'NETWORK_ERROR') await saveOffline(body).catch((x) => setError(err(x)));
       else setError(err(e));

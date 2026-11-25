@@ -16,7 +16,7 @@ import { LedgerEntryDto } from './ledger.dto';
 
 /** Qaybaha buugga xafiiska (gelin gacan). CAPITAL & VEHICLE_PURCHASE ma aha dakhli/kharash P&L (raasumaal). */
 export const LEDGER_IN_CATEGORIES = ['OTHER_INCOME', 'CAPITAL', 'LOAN_RECEIVED'] as const;
-export const LEDGER_OUT_CATEGORIES = ['FUEL', 'MAINTENANCE', 'RENT', 'SALARY', 'DRIVER_PAY', 'INSURANCE', 'TAX', 'UTILITIES', 'VEHICLE_PURCHASE', 'LOAN_REPAYMENT', 'OWNER_DRAWING', 'OTHER'] as const;
+export const LEDGER_OUT_CATEGORIES = ['FUEL', 'MAINTENANCE', 'RENT', 'SALARY', 'INSURANCE', 'TAX', 'UTILITIES', 'VEHICLE_PURCHASE', 'LOAN_REPAYMENT', 'OWNER_DRAWING', 'OTHER'] as const;
 const NOT_PNL = new Set(['CAPITAL', 'LOAN_RECEIVED', 'VEHICLE_PURCHASE', 'LOAN_REPAYMENT', 'OWNER_DRAWING', 'DRIVER_PAY']);
 
 const PHOTO_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
@@ -30,6 +30,9 @@ const accountOf = (method: PaymentMethod, currency: Currency): Account => (metho
  * - HEAD_OFFICE (Super Admin): wareejinta laamaha (marka la xaqiijiyo) + gelinta gacanta (dakhli kale, kharash, raasumaal …).
  * - P&L: dakhli − kharash − mushaharka darawallada (accrual) = faa'iido; laan kasta & gaari kasta.
  */
+/** Safafka ugu badan ee hal mar la muujiyo (haraaga + wadarta waxaa laga xisaabiyaa muddada oo dhan) */
+const LINE_LIMIT = 3000;
+
 @Injectable()
 export class LedgerService {
   constructor(private readonly prisma: PrismaService, private readonly settings: SettingsService, private readonly audit: AuditService) {}
@@ -63,7 +66,8 @@ export class LedgerService {
   async void(user: AuthUser, id: string, reason: string) {
     const e = await this.prisma.ledgerEntry.findUnique({ where: { id } });
     if (!e) throw Errors.notFound('LedgerEntry', id);
-    if (e.category === 'DRIVER_PAY') throw Errors.bad('USE_DRIVER_PAY_VOID', 'Void this from the driver statement');
+    // Bixinta darawalka (xafiiska) waxaa laga void-gareeyaa bayaanka darawalka si haraaga darawalka u saxmo
+    if (await this.prisma.driverPayment.count({ where: { ledgerEntryId: id } })) throw Errors.bad('USE_DRIVER_PAY_VOID', 'Void this from the driver statement');
     const res = await this.prisma.ledgerEntry.updateMany({ where: { id, voidedAt: null }, data: { voidedAt: new Date(), voidedById: user.id, voidReason: reason } });
     if (res.count !== 1) throw Errors.conflict('ALREADY_VOIDED', 'Already voided');
     await this.audit.log(this.prisma, user, 'VOID', 'ledger', id, { amount: e.amount }, { reason });
@@ -75,20 +79,33 @@ export class LedgerService {
   async attach(user: AuthUser, kind: 'expense' | 'ledger', id: string, file: { buffer: Buffer; mimetype: string } | undefined) {
     if (!file) throw Errors.bad('FILE_REQUIRED', 'Upload a file in field "file"');
     const ext = PHOTO_TYPES[file.mimetype];
-    if (!ext) throw Errors.bad('INVALID_FILE_TYPE', 'Only JPEG, PNG, WEBP or PDF');
+    const b = file.buffer;
+    const sniffed =
+      ext === 'jpg' ? b[0] === 0xff && b[1] === 0xd8 : ext === 'png' ? b.subarray(0, 4).toString('hex') === '89504e47'
+      : ext === 'webp' ? b.subarray(8, 12).toString() === 'WEBP' : ext === 'pdf' ? b.subarray(0, 5).toString() === '%PDF-' : false;
+    if (!ext || !sniffed) throw Errors.bad('INVALID_FILE_TYPE', 'Only JPEG, PNG, WEBP or PDF');
+    let previous: string | null;
     if (kind === 'expense') {
       const e = await this.prisma.expense.findUnique({ where: { id } });
       if (!e) throw Errors.notFound('Expense', id);
       if (!isSuperAdmin(user) && e.branchId !== user.branchId) throw Errors.forbiddenBranch();
+      if (e.voidedAt) throw Errors.invalidState('Expense', 'VOIDED', 'ATTACH');
+      previous = e.attachmentUrl;
     } else {
       if (!isSuperAdmin(user)) throw Errors.forbidden();
-      if (!(await this.prisma.ledgerEntry.findUnique({ where: { id } }))) throw Errors.notFound('LedgerEntry', id);
+      const e = await this.prisma.ledgerEntry.findUnique({ where: { id } });
+      if (!e) throw Errors.notFound('LedgerEntry', id);
+      if (e.voidedAt) throw Errors.invalidState('LedgerEntry', 'VOIDED', 'ATTACH');
+      previous = e.attachmentUrl;
     }
+    // Biil la beddelo = caddayn la beddelay → karraanigu ma beddeli karo; maamuluhu wuu beddeli karaa (audit)
+    if (previous && user.role === 'CASHIER') throw Errors.conflict('BILL_ALREADY_ATTACHED', 'A bill is already attached — ask a manager to replace it');
     const dir = join(this.uploadDir, 'bills');
     await mkdir(dir, { recursive: true });
     const name = `${kind}-${id}-${Date.now()}.${ext}`;
-    await writeFile(join(dir, name), file.buffer);
+    await writeFile(join(dir, name), b);
     const url = `bills/${name}`;
+    await this.audit.log(this.prisma, user, previous ? 'REPLACE_BILL' : 'ATTACH_BILL', kind === 'expense' ? 'expenses' : 'ledger', id, { attachmentUrl: previous }, { attachmentUrl: url });
     return kind === 'expense'
       ? this.prisma.expense.update({ where: { id }, data: { attachmentUrl: url } })
       : this.prisma.ledgerEntry.update({ where: { id }, data: { attachmentUrl: url } });
@@ -123,7 +140,8 @@ export class LedgerService {
     const r = businessRange(from, to);
     const accountWhere = (a?: Account): Prisma.PaymentWhereInput =>
       !a ? {} : a === 'CASH_USD' ? { method: 'CASH', currency: 'USD' } : a === 'CASH_SLSH' ? { method: 'CASH', currency: 'SLSH' } : { method: a };
-    const [openingRows, payments] = await Promise.all([
+    const rangeWhere: Prisma.PaymentWhereInput = { branchId, createdAt: { gte: r.start, lt: r.end }, ...accountWhere(q.account) };
+    const [openingRows, payments, rangeRows, inAgg, outAgg, count] = await Promise.all([
       this.prisma.payment.groupBy({ by: ['method', 'currency'], where: { branchId, createdAt: { lt: r.start }, ...accountWhere(q.account) }, _sum: { amount: true } }),
       this.prisma.payment.findMany({
         where: { branchId, createdAt: { gte: r.start, lt: r.end }, ...accountWhere(q.account) },
@@ -134,8 +152,13 @@ export class LedgerService {
           deposit: { select: { target: true, confirmedAt: true } },
         },
         orderBy: { createdAt: 'asc' },
-        take: 2000,
+        take: LINE_LIMIT,
       }),
+      // haraaga dhammaadka + wadarta: muddada oo dhan (ma aha safafka la muujiyay oo keliya)
+      this.prisma.payment.groupBy({ by: ['method', 'currency'], where: rangeWhere, _sum: { amount: true } }),
+      this.prisma.payment.aggregate({ where: { ...rangeWhere, amountUsdCents: { gt: 0 } }, _sum: { amountUsdCents: true } }),
+      this.prisma.payment.aggregate({ where: { ...rangeWhere, amountUsdCents: { lt: 0 } }, _sum: { amountUsdCents: true } }),
+      this.prisma.payment.count({ where: rangeWhere }),
     ]);
     const driverPays = await this.prisma.driverPayment.findMany({ where: { paymentId: { in: payments.filter((p) => p.kind === 'DRIVER_PAY').map((p) => p.id) } }, include: { driver: { select: { name: true } } } });
     const balances: Record<Account, number> = { CASH_USD: 0, CASH_SLSH: 0, ZAAD: 0, EDAHAB: 0 };
@@ -164,9 +187,14 @@ export class LedgerService {
         cashierId: p.cashierId,
       };
     });
-    const totalIn = lines.reduce((s, l) => s + (l.amountUsdCents > 0 ? l.amountUsdCents : 0), 0);
-    const totalOut = lines.reduce((s, l) => s + (l.amountUsdCents < 0 ? -l.amountUsdCents : 0), 0);
-    return { book: 'BRANCH', branchId, from, to, opening, closing: balances, totals: { inUsdCents: totalIn, outUsdCents: totalOut, netUsdCents: totalIn - totalOut }, lines };
+    const closing: Record<Account, number> = { ...opening };
+    for (const g of rangeRows) closing[accountOf(g.method, g.currency)] += g._sum.amount ?? 0;
+    const totalIn = inAgg._sum.amountUsdCents ?? 0;
+    const totalOut = -(outAgg._sum.amountUsdCents ?? 0);
+    return {
+      book: 'BRANCH', branchId, from, to, opening, closing, totals: { inUsdCents: totalIn, outUsdCents: totalOut, netUsdCents: totalIn - totalOut },
+      lines, totalLines: count, truncated: count > lines.length,
+    };
   }
 
   /** Buugga xafiiska guud (Super Admin): wareejinta laamaha (la xaqiijiyay) + gelinta gacanta. */
@@ -218,11 +246,11 @@ export class LedgerService {
 
     const [incomeRows, expenseRows, ledger, earnings] = await Promise.all([
       this.prisma.payment.groupBy({ by: ['kind'], where: { branchId, createdAt: inRange, kind: { in: INCOME_KINDS } }, _sum: { amountUsdCents: true } }),
-      // kharashka sanduuqa (lacagta saafiga ah — void-ku wuu iska dhimayaa)
+      // kharashka sanduuqa — kuwa la void-gareeyay lama tiriyo (lacag celintoodu expense row ma leh)
       this.prisma.$queryRaw<{ category: string; usd: bigint }[]>`
         SELECT e.category::text AS category, COALESCE(SUM(-p."amountUsdCents"), 0)::bigint AS usd
         FROM "payments" p JOIN "expenses" e ON e."paymentId" = p.id
-        WHERE p."createdAt" >= ${r.start} AND p."createdAt" < ${r.end}
+        WHERE p."createdAt" >= ${r.start} AND p."createdAt" < ${r.end} AND e."voidedAt" IS NULL
           AND (${branchId ?? null}::text IS NULL OR p."branchId" = ${branchId ?? null}::text)
         GROUP BY 1`,
       this.prisma.ledgerEntry.findMany({

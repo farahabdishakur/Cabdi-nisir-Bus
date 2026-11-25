@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ClaimStatus, MediaKind, MediaStage, ParcelStatus, Prisma, Role } from '@prisma/client';
 import { createHash } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
+import { createReadStream } from 'fs';
+import { mkdir, open, rename, unlink } from 'fs/promises';
 import { join, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
@@ -62,10 +63,21 @@ export class EvidenceService {
 
   // ------------------------------------------------------------------ media
 
-  async addMedia(user: AuthUser, parcelId: string, file: { buffer: Buffer; mimetype: string; size: number } | undefined, opts: { stage?: MediaStage; note?: string; claimId?: string }) {
+  async addMedia(user: AuthUser, parcelId: string, file: { path: string; mimetype: string; size: number } | undefined, opts: { stage?: MediaStage; note?: string; claimId?: string }) {
     if (!file) throw Errors.bad('FILE_REQUIRED', 'Upload a photo or video in field "file"');
+    try {
+      return await this.storeMedia(user, parcelId, file, opts);
+    } finally {
+      await unlink(file.path).catch(() => undefined); // faylka ku-meel-gaarka ah (haddii la guuriyay, ma jiro)
+    }
+  }
+
+  private async storeMedia(user: AuthUser, parcelId: string, file: { path: string; mimetype: string; size: number }, opts: { stage?: MediaStage; note?: string; claimId?: string }) {
     const type = TYPES[file.mimetype];
-    if (!type || !type.sniff(file.buffer)) throw Errors.bad('INVALID_FILE_TYPE', 'Only JPEG/PNG/WEBP photos or MP4/MOV/3GP/WEBM videos are allowed');
+    const head = Buffer.alloc(16);
+    const fh = await open(file.path, 'r');
+    await fh.read(head, 0, 16, 0).finally(() => fh.close());
+    if (!type || !type.sniff(head)) throw Errors.bad('INVALID_FILE_TYPE', 'Only JPEG/PNG/WEBP photos or MP4/MOV/3GP/WEBM videos are allowed');
     if (file.size > (type.kind === 'PHOTO' ? MAX_PHOTO_BYTES : MAX_VIDEO_BYTES)) {
       throw Errors.bad('FILE_TOO_LARGE', 'File is too large', { maxBytes: type.kind === 'PHOTO' ? MAX_PHOTO_BYTES : MAX_VIDEO_BYTES });
     }
@@ -75,12 +87,16 @@ export class EvidenceService {
       const c = await this.prisma.parcelClaim.findUnique({ where: { id: opts.claimId } });
       if (!c || c.parcelId !== p.id) throw Errors.notFound('Claim', opts.claimId);
     }
-    const stage = opts.claimId ? 'CLAIM' : opts.stage ?? STAGE_FOR[p.status] ?? 'OTHER';
-    const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+    const stage: MediaStage = opts.claimId ? 'CLAIM' : opts.stage ?? STAGE_FOR[p.status] ?? 'OTHER';
+    this.assertStage(user, p, stage);
+    const sha256 = await new Promise<string>((ok, fail) => {
+      const h = createHash('sha256');
+      createReadStream(file.path).on('data', (d) => h.update(d)).on('end', () => ok(h.digest('hex'))).on('error', fail);
+    });
     const dir = join(this.uploadDir, 'evidence', p.id);
     await mkdir(dir, { recursive: true });
     const name = `${Date.now()}-${stage.toLowerCase()}-${sha256.slice(0, 12)}.${type.ext}`;
-    await writeFile(join(dir, name), file.buffer, { flag: 'wx' });
+    await rename(file.path, join(dir, name));
     const media = await this.prisma.parcelMedia.create({
       data: {
         parcelId: p.id, stage, kind: type.kind, mimeType: file.mimetype, path: `evidence/${p.id}/${name}`, sizeBytes: file.size, sha256,
@@ -89,6 +105,23 @@ export class EvidenceService {
     });
     await this.audit.log(this.prisma, user, 'ADD_MEDIA', 'parcels', p.id, null, { mediaId: media.id, stage, kind: type.kind, sha256 });
     return media;
+  }
+
+  /**
+   * Marxaladda waa inay la jaanqaadaa xaaladda alaabta + laanta: sawir "dhiibid" ah lama soo gelin karo
+   * markii la diiwaangelinayay, sawir "diiwaangelin" ahna lama soo gelin karo kadib (caddayn been ah).
+   */
+  private assertStage(user: AuthUser, p: { status: ParcelStatus; fromBranchId: string; toBranchId: string }, stage: MediaStage) {
+    const rule: Partial<Record<MediaStage, { statuses: ParcelStatus[]; side: 'from' | 'to' }>> = {
+      REGISTER: { statuses: ['REGISTERED'], side: 'from' },
+      LOAD: { statuses: ['REGISTERED', 'LOADED', 'IN_TRANSIT'], side: 'from' },
+      ARRIVE: { statuses: ['ARRIVED', 'DAMAGED', 'MISSING'], side: 'to' },
+      DELIVER: { statuses: ['ARRIVED', 'DAMAGED', 'DELIVERED'], side: 'to' },
+    };
+    const r = rule[stage];
+    if (!r) return; // DAMAGE / CLAIM / OTHER: marxalad kasta
+    const sideOk = isSuperAdmin(user) || user.branchId === (r.side === 'from' ? p.fromBranchId : p.toBranchId);
+    if (!r.statuses.includes(p.status) || !sideOk) throw Errors.bad('INVALID_STAGE', `Stage ${stage} is not allowed while the parcel is ${p.status}`, { stage, status: p.status });
   }
 
   async listMedia(user: AuthUser, parcelId: string) {
@@ -112,8 +145,8 @@ export class EvidenceService {
   }
 
   /** Dejinta: alaabta waa in sawir laga qaadaa marka la dhiibayo (deliver) */
-  async hasDeliveryMedia(parcelId: string) {
-    return (await this.prisma.parcelMedia.count({ where: { parcelId, stage: 'DELIVER' } })) > 0;
+  async hasDeliveryMedia(parcelId: string, after?: Date | null) {
+    return (await this.prisma.parcelMedia.count({ where: { parcelId, stage: 'DELIVER', ...(after && { createdAt: { gte: after } }) } })) > 0;
   }
 
   // ------------------------------------------------------------------ claims
@@ -169,7 +202,8 @@ export class EvidenceService {
     });
     if (!c) throw Errors.notFound('Claim', id);
     const media = await this.mediaWithNames(await this.prisma.parcelMedia.findMany({ where: { parcelId: c.parcelId }, orderBy: { createdAt: 'asc' } }));
-    const stages = new Set(media.map((m) => m.stage));
+    // Hubinta: caddaynta KA HOR cabashada kaliya (sawir la soo geliyay kadib cabashada go'aanka ma beddeli karo)
+    const stages = new Set(media.filter((m) => m.createdAt <= c.createdAt).map((m) => m.stage));
     const p = c.parcel;
     const { pickupPinHash: _pin, ...parcel } = p;
     return {

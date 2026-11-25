@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchBlobUrl, uploadWithProgress } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -25,7 +25,7 @@ export const useParcelMedia = (parcelId: string | undefined) =>
  * Sawirka: la yareeyo (1600px, JPEG) si internet gaabis ah ugu shaqeeyo + calaamad (koodhka, waqtiga, laanta, cidda)
  * lagu daabaco hoosta — sawir kale looma isticmaali karo alaab kale.
  */
-async function prepareImage(file: File, stamp: string[]): Promise<Blob> {
+export async function prepareImage(file: File, stamp: string[] = []): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file);
     const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
@@ -37,6 +37,7 @@ async function prepareImage(file: File, stamp: string[]): Promise<Blob> {
     const ctx = canvas.getContext('2d');
     if (!ctx) return file;
     ctx.drawImage(bmp, 0, 0, w, h);
+    if (!stamp.length) return (await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.82))) ?? file;
     const fs = Math.max(14, Math.round(w / 45));
     const bar = fs * (stamp.length + 0.8);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -146,17 +147,20 @@ function Thumb({ m, onOpen }: { m: ParcelMedia; onOpen: () => void }) {
 function Viewer({ m, onClose }: { m: ParcelMedia | null; onClose: () => void }) {
   const { t } = useI18n();
   const [src, setSrc] = useState<string | null>(null);
-  const prev = useRef('');
   useEffect(() => {
     setSrc(null);
     if (!m) return;
+    let alive = true;
+    let url = '';
     fetchBlobUrl(`/media/${m.id}`).then((u) => {
-      if (prev.current) URL.revokeObjectURL(prev.current);
-      prev.current = u;
-      setSrc(u);
+      if (alive) setSrc((url = u));
+      else URL.revokeObjectURL(u); // daawade kale ayaa la furay inta uu soo degayay
     }).catch(() => undefined);
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url); // xiritaan / beddelid → xusuusta sii daa
+    };
   }, [m]);
-  useEffect(() => () => { if (prev.current) URL.revokeObjectURL(prev.current); }, []);
   if (!m) return null;
   return (
     <Modal open onClose={onClose} title={`${t(`evidence.stage.${m.stage}`)} · ${dateTime(m.createdAt)}`} wide>

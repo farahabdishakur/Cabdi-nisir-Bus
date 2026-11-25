@@ -317,6 +317,61 @@
         ]
       }
     },
+    "/api/v1/company/logo": {
+      "post": {
+        "operationId": "SettingsController_uploadLogo",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "settings"
+        ]
+      },
+      "delete": {
+        "operationId": "SettingsController_removeLogo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/public/logo": {
+      "get": {
+        "operationId": "SettingsController_logo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/exchange-rates/today": {
       "get": {
         "operationId": "SettingsController_today",

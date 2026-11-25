@@ -42,7 +42,11 @@ export default function DeliverPage() {
     setPin('');
     setReceivedBy(p.receiverName);
     setPay(CASH_USD);
-    setSelected(await api<Parcel>(`/parcels/${p.id}`));
+    try {
+      setSelected(await api<Parcel>(`/parcels/${p.id}`));
+    } catch (e) {
+      setError(err(e));
+    }
   };
 
   const cod = selected && selected.payer === 'RECEIVER' && !selected.paidAt ? selected.feeCents : 0;
@@ -82,6 +86,7 @@ export default function DeliverPage() {
         <Button type="submit" variant="navy">{t('common.search')}</Button>
       </form>
 
+      {!selected && error && <div className="mb-3"><Alert>{error}</Alert></div>}
       {!selected && search && (
         <Card>
           {results.error ? <ErrorAlert error={results.error} /> : results.isLoading ? <Loading /> : !ready.length ? <p className="text-sm text-gray-500">{t('common.empty')}</p> : (

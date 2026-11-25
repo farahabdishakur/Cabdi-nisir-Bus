@@ -2,13 +2,26 @@ import { Body, Controller, Get, Module, Param, Post, Query, Res, UploadedFile, U
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { memoryStorage } from 'multer';
+import { diskStorage } from 'multer';
+import { mkdirSync } from 'fs';
+import { join, resolve } from 'path';
+import { randomUUID } from 'crypto';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 import { EvidenceService, MAX_VIDEO_BYTES } from './evidence.service';
 import { ClaimQuery, MediaUploadDto, OpenClaimDto, ResolveClaimDto } from './evidence.dto';
 
-const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_VIDEO_BYTES, files: 1 } });
+/** Video waaweyn → disk (ma aha xusuusta) si uploads badan oo isku mar ah server-ka xusuusta uga dhammeyn */
+const tmpDir = () => {
+  const d = join(resolve(process.env.UPLOAD_DIR ?? './uploads'), 'tmp');
+  mkdirSync(d, { recursive: true });
+  return d;
+};
+const upload = FileInterceptor('file', {
+  storage: diskStorage({ destination: (_req, _f, cb) => cb(null, tmpDir()), filename: (_req, _f, cb) => cb(null, randomUUID()) }),
+  limits: { fileSize: MAX_VIDEO_BYTES, files: 1, fields: 5 },
+});
 
 @ApiTags('evidence')
 @ApiBearerAuth()
@@ -19,6 +32,7 @@ export class EvidenceController {
 
   /** Sawir/video caddayn ah (marxaladda: diiwaangelin, rar, gaadhay, dhiibid, dhaawac, cabasho) */
   @ApiConsumes('multipart/form-data')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('parcels/:id/media')
   @UseInterceptors(upload)
   add(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: MediaUploadDto, @UploadedFile() file?: Express.Multer.File) {

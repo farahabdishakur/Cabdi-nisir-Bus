@@ -337,6 +337,12 @@ const so = {
       deliver: 'Sawir markii la dhiibay', deliverWhy: 'Qaataha oo haysta alaabta', pin: 'La dhiibay PIN sax ah', fragile: 'Waxaa lagu sheegay "jajaban kara"',
     },
   },
+  seatEditor: {
+    templates: 'Nooc diyaar ah', seat: 'Kursi', aisle: 'Waddo / bannaan', driver: 'Darawal', front: 'Kursi hore (+qiimo)', frontOfBus: 'Hore',
+    seats: 'kursi', frontCount: '{n} kursi hore (qiimo dheeri)', rows: 'Safaf', cols: 'Tiirar',
+    hint: 'Dooro qalab (Kursi, Waddo, Darawal, Kursi hore) kadibna riix meelaha. Lambaradu si toos ah ayay isu habeeyaan: bidix → midig, kor → hoos.',
+    tpl: { hiace14: 'Hiace 14', noah7: 'Noah / Voxy 7', coaster29: 'Coaster 29', bus45: 'Bas weyn 45' },
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Nuqul #{n}',
     date: 'Taariikh', customer: 'Magaca macmilka', phone: 'Taleefan', time: 'Waqtiga', vehicle: 'Gaadhiga', from: 'Ka', to: 'Ku', seat: 'Kursi',
@@ -346,6 +352,7 @@ const so = {
     driverSign: 'Saxeexa darawalka', cashierSign: 'Saxeexa karraaniga', voided: 'LA VOID-GAREEYAY', print: 'Rasiid',
   },
   books: {
+    truncated: 'Waxaa la muujiyay {shown} ka mid ah {total} — haraaga iyo wadarta waa sax (muddada oo dhan). Si aad u aragto dhammaan, gaabi muddada.',
     title: 'Xisaabaadka',
     branch: 'Buugga laanta', office: 'Buugga xafiiska', pnl: "Faa'iido & khasaare", drivers: 'Mushaharka darawallada',
     today: 'Maanta', week: '7 maalmood', month: 'Bishan',
@@ -394,6 +401,7 @@ const so = {
     shareTripsWithinCity: '1 = Boorama 1 & 2 isku seat map',
   },
   company: {
+    logo: 'Logo-ga shirkadda', logoHint: 'PNG ama JPG, ugu badnaan 1MB. Wuxuu ka muuqdaa rasiidyada, login-ka iyo bogagga macmiilka.', uploadLogo: 'Soo geli logo', noLogo: 'Logo ma jiro', removeLogo: 'Ka saar',
     tagline: 'Hal-ku-dhig',
     mission: 'Ujeeddada shirkadda',
     slogans: 'Ereyada shirkadda',
@@ -446,6 +454,9 @@ const so = {
     smsFailed: '{n} SMS ayaa fashilmay — hubi provider-ka SMS.',
   },
   admin: {
+    allCompany: 'Shirkadda oo dhan',
+    driverBranchHint: 'Laanta maamusha oo bixisa darawalkan',
+   
     title: 'Maamulka',
     branches: 'Laamaha',
     routes: 'Wadooyinka & qiimaha',
@@ -474,7 +485,7 @@ const so = {
     baseFee: 'Qiimaha aasaasiga ($)',
     multiplier: 'Kg isku dhufasho',
     prohibited: 'Mamnuuc',
-    seatLayout: 'Qaabka kuraasta (JSON)',
+    seatLayout: 'Qaabka kuraasta',
     seatLayoutHint: '"D" = darawal · null = marin · "front" = kuraasta hore',
     nameEn: 'Magaca (English)',
     account: 'Akoonka darawalka',
@@ -482,6 +493,15 @@ const so = {
     editUserHint: 'Doorka ama laanta marka la beddelo, qofka waa laga saarayaa (mar kale ayuu soo galayaa).',
   },
   errors: {
+    AMOUNT_REQUIRED: 'Geli lacagta.',
+    BPS_REQUIRED: 'Geli boqolleyda (%).',
+    INVALID_CATEGORY: 'Qaybtan lama oggola.',
+    USE_DRIVER_PAY_VOID: 'Ka void-garee bayaanka darawalka.',
+    INVALID_STAGE: 'Marxaladda sawirka kuma habboona xaaladda alaabta (tusaale: sawir dhiibid ah markii la diiwaangelinayay).',
+    BILL_ALREADY_ATTACHED: 'Biil horay ayaa loo raaciyay — maamulaha ha beddelo.',
+   
+    SEATS_IN_USE: 'Kuraastan rakaab ayaa ku ballansan safarada soo socda — lama tirtiri karo: {seats}',
+    VEHICLE_HAS_TRIPS: 'Baabuurkan safaro soo socda ayuu leeyahay — marka hore u wareeji baabuur kale',
     DELIVERY_PHOTO_REQUIRED: 'Marka hore sawir alaabta la dhiibayo',
     CLAIM_ALREADY_OPEN: 'Alaabtan cabasho furan ayay leedahay',
     CLAIM_NOT_OPEN: "Cabashadan go'aan ayaa laga gaadhay",

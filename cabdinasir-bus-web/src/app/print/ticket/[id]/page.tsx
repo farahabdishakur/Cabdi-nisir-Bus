@@ -33,7 +33,7 @@ export default function TicketPrint({ params }: { params: Promise<{ id: string }
   const income = bk?.payments.filter((p) => p.amount > 0) ?? [];
 
   return (
-    <PrintShell ready={!!bk && !!c}>
+    <PrintShell ready={!!bk && !!c} error={b.error}>
       {bk && c && (
         <Voucher title={t('voucher.receipt')} no={bk.receiptNo} company={c} phones={branch?.phones} copy={bk.printCount > 0 ? t('voucher.copy', { n: bk.printCount }) : undefined}>
           {bk.trip && (

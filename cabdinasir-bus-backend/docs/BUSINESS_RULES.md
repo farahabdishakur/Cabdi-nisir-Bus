@@ -246,3 +246,19 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 4. **Dejin `requireDeliveryPhoto` (1/0):** 1 → alaab lama dhiibi karo ilaa sawir `DELIVER` laga qaado (`DELIVERY_PHOTO_REQUIRED`). Default 0 — waxaa lagula talinayaa 1.
 5. **Cabasho** (jabtay, lumay, qaar ka maqan, alaab kale, daahday, kale): karraani kasta oo laanta diraha/qaataha ah ayaa furi kara; lambar `WAJ-C-000001`; **hal cabasho furan alaab kasta** (DB index); macmiilka SMS ayaa loo diraa.
 6. **Go'aanka = maamule kaliya:** faylka cabashada wuxuu muujiyaa caddaynta oo dhan + hubinta (sawir diiwaangelin? dhiibid? PIN sax ah? jajaban kara la sheegay? imisa saac kadib dhiibista?). Aqbal (magdhow ikhtiyaari) ama diid (magdhow ma leh); hal mar; SMS go'aanka.
+
+## 28. Xogta Maamulka: Logo, Baabuurta & Kuraasta
+1. **Logo-ga shirkadda** (Super Admin): PNG/JPEG/WEBP ≤ 1MB (SVG lama oggola — script ayuu qaadi karaa). Waxa uu ka muuqdaa login-ka, sidebar-ka, rasiidyada iyo bogagga macmiilka. `GET /public/logo` waa dadweyne.
+2. **Qaabka kuraasta** waxaa lagu naqshadeeyaa website-ka (Hiace 14, Noah 7, Coaster 29, Bas 45 ama gaar): kursi / waddo / darawal / kursi hore. Lambaradu waa bidix → midig, kor → hoos.
+3. **Kursi rakaab ku ballansan yahay (safarada soo socda) lama tirtiri karo** (`SEATS_IN_USE`); kuraas lagu daro waa caadi. Baabuur safaro soo socda leh lama joojin karo (`VEHICLE_HAS_TRIPS`).
+
+## 29. Saxitaannada Dib-u-eegista (2026-11-25)
+- Bixinta darawalka ee xafiiska guud: Super Admin kaliya ayaa void-gareyn kara. Goyn: laanta sameysay ama Super Admin.
+- P&L: kharashka la void-gareeyay lama tiriyo.
+- Mushaharka bisha waa la qaybiyaa maalmaha (prorate): bisha koowaad laga bilaabo maalinta xeerka; xeer beddelan; darawal la joojiyay ilaa maalintaas.
+- Caddaynta sawirka: marxaladdu waa inay la jaanqaadaa xaaladda alaabta iyo laanta (`INVALID_STAGE`); hubinta cabashada waxay tirisaa caddaynta ka hor cabashada; sawirka dhiibista waa inuu ka dambeeyaa gaadhista.
+- Biilka kharashka: karraanigu ma beddeli karo marka la raaciyo (`BILL_ALREADY_ATTACHED`) — maamuluhu wuu beddeli karaa (audit); nooca faylka waa la hubiyaa.
+- `DRIVER_PAY` gacan laguma qori karo buugga xafiiska.
+- Safarka: beddelka xaaladda wuxuu xiraa safka (`FOR UPDATE`); iib/ballan/rar waxay qaataan `FOR SHARE` — tigidh lama iibin karo isla daqiiqadda gaarigu baxayo.
+- Buugga laanta: haraaga iyo wadarta waxaa laga xisaabiyaa muddada oo dhan (safafku 3000 ayay ku xaddidan yihiin).
+- Video/sawir uploads: disk (ma aha xusuusta) + xad 30/daqiiqad.

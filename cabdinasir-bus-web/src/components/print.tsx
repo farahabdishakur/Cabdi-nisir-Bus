@@ -7,8 +7,8 @@ import { useI18n } from '@/lib/i18n';
 import { Button, Spinner } from './ui';
 
 /** Bogga daabacaadda: sug login + xogta, kadibna si toos ah u daabac (hal mar). */
-export function PrintShell({ ready, children, autoPrint = true }: { ready: boolean; children: ReactNode; autoPrint?: boolean }) {
-  const { t } = useI18n();
+export function PrintShell({ ready, children, autoPrint = true, error }: { ready: boolean; children: ReactNode; autoPrint?: boolean; error?: unknown }) {
+  const { t, err } = useI18n();
   const { loading, user } = useAuth();
   const [printed, setPrinted] = useState(false);
 
@@ -28,7 +28,7 @@ export function PrintShell({ ready, children, autoPrint = true }: { ready: boole
         <Button onClick={() => window.print()}>🖨 {t('common.print')}</Button>
         <Button variant="secondary" onClick={() => window.close()}>{t('common.close')}</Button>
       </div>
-      {ready ? children : <Spinner />}
+      {error ? <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-800">{err(error)}</p> : ready ? children : <Spinner />}
     </div>
   );
 }
@@ -57,10 +57,14 @@ export const Hr = () => <div className="my-1 border-t border-dashed border-black
  * Rasiidka "Receipt Voucher" — qaabka warqadda shirkadda (sanduuq xariiq leh, magaca shirkadda far waaweyn,
  * taleefannada, kadibna meelo la buuxiyay). 72mm (thermal 80mm). Waa yar yahay oo habaysan.
  */
-export function Voucher({ children, title, no, company, phones, copy }: { children: ReactNode; title: string; no?: string; company: { name: string; tagline?: string | null }; phones?: string[]; copy?: string }) {
+export function Voucher({ children, title, no, company, phones, copy }: { children: ReactNode; title: string; no?: string; company: { name: string; tagline?: string | null; logoUrl?: string | null }; phones?: string[]; copy?: string }) {
   return (
     <div className="voucher">
       <div className="text-center">
+        {company.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={company.logoUrl} alt="" className="voucher-logo mx-auto mb-1 h-12 w-auto max-w-[40mm] object-contain" />
+        )}
         <p className="voucher-brand">{company.name.toUpperCase()}</p>
         {company.tagline && <p className="voucher-tag">{company.tagline.toUpperCase()}</p>}
         {phones && phones.length > 0 && <p className="text-[10px] font-bold">Tel: {phones.join(' / ')}</p>}

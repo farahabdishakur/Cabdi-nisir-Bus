@@ -1,5 +1,6 @@
 'use client';
 
+import { BrandMark } from './brand';
 import Link from 'next/link';
 import { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +20,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <header className="bg-navy text-white">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 p-4">
           <Link href="/track" className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand font-black">CB</span>
+            <BrandMark size={40} />
             <span>
               <span className="block font-black">{company.data?.name ?? 'Cabdinasir Bus'}</span>
               <span className="block text-xs text-indigo-200">{company.data?.tagline}</span>

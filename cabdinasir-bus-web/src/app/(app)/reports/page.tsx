@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, download } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useDownload } from '@/lib/use-download';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { isSuperAdmin } from '@/lib/permissions';
@@ -106,6 +107,7 @@ function DailyClose({ day, branchId }: { day: string; branchId: string }) {
 
 function Revenue({ q }: { q: Q }) {
   const { t } = useI18n();
+  const download = useDownload();
   const r = useQuery({
     queryKey: ['reports', 'revenue', q],
     queryFn: () => api<{ totalUsdCents: number; expensesUsdCents: number; netUsdCents: number; perBranch: { branch: { name: string }; byKind: Record<string, number>; totalUsdCents: number; expensesUsdCents: number; netUsdCents: number }[]; daily: { day: string; usdCents: number }[] }>('/reports/revenue', { query: q }),
@@ -115,7 +117,7 @@ function Revenue({ q }: { q: Q }) {
   const max = Math.max(1, ...r.data.daily.map((d) => d.usdCents));
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label={t('reports.income')} value={usd(r.data.totalUsdCents)} />
         <Stat label={t('reports.expenses')} value={usd(r.data.expensesUsdCents)} />
         <Stat label={t('reports.net')} value={usd(r.data.netUsdCents)} tone="green" />
@@ -152,6 +154,7 @@ function Revenue({ q }: { q: Q }) {
 
 function TripsProfit({ q }: { q: Q }) {
   const { t } = useI18n();
+  const download = useDownload();
   const r = useQuery({
     queryKey: ['reports', 'trips-profit', q],
     queryFn: () => api<{ trips: { tripId: string; departureAt: string; route: string; vehicle: string; driver: string; passengers: number; capacity: number; parcels: number; ticketsUsdCents: number; parcelsUsdCents: number; expensesUsdCents: number; profitUsdCents: number }[]; totals: { profitUsdCents: number; lossMakingTrips: number; trips: number } }>('/reports/trips-profit', { query: q }),

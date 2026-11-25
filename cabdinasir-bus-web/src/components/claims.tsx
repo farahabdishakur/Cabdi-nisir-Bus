@@ -29,6 +29,7 @@ export function OpenClaimModal({ parcel, open, onClose, onDone }: { parcel: { id
     }
   }, [open, parcel.receiverName, parcel.receiverPhone]);
   const save = async () => {
+    if (f.amount.trim() && parseUsd(f.amount) === null) return setError(t('errors.VALIDATION_ERROR'));
     setBusy(true);
     setError('');
     try {

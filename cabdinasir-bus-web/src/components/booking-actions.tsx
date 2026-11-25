@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, newKey } from '@/lib/api';
+import { api, newKey, pendingTab } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { can } from '@/lib/permissions';
@@ -48,12 +48,14 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
   const confirm = async () => {
     setPaying(true);
     setError('');
+    const tab = pendingTab();
     try {
       const done = await api<Booking>(`/bookings/${b.id}/confirm`, { method: 'POST', body: { payment: pay } });
       refresh();
-      window.open(`/print/ticket/${done.id}`, '_blank');
+      tab.go(`/print/ticket/${done.id}`);
       onClose();
     } catch (e) {
+      tab.cancel();
       setError(err(e));
     } finally {
       setPaying(false);

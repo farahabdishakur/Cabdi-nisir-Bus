@@ -65,7 +65,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (e: unknown) => {
       if (e instanceof ApiError) {
         const known = lookup(DICTS[lang], `errors.${e.code}`) ?? lookup(so, `errors.${e.code}`);
-        if (known) return known;
+        if (known) return known.replace(/\{(\w+)\}/g, (m, k: string) => { const v = e.details?.[k]; return v === undefined ? m : Array.isArray(v) ? v.join(', ') : String(v); });
         return e.message || t('errors.UNKNOWN');
       }
       return t('errors.UNKNOWN');

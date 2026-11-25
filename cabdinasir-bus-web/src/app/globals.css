@@ -85,6 +85,9 @@ body {
   .voucher {
     color: #000;
   }
+  .voucher-logo {
+    filter: grayscale(1) contrast(1.4);
+  }
 }
 
 /* Daabacaad isla bogga (offline — tab cusub lama furi karo internet la'aan): kaliya .print-area ayaa la daabacaa */

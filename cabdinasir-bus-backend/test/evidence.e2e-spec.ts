@@ -73,6 +73,9 @@ describe('Parcel evidence & claims (e2e)', () => {
     const v = await upload('0612', parcel.id, mp4, 'video/mp4', { stage: 'LOAD' });
     expect(v.status).toBe(201);
     expect(v.body).toMatchObject({ kind: 'VIDEO', stage: 'LOAD' });
+    // sawir "dhiibid" ah markii la diiwaangelinayay → waa la diidayaa (caddayn been ah)
+    expect((await upload('0612', parcel.id, png, 'image/png', { stage: 'DELIVER' })).body.error.code).toBe('INVALID_STAGE');
+    expect((await upload('0622', parcel.id, png, 'image/png', { stage: 'REGISTER' })).body.error.code).toBe('INVALID_STAGE');
     const list = await wajCashier.get(`/parcels/${parcel.id}/media`).expect(200);
     expect(list.body.map((m: { stage: string }) => m.stage)).toEqual(['REGISTER', 'LOAD']);
     expect(list.body[0]).toMatchObject({ takenBy: '0612', branchCode: 'BOR' });

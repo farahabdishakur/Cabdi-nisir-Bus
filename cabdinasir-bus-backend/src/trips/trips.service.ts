@@ -35,7 +35,13 @@ export class TripsService {
   ) {}
 
   /** Safar shaqaaluhu arki karaan: kuwa ka baxa ama u socda magaaladooda (Boorama: 2 laamood way wadaagaan). */
-  async getForUser(db: Tx | PrismaService, user: AuthUser, id: string): Promise<TripWithRoute> {
+  /**
+   * lock: 'share' = iib/ballan/rar (kuwo badan isku mar way socon karaan) · 'update' = beddelka xaaladda safarka.
+   * Sidaas darteed tigidh lama iibin karo isla daqiiqadda gaariga "baxay" la riixayo (iibku wuu sugayaa → wuxuu arkaa DEPARTED).
+   */
+  async getForUser(db: Tx | PrismaService, user: AuthUser, id: string, lock?: 'share' | 'update'): Promise<TripWithRoute> {
+    if (lock === 'share') await db.$queryRaw`SELECT id FROM "trips" WHERE id = ${id} FOR SHARE`;
+    if (lock === 'update') await db.$queryRaw`SELECT id FROM "trips" WHERE id = ${id} FOR UPDATE`;
     const trip = await db.trip.findUnique({ where: { id }, include: tripInclude });
     if (!trip) throw Errors.notFound('Trip', id);
     if (user.role === Role.DRIVER) {
@@ -138,7 +144,7 @@ export class TripsService {
 
   async changeStatus(user: AuthUser, id: string, dto: TripStatusDto) {
     return this.prisma.$transaction(async (tx) => {
-      const trip = await this.getForUser(tx, user, id);
+      const trip = await this.getForUser(tx, user, id, 'update');
       const to = dto.status;
       // ARRIVED/CLOSED: laanta loo socdo ayaa sameysa; inta kale: laanta laga baxayo
       const ownerBranch = to === 'ARRIVED' || to === 'CLOSED' ? trip.route.toBranchId : trip.route.fromBranchId;

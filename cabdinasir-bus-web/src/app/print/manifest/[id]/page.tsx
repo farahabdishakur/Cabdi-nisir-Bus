@@ -24,7 +24,7 @@ export default function ManifestPrint({ params }: { params: Promise<{ id: string
   const q = useQuery({ queryKey: ['print', 'manifest', id], queryFn: () => api<Manifest>(`/trips/${id}/manifest`), enabled: !!user });
   const m = q.data;
   return (
-    <PrintShell ready={!!m} autoPrint={false}>
+    <PrintShell ready={!!m} error={q.error} autoPrint={false}>
       {m && (
         <div className="mx-auto max-w-3xl text-sm text-black">
           <h1 className="text-xl font-bold">Cabdinasir Bus — {t('trips.manifest')}</h1>

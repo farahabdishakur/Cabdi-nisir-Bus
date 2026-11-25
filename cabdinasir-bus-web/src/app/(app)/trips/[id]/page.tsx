@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { use, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, newKey } from '@/lib/api';
+import { api, newKey, pendingTab } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { can } from '@/lib/permissions';
@@ -244,11 +244,12 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
   const submit = async () => {
     setBusy(true);
     setError('');
+    const tab = mode === 'sell' ? pendingTab() : null;
     try {
       const body = { tripId: trip.id, seatNo: seat.seatNo, passengerName: party.name.trim(), passengerPhone: party.phone.trim() };
       if (mode === 'sell') {
         const b = await api<Booking>('/bookings', { method: 'POST', idempotencyKey: key.current, body: { ...body, payment: pay, ...(discountCents > 0 && { discountCents }) } });
-        window.open(`/print/ticket/${b.id}`, '_blank');
+        tab?.go(`/print/ticket/${b.id}`);
       } else {
         await api<Booking>('/bookings/reserve', { method: 'POST', idempotencyKey: key.current, body });
       }
@@ -257,6 +258,7 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
       qc.invalidateQueries({ queryKey: ['cash'] });
       onDone();
     } catch (e) {
+      tab?.cancel();
       setError(err(e));
     } finally {
       setBusy(false);

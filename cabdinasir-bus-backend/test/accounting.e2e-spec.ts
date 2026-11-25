@@ -117,6 +117,10 @@ describe('Accounting: driver pay, cashbook, P&L (e2e)', () => {
     const p = await sa.post(`/driver-pay/${driver2}/payments`, { kind: 'PAYOUT', amountCents: 50, note: 'Mushahar' }).expect(201);
     expect(p.body.ledgerEntryId).toBeTruthy();
     expect((await sa.post(`/ledger/entries/${p.body.ledgerEntryId}/void`, { reason: 'x x x' })).body.error.code).toBe('USE_DRIVER_PAY_VOID');
+    // maamule laan ma void-gareyn karo bixinta xafiiska guud (audit #1)
+    expect((await manager.post(`/driver-pay/payments/${p.body.id}/void`, { reason: 'isku day' })).status).toBe(403);
+    // DRIVER_PAY gacan laguma qori karo (waa la void-gareyn kari waayay) (audit #6)
+    expect((await sa.post('/ledger/entries', { direction: 'OUT', category: 'DRIVER_PAY', description: 'gacan', amount: 100, currency: 'USD' })).body.error.code).toBe('INVALID_CATEGORY');
     await manager.post(`/driver-pay/${driver2}/bonus`, { amountCents: 300, note: 'Ciid' }).expect(201);
     const sum = await manager.get('/driver-pay').expect(200);
     const d2 = sum.body.drivers.find((d: { driverId: string }) => d.driverId === driver2);
@@ -132,6 +136,13 @@ describe('Accounting: driver pay, cashbook, P&L (e2e)', () => {
     expect((await sa.post('/driver-pay/run-monthly', { period: '2026-10' }).expect(201)).body.created).toBe(0);
     const st = await manager.get(`/driver-pay/${d3}/statement?from=2026-01-01`).expect(200);
     expect(st.body.closingCents).toBe(30000);
+    // bisha koowaad: xeerka la dhigay 21-ka Sep → 10/30 maalmood; darawal bishii la joojiyay wuu helayaa (ilaa maalinta)
+    const d4 = (await manager.post('/drivers', { name: 'Faarax', phone: '0633666' }).expect(201)).body.id;
+    await manager.put(`/driver-pay/${d4}/rule`, { type: 'MONTHLY_SALARY', amountCents: 30000, effectiveFrom: '2026-09-20T21:00:00Z' }).expect(200);
+    await sa.post('/driver-pay/run-monthly', { period: '2026-09' }).expect(201);
+    const e4 = await prisma.driverEarning.findFirstOrThrow({ where: { driverId: d4, period: '2026-09' } });
+    expect(e4.amountCents).toBe(10000);
+    expect(e4.basis).toMatchObject({ days: 10, daysInMonth: 30 });
   });
 
   it('branch cashbook: every payment appears automatically with running balance per account', async () => {
@@ -187,13 +198,27 @@ describe('Accounting: driver pay, cashbook, P&L (e2e)', () => {
     expect(csv.text).toContain('NET_PROFIT');
   });
 
+  it('P&L ignores a voided expense (audit #2)', async () => {
+    const before = (await sa.get(`/reports/profit-loss?branchId=${base.bor.id}`).expect(200)).body.totals.expensesUsdCents;
+    const ex = await cashier.post('/expenses', { category: 'FUEL', description: 'Qalad', amount: 700, currency: 'USD' }).expect(201);
+    expect((await sa.get(`/reports/profit-loss?branchId=${base.bor.id}`).expect(200)).body.totals.expensesUsdCents).toBe(before + 700);
+    await manager.post(`/expenses/${ex.body.id}/void`, { reason: 'qalad baa dhacay' }).expect(201);
+    expect((await sa.get(`/reports/profit-loss?branchId=${base.bor.id}`).expect(200)).body.totals.expensesUsdCents).toBe(before);
+  });
+
   it('bill photo on an expense: uploaded by the branch, hidden from other branches', async () => {
-    const e = await prisma.expense.findFirstOrThrow();
+    const e = await prisma.expense.findFirstOrThrow({ where: { voidedAt: null } });
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4d80000000049454e44ae426082', 'hex');
     const s = app.getHttpServer();
     const tok = await login(app, '0612');
     const up = await request(s).post(`/api/v1/expenses/${e.id}/attachment`).set('Authorization', `Bearer ${tok}`).attach('file', png, { filename: 'bill.png', contentType: 'image/png' }).expect(201);
     expect(up.body.attachmentUrl).toMatch(/^bills\//);
+    // karraanigu biilka ma beddeli karo (caddayn); fayl aan sawir ahayn → la diiday (audit #8)
+    const again = await request(s).post(`/api/v1/expenses/${e.id}/attachment`).set('Authorization', `Bearer ${tok}`).attach('file', png, { filename: 'b2.png', contentType: 'image/png' });
+    expect(again.body.error.code).toBe('BILL_ALREADY_ATTACHED');
+    const fake = await request(s).post(`/api/v1/expenses/${e.id}/attachment`).set('Authorization', `Bearer ${await login(app, '0611')}`).attach('file', Buffer.from('not an image'), { filename: 'x.png', contentType: 'image/png' });
+    expect(fake.body.error.code).toBe('INVALID_FILE_TYPE');
+    await request(s).post(`/api/v1/expenses/${e.id}/attachment`).set('Authorization', `Bearer ${await login(app, '0611')}`).attach('file', png, { filename: 'b3.png', contentType: 'image/png' }).expect(201);
     await request(s).get(`/api/v1/expenses/${e.id}/attachment`).set('Authorization', `Bearer ${tok}`).expect(200);
     expect((await wajCashier.get(`/expenses/${e.id}/attachment`)).body.error.code).toBe('FORBIDDEN_BRANCH');
   });

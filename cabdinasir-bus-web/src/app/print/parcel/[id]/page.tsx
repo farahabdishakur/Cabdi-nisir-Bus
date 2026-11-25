@@ -52,7 +52,7 @@ export default function ParcelPrint({ params }: { params: Promise<{ id: string }
   const cod = p && p.payer === 'RECEIVER' && !p.paidAt;
 
   return (
-    <PrintShell ready={!!p && !!c}>
+    <PrintShell ready={!!p && !!c} error={q.error}>
       {p && c && (
         <>
           <Voucher title={t('voucher.parcel')} no={p.trackingCode} company={c} phones={from?.phones} copy={p.printCount > 0 ? t('voucher.copy', { n: p.printCount }) : undefined}>

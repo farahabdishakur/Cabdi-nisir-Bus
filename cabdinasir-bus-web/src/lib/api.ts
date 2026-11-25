@@ -139,15 +139,55 @@ function safeJson(t: string) {
 }
 
 /** CSV / fayl: soo deji (token-ka header-ka ayuu raacaa) */
-export async function download(path: string, query: RequestOptions['query'], filename: string) {
-  const res = await fetch(buildUrl(path, query), { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'include' });
-  if (!res.ok) throw new ApiError(`HTTP_${res.status}`, 'Download failed', res.status);
+const EXT: Record<string, string> = { 'text/csv': 'csv', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
+
+/** Soo deji fayl (CSV / biil): token-ka header-ka, 401 → refresh hal mar; extension-ka nooca faylka ayaa go'aamiya. */
+export async function download(path: string, query: RequestOptions['query'], filename: string, retried = false): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, query), { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'include' });
+  } catch {
+    throw new ApiError('NETWORK_ERROR', 'Network error', 0);
+  }
+  if (res.status === 401 && !retried && (await refreshSession())) return download(path, query, filename, true);
+  if (!res.ok) {
+    const e = (safeJson(await res.text()) as { error?: { code?: string; message?: string } } | undefined)?.error;
+    throw new ApiError(e?.code ?? `HTTP_${res.status}`, e?.message ?? 'Download failed', res.status);
+  }
   const blob = await res.blob();
+  const ext = EXT[(res.headers.get('content-type') ?? '').split(';')[0].trim()];
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = filename;
+  a.download = ext && !filename.toLowerCase().endsWith(`.${ext}`) ? `${filename}.${ext}` : filename;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(a.href);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30_000); // Safari/Firefox: ha joojin soo dejinta
+}
+
+/**
+ * Tab-ka daabacaadda: waa in la furaa ISLA markii la riixo (ka hor await) — haddii kale browser-ku (gaar ahaan iPhone)
+ * wuu xannibayaa. Kadib `go(url)` marka xogtu timaado, ama `cancel()` haddii khalad dhaco.
+ */
+export function pendingTab() {
+  const w = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+  return {
+    opened: !!w,
+    /** init: xog tab-ka loo gudbinayo ka hor inta aan la furin (tusaale PIN-ka sessionStorage) */
+    go(url: string, init?: (tab: Window) => void) {
+      if (w && !w.closed) {
+        try {
+          init?.(w);
+        } catch {
+          /* ignore */
+        }
+        w.location.href = url;
+      } else window.open(url, '_blank');
+    },
+    cancel() {
+      w?.close();
+    },
+  };
 }
 
 /**

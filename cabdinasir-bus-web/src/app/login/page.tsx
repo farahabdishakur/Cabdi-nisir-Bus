@@ -1,5 +1,6 @@
 'use client';
 
+import { BrandMark } from '@/components/brand';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -39,7 +40,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-navy p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-2xl font-black text-white">CB</div>
+          <div className="mb-3 flex justify-center"><BrandMark size={64} /></div>
           <h1 className="text-xl font-black text-navy">{t('common.appName')}</h1>
           <p className="text-sm text-gray-500">Boorama · Wajaale</p>
         </div>

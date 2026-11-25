@@ -11,6 +11,8 @@ import { centsToInput, parseUsd, phone, usd } from '@/lib/format';
 import type { Branch, Category, Company, Driver, Role, Route, Vehicle } from '@/lib/types';
 import { Alert, Badge, Button, Card, Checkbox, Field, Input, Loading, Modal, PageHeader, Select, Table, Td, Textarea } from '@/components/ui';
 import { BranchSelect, ErrorAlert } from '@/components/domain';
+import { SeatLayoutEditor, type SeatLayoutValue } from '@/components/seat-layout-editor';
+import { uploadWithProgress } from '@/lib/api';
 
 type Tab = 'branches' | 'routes' | 'vehicles' | 'drivers' | 'users' | 'categories' | 'settings';
 
@@ -61,10 +63,10 @@ function useSaver() {
   return { error, busy, run, setError };
 }
 
-function FormModal({ open, title, onClose, onSave, busy, error, children }: { open: boolean; title: string; onClose: () => void; onSave: () => void; busy: boolean; error: string; children: ReactNode }) {
+function FormModal({ open, title, onClose, onSave, busy, error, children, wide }: { open: boolean; title: string; onClose: () => void; onSave: () => void; busy: boolean; error: string; children: ReactNode; wide?: boolean }) {
   const { t } = useI18n();
   return (
-    <Modal open={open} onClose={onClose} title={title}>
+    <Modal open={open} onClose={onClose} title={title} wide={wide}>
       <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); onSave(); }}>
         {children}
         {error && <Alert>{error}</Alert>}
@@ -145,6 +147,10 @@ function Users() {
 
 function Drivers() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const sa = isSuperAdmin(user);
+  const boot = useBootstrap();
+  const branchName = (id: string | null) => (id ? boot.data?.branches.find((b) => b.id === id)?.name ?? '—' : t('admin.allCompany'));
   const list = useQuery({ queryKey: ['drivers'], queryFn: () => api<Driver[]>('/drivers') });
   const accounts = useQuery({ queryKey: ['admin', 'users', 'DRIVER'], queryFn: () => api<UserRow[]>('/users', { query: { role: 'DRIVER' } }) });
   const s = useSaver();
@@ -153,10 +159,10 @@ function Drivers() {
   return (
     <Card title={t('admin.drivers')} actions={<Button size="sm" onClick={() => setEdit({ name: '', phone: '', licenseNo: '' })}>+ {t('common.add')}</Button>}>
       {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : (
-        <Table head={[t('common.name'), t('common.phone'), t('admin.license'), t('admin.account'), t('common.status'), '']} empty={!list.data?.length}>
+        <Table head={[t('common.name'), t('common.phone'), t('common.branch'), t('admin.license'), t('admin.account'), t('common.status'), '']} empty={!list.data?.length}>
           {list.data?.map((d) => (
             <tr key={d.id}>
-              <Td className="font-semibold">{d.name}</Td><Td>{phone(d.phone)}</Td><Td>{d.licenseNo ?? '—'}</Td><Td>{d.userId ? `✓ ${accountName(d.userId) ?? ''}` : '—'}</Td>
+              <Td className="font-semibold">{d.name}</Td><Td>{phone(d.phone)}</Td><Td className={d.branchId ? '' : 'text-amber-700'}>{branchName(d.branchId)}</Td><Td>{d.licenseNo ?? '—'}</Td><Td>{d.userId ? `✓ ${accountName(d.userId) ?? ''}` : '—'}</Td>
               <Td>{d.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
               <Td><Button size="sm" variant="ghost" onClick={() => setEdit(d)}>{t('common.edit')}</Button></Td>
             </tr>
@@ -165,11 +171,12 @@ function Drivers() {
       )}
       <FormModal open={!!edit} title={t('admin.drivers')} onClose={() => setEdit(null)} busy={s.busy} error={s.error}
         onSave={() => s.run(() => edit?.id
-          ? api(`/drivers/${edit.id}`, { method: 'PATCH', body: { name: edit.name, phone: edit.phone, licenseNo: edit.licenseNo || undefined, isActive: edit.isActive, ...(edit.userId && { userId: edit.userId }) } })
-          : api('/drivers', { method: 'POST', body: { name: edit?.name, phone: edit?.phone, licenseNo: edit?.licenseNo || undefined, ...(edit?.userId && { userId: edit.userId }) } }), [['drivers']], () => setEdit(null))}>
+          ? api(`/drivers/${edit.id}`, { method: 'PATCH', body: { name: edit.name, phone: edit.phone, licenseNo: edit.licenseNo || undefined, isActive: edit.isActive, ...(edit.userId && { userId: edit.userId }), ...(sa && edit.branchId && { branchId: edit.branchId }) } })
+          : api('/drivers', { method: 'POST', body: { name: edit?.name, phone: edit?.phone, licenseNo: edit?.licenseNo || undefined, ...(edit?.userId && { userId: edit.userId }), ...(sa && edit?.branchId && { branchId: edit.branchId }) } }), [['drivers']], () => setEdit(null))}>
         <Field label={t('common.name')} required>{(id) => <Input id={id} value={edit?.name ?? ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required />}</Field>
         <Field label={t('common.phone')} required>{(id) => <Input id={id} value={edit?.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} required />}</Field>
         <Field label={t('admin.license')}>{(id) => <Input id={id} value={edit?.licenseNo ?? ''} onChange={(e) => setEdit({ ...edit, licenseNo: e.target.value })} />}</Field>
+        {sa && <Field label={t('common.branch')} hint={t('admin.driverBranchHint')}>{(id) => <BranchSelect id={id} value={edit?.branchId ?? ''} onChange={(v) => setEdit({ ...edit, branchId: v || null })} branches={boot.data?.branches ?? []} allLabel={t('admin.allCompany')} />}</Field>}
         <Field label={t('admin.account')} hint={t('admin.accountHint')}>{(id) => (
           <Select id={id} value={edit?.userId ?? ''} onChange={(e) => setEdit({ ...edit, userId: e.target.value || null })}>
             <option value="">—</option>
@@ -268,37 +275,35 @@ function Routes() {
 /** Dejinta lacagta ah (senti backend-ka) — UI-gu dollar ayuu muujiyaa */
 const MONEY_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents'];
 
-const HIACE_14 = { rows: [['D', null, '1', '2'], ['3', '4', null, '5'], ['6', '7', null, '8'], ['9', '10', null, '11'], ['12', '13', '14', null]], front: ['1', '2'] };
 
 function Vehicles() {
   const { t } = useI18n();
   const list = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') });
   const s = useSaver();
-  const [edit, setEdit] = useState<{ id?: string; plate: string; model: string; layout: string; isActive?: boolean } | null>(null);
-  const save = () => {
-    let seatLayout: unknown;
-    try {
-      seatLayout = JSON.parse(edit!.layout);
-    } catch {
-      return s.setError(t('errors.VALIDATION_ERROR'));
-    }
-    return s.run(() => (edit?.id ? api(`/vehicles/${edit.id}`, { method: 'PATCH', body: { model: edit.model, seatLayout, isActive: edit.isActive } }) : api('/vehicles', { method: 'POST', body: { plate: edit!.plate, model: edit!.model, seatLayout } })), [['vehicles']], () => setEdit(null));
-  };
+  const [edit, setEdit] = useState<{ id?: string; plate: string; model: string; layout: SeatLayoutValue | null; isActive?: boolean } | null>(null);
+  const [layout, setLayout] = useState<SeatLayoutValue | null>(null);
+  const save = () =>
+    s.run(() => (edit?.id
+      ? api(`/vehicles/${edit.id}`, { method: 'PATCH', body: { model: edit.model, seatLayout: layout, isActive: edit.isActive } })
+      : api('/vehicles', { method: 'POST', body: { plate: edit!.plate.trim(), model: edit!.model, seatLayout: layout } })), [['vehicles']], () => setEdit(null));
   return (
-    <Card title={t('admin.vehicles')} actions={<Button size="sm" onClick={() => setEdit({ plate: '', model: 'Toyota Hiace', layout: JSON.stringify(HIACE_14) })}>+ {t('common.add')}</Button>}>
+    <Card title={t('admin.vehicles')} actions={<Button size="sm" onClick={() => setEdit({ plate: '', model: 'Toyota Hiace', layout: null })}>+ {t('common.add')}</Button>}>
       <Table head={[t('admin.plate'), t('admin.model'), t('admin.capacity'), t('common.status'), '']} empty={!list.data?.length}>
         {list.data?.map((v) => (
           <tr key={v.id}>
             <Td className="font-mono font-bold">{v.plate}</Td><Td>{v.model}</Td><Td>{v.capacity}</Td>
             <Td>{v.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
-            <Td><Button size="sm" variant="ghost" onClick={() => setEdit({ id: v.id, plate: v.plate, model: v.model, layout: JSON.stringify(v.seatLayout), isActive: v.isActive })}>{t('common.edit')}</Button></Td>
+            <Td><Button size="sm" variant="ghost" onClick={() => setEdit({ id: v.id, plate: v.plate, model: v.model, layout: v.seatLayout as SeatLayoutValue, isActive: v.isActive })}>{t('common.edit')}</Button></Td>
           </tr>
         ))}
       </Table>
-      <FormModal open={!!edit} title={t('admin.vehicles')} onClose={() => setEdit(null)} busy={s.busy} error={s.error} onSave={save}>
+      <FormModal open={!!edit} wide title={t('admin.vehicles')} onClose={() => setEdit(null)} busy={s.busy} error={s.error} onSave={save}>
         <Field label={t('admin.plate')} required>{(id) => <Input id={id} value={edit?.plate ?? ''} disabled={!!edit?.id} onChange={(e) => setEdit({ ...edit!, plate: e.target.value })} required />}</Field>
         <Field label={t('admin.model')} required>{(id) => <Input id={id} value={edit?.model ?? ''} onChange={(e) => setEdit({ ...edit!, model: e.target.value })} required />}</Field>
-        <Field label={t('admin.seatLayout')} hint={t('admin.seatLayoutHint')}>{(id) => <Textarea id={id} rows={5} className="font-mono text-xs" value={edit?.layout ?? ''} onChange={(e) => setEdit({ ...edit!, layout: e.target.value })} />}</Field>
+        <div>
+          <p className="mb-1 text-sm font-medium">{t('admin.seatLayout')}</p>
+          {edit && <SeatLayoutEditor key={edit.id ?? 'new'} value={edit.layout} onChange={setLayout} />}
+        </div>
         {edit?.id && <Checkbox label={t('common.active')} checked={!!edit.isActive} onChange={(v) => setEdit({ ...edit, isActive: v })} />}
       </FormModal>
     </Card>
@@ -382,7 +387,8 @@ function Settings() {
         </form>
       </Card>
       <Card title={t('admin.company')}>
-        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); s.run(() => api('/company', { method: 'PUT', body: company }), [['bootstrap']], done); }}>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); s.run(() => { const { name, tagline, mission, slogans, passengerRules, parcelRules, receiptFooter } = company; return api('/company', { method: 'PUT', body: { name, tagline, mission, slogans, passengerRules, parcelRules, receiptFooter } }); }, [['bootstrap']], done); }}>
+          <LogoUpload logoUrl={boot.data.company.logoUrl ?? null} onDone={done} />
           <Field label={t('common.name')}>{(id) => <Input id={id} value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} />}</Field>
           <Field label={t('company.tagline')}>{(id) => <Input id={id} value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} />}</Field>
           <Field label={t('company.mission')}>{(id) => <Textarea id={id} value={company.mission} onChange={(e) => setCompany({ ...company, mission: e.target.value })} />}</Field>
@@ -393,6 +399,53 @@ function Settings() {
           <Button type="submit" loading={s.busy}>{t('common.save')}</Button>
         </form>
       </Card>
+    </div>
+  );
+}
+
+/** Logo-ga shirkadda: wuxuu ka muuqdaa sidebar-ka, login-ka, rasiidyada iyo bogagga dadweynaha */
+function LogoUpload({ logoUrl, onDone }: { logoUrl: string | null; onDone: () => void }) {
+  const { t, err } = useI18n();
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const send = async (file: File) => {
+    setBusy(true);
+    setError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      await uploadWithProgress('/company/logo', form);
+      await qc.invalidateQueries({ queryKey: ['bootstrap'] });
+      onDone();
+    } catch (e) {
+      setError(err(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    await api('/company/logo', { method: 'DELETE' });
+    await qc.invalidateQueries({ queryKey: ['bootstrap'] });
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 p-3">
+      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-gray-50 ring-1 ring-gray-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {logoUrl ? <img src={logoUrl} alt="logo" className="h-full w-full object-contain" /> : <span className="text-xs text-gray-400">{t('company.noLogo')}</span>}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <p className="text-sm font-semibold">{t('company.logo')}</p>
+        <p className="text-xs text-gray-500">{t('company.logoHint')}</p>
+        <div className="flex gap-2">
+          <label className={`inline-flex min-h-9 cursor-pointer items-center rounded-lg bg-navy px-3 text-sm font-semibold text-white ${busy ? 'pointer-events-none opacity-50' : ''}`}>
+            ⬆ {t('company.uploadLogo')}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void send(f); e.target.value = ''; }} />
+          </label>
+          {logoUrl && <Button type="button" size="sm" variant="ghost" onClick={remove}>{t('company.removeLogo')}</Button>}
+        </div>
+        {error && <Alert>{error}</Alert>}
+      </div>
     </div>
   );
 }

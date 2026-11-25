@@ -29,7 +29,7 @@ export default function DriverPaymentPrint({ params }: { params: Promise<{ id: s
   const owed = v ? v.balanceAfterCents : 0;
 
   return (
-    <PrintShell ready={!!v && !!c}>
+    <PrintShell ready={!!v && !!c} error={q.error}>
       {v && c && (
         <Voucher title={t('voucher.payment')} no={v.id.slice(0, 8).toUpperCase()} company={c} phones={branch?.phones}>
           {v.voided && <p className="text-center text-base font-black">✕ {t('voucher.voided')} — {v.voidReason}</p>}

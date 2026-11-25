@@ -189,6 +189,7 @@ export interface Company {
   passengerRules: string[];
   parcelRules: string[];
   receiptFooter: string;
+  logoUrl?: string | null;
 }
 
 export interface Paged<T> {

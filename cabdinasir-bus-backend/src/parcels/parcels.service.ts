@@ -246,7 +246,7 @@ export class ParcelsService {
     return this.prisma.$transaction(async (tx) => {
       const p = await this.loadFor(tx, id);
       this.assertSide(user, p, 'from');
-      const trip = await this.trips.getForUser(tx, user, tripId);
+      const trip = await this.trips.getForUser(tx, user, tripId, 'share');
       // Gaariga Boorama → Wajaale wuxuu qaadaa alaabta labada laamood ee Boorama
       if (!this.dir.sameCity(trip.route.fromBranchId, p.fromBranchId) || !this.dir.sameCity(trip.route.toBranchId, p.toBranchId)) {
         throw Errors.bad('TRIP_ROUTE_MISMATCH', 'This trip does not go to the parcel destination city');
@@ -300,7 +300,7 @@ export class ParcelsService {
     const p0 = await this.prisma.parcel.findUnique({ where: { id } });
     if (!p0) throw Errors.notFound('Parcel', id);
     this.assertSide(user, p0, 'to');
-    if ((await this.settings.get()).requireDeliveryPhoto && !(await this.prisma.parcelMedia.count({ where: { parcelId: id, stage: 'DELIVER' } }))) {
+    if ((await this.settings.get()).requireDeliveryPhoto && !(await this.prisma.parcelMedia.count({ where: { parcelId: id, stage: 'DELIVER', ...(p0.arrivedAt && { createdAt: { gte: p0.arrivedAt } }) } }))) {
       throw Errors.bad('DELIVERY_PHOTO_REQUIRED', 'Take a photo of the parcel being handed over first');
     }
     // Isku day kasta waa la "xiraa" KA HOR hubinta (atomic) — requests isku mar ah 5-ta xad kama gudbi karaan

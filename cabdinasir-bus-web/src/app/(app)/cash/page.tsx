@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, newKey } from '@/lib/api';
+import { api, newKey, uploadWithProgress } from '@/lib/api';
+import { prepareImage } from '@/components/evidence';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { can, isSuperAdmin } from '@/lib/permissions';
@@ -129,11 +130,19 @@ function Expenses({ hasSession }: { hasSession: boolean }) {
   const list = useQuery({ queryKey: ['cash', 'expenses'], queryFn: () => api<Expense[]>('/expenses', { query: { from: todayISO() } }) });
   const [open, setOpen] = useState(false);
   const [voiding, setVoiding] = useState<Expense | null>(null);
+  const [attachError, setAttachError] = useState('');
   const attach = async (id: string, file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    await api(`/expenses/${id}/attachment`, { method: 'POST', form });
-    qc.invalidateQueries({ queryKey: ['cash', 'expenses'] });
+    setAttachError('');
+    try {
+      const form = new FormData();
+      // sawirka kamaradda (3–8MB) → la yareeyo (JPEG 1600px) ka hor inta aan la dirin
+      const body = file.type.startsWith('image/') ? await prepareImage(file) : file;
+      form.append('file', body, file.type.startsWith('image/') ? 'bill.jpg' : file.name);
+      await uploadWithProgress(`/expenses/${id}/attachment`, form);
+      qc.invalidateQueries({ queryKey: ['cash', 'expenses'] });
+    } catch (e) {
+      setAttachError(err(e));
+    }
   };
   const [form, setForm] = useState({ category: 'FUEL', description: '', amount: '', currency: 'USD' as Currency });
   const [error, setError] = useState('');
@@ -156,6 +165,7 @@ function Expenses({ hasSession }: { hasSession: boolean }) {
 
   return (
     <Card title={t('cash.expenses')} actions={hasSession && <Button size="sm" onClick={() => setOpen(true)}>+ {t('cash.newExpense')}</Button>}>
+      {attachError && <div className="mb-2"><Alert>{attachError}</Alert></div>}
       <Table head={[t('common.date'), t('common.status'), t('common.note'), t('common.amount'), '']} empty={!list.data?.length}>
         {list.data?.map((e) => (
           <tr key={e.id} className={e.voidedAt ? 'text-gray-400 line-through' : ''}>
@@ -168,7 +178,7 @@ function Expenses({ hasSession }: { hasSession: boolean }) {
                 {!e.voidedAt && (
                   <label className="cursor-pointer rounded-lg px-2 py-1 text-sm hover:bg-gray-100" title={t('books.attach')}>
                     {e.attachmentUrl ? '📎✓' : '📎'}
-                    <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(ev) => ev.target.files?.[0] && attach(e.id, ev.target.files[0])} />
+                    <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(ev) => { const f = ev.target.files?.[0]; if (f) void attach(e.id, f); ev.target.value = ''; }} />
                   </label>
                 )}
                 {!e.voidedAt && can(user, 'void') && <Button size="sm" variant="ghost" onClick={() => setVoiding(e)}>{t('booking.void')}</Button>}

@@ -118,14 +118,34 @@ export class DriverPayService {
     const [y, m] = period.split('-').map(Number);
     const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
     const periodEnd = new Date(new Date(`${next}-01T00:00:00+03:00`).getTime() - 1000);
-    const drivers = await this.prisma.driver.findMany({ where: { isActive: true } });
+    const nextStart = periodEnd.getTime() + 1000;
+    const DAY = 86_400_000;
+    const days = Math.round((nextStart - start.getTime()) / DAY);
+    // Darawallada firfircoon + kuwa la joojiyay bishan gudaheeda (ilaa maalintii la joojiyay ayaa la siinayaa)
+    const drivers = await this.prisma.driver.findMany({ where: { OR: [{ isActive: true }, { updatedAt: { gte: start } }] } });
     let created = 0;
     for (const d of drivers) {
-      const rule = await this.currentRule(d.id, start);
-      if (rule?.type !== DriverPayType.MONTHLY_SALARY) continue;
+      const rules = await this.prisma.driverPayRule.findMany({ where: { driverId: d.id, effectiveFrom: { lt: new Date(nextStart) } }, orderBy: { effectiveFrom: 'asc' } });
+      if (!rules.some((r) => r.type === DriverPayType.MONTHLY_SALARY)) continue;
+      // Maalin kasta: xeerka shaqaynayay dhammaadka maalintaas — mushaharka bisha waxaa loo qaybiyaa maalmaha (prorate):
+      // xeer la dhigay 25-ka → 25-ka ilaa dhammaadka; laga beddelay safar-kasta 15-ka → 1-14 kaliya
+      let sum = 0;
+      let paidDays = 0;
+      let ruleId = '';
+      for (let i = 0; i < days; i++) {
+        const dayEnd = start.getTime() + (i + 1) * DAY - 1;
+        if (!d.isActive && d.updatedAt.getTime() < start.getTime() + i * DAY) break;
+        const rule = [...rules].reverse().find((r) => r.effectiveFrom.getTime() <= dayEnd);
+        if (rule?.type !== DriverPayType.MONTHLY_SALARY) continue;
+        sum += rule.amountCents / days;
+        paidDays++;
+        ruleId = rule.id;
+      }
+      const amountCents = Math.round(sum);
+      if (amountCents <= 0) continue;
       try {
         await this.prisma.driverEarning.create({
-          data: { driverId: d.id, kind: 'SALARY', period, amountCents: rule.amountCents, basis: { type: rule.type, ruleId: rule.id, period }, createdAt: periodEnd },
+          data: { driverId: d.id, kind: 'SALARY', period, amountCents, basis: { type: DriverPayType.MONTHLY_SALARY, ruleId, period, days: paidDays, daysInMonth: days }, createdAt: periodEnd },
         });
         created++;
       } catch (e) {
@@ -199,7 +219,11 @@ export class DriverPayService {
         return dp;
       });
     } catch (e) {
-      if (idempotencyKey && isUniqueViolation(e, 'idempotencyKey')) return this.prisma.driverPayment.findUniqueOrThrow({ where: { idempotencyKey } });
+      if (idempotencyKey && isUniqueViolation(e, 'idempotencyKey')) {
+        const prev = await this.prisma.driverPayment.findUniqueOrThrow({ where: { idempotencyKey } });
+        if (prev.createdById !== user.id) throw Errors.conflict('IDEMPOTENCY_KEY_REUSED', 'This Idempotency-Key was used by another user');
+        return prev;
+      }
       throw e;
     }
   }
@@ -210,6 +234,13 @@ export class DriverPayService {
       const dp = await tx.driverPayment.findUnique({ where: { id } });
       if (!dp) throw Errors.notFound('DriverPayment', id);
       await this.driverFor(user, dp.driverId, tx);
+      // Bixinta xafiiska guud (Super Admin) — maamule laan ma void-gareyn karo (buugga xafiiska waa Super Admin kaliya)
+      if (dp.ledgerEntryId && !isSuperAdmin(user)) throw Errors.forbidden();
+      // Goyn (deduction) — cidda laanta darawalka ama Super Admin
+      if (!dp.paymentId && !dp.ledgerEntryId && !isSuperAdmin(user)) {
+        const by = await tx.user.findUnique({ where: { id: dp.createdById }, select: { branchId: true } });
+        if (by?.branchId !== user.branchId) throw Errors.forbiddenBranch();
+      }
       if (dp.paymentId) {
         const p = await tx.payment.findUniqueOrThrow({ where: { id: dp.paymentId }, include: { cashSession: true } });
         await tx.$queryRaw`SELECT id FROM "cash_sessions" WHERE id = ${p.cashSessionId} FOR UPDATE`;

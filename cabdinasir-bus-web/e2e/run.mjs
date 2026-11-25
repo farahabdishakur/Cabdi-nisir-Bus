@@ -376,6 +376,43 @@ async function main() {
   await pub.close();
   log('public: parcel tracking (no login) + schedule page');
 
+  // 9e. Super Admin: temporary password → change; logo; vehicle seat editor; company-wide P&L
+  const saCtx = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  const sp = await saCtx.newPage();
+  sp.on('pageerror', (e) => consoleErrors.push(String(e)));
+  await sp.goto(`${WEB}/login`);
+  await sp.getByLabel(/taleefanka|phone/i).fill('0630000000');
+  await sp.getByLabel(/password/i).fill(process.env.SA_PASSWORD ?? 'ChangeMe123!');
+  await sp.getByRole('button', { name: /^gal$|sign in/i }).click();
+  await sp.waitForURL(/change-password/);
+  await sp.getByLabel(/Password-ka hadda/).fill(process.env.SA_PASSWORD ?? 'ChangeMe123!');
+  await sp.getByLabel(/^Password cusub/).fill('E2eAdmin2026!');
+  await sp.getByLabel(/Ku celi password/).fill('E2eAdmin2026!');
+  await sp.getByRole('button', { name: 'Kaydi' }).click();
+  await sp.waitForURL(`${WEB}/`);
+  await sp.goto(`${WEB}/admin`);
+  await sp.getByRole('button', { name: 'Dejinta', exact: true }).click();
+  const logo = { name: 'logo.png', mimeType: 'image/png', buffer: await sp.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 120, height: 120 } }) };
+  await sp.locator('label', { hasText: 'Soo geli logo' }).locator('input[type=file]').setInputFiles(logo);
+  await sp.locator('aside img[alt="Cabdinasir Bus"]').waitFor();
+  log('super admin: company logo uploaded → shown in the sidebar');
+  await sp.getByRole('button', { name: 'Gaadiidka', exact: true }).click();
+  await sp.getByRole('button', { name: '+ Ku dar' }).click();
+  await sp.getByLabel(/Taarikada/).fill('SL-E2E-45');
+  await sp.getByRole('button', { name: 'Bas weyn 45' }).click();
+  await sp.getByText(/^45/).first().waitFor();
+  await sp.screenshot({ path: `${SHOTS}21-seat-editor.png` });
+  await sp.getByRole('button', { name: 'Kaydi' }).click();
+  await sp.getByRole('cell', { name: 'SL-E2E-45' }).waitFor();
+  log('super admin: vehicle with 45 seats designed visually (template) and saved');
+  await sp.goto(`${WEB}/books`);
+  await sp.getByText("Faa'iidada baabuur kasta").waitFor();
+  await sp.getByRole('combobox').last().selectOption('');
+  await sp.waitForTimeout(500);
+  if ((await sp.getByRole('combobox').last().inputValue()) !== '') fail('P&L all-branches selection was reset');
+  log('super admin: company-wide P&L (all branches) stays selected');
+  await saCtx.close();
+
   // 10. phone layout
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   const pp = await phone.newPage();

@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, download, newKey } from '@/lib/api';
+import { api, newKey, pendingTab, uploadWithProgress } from '@/lib/api';
+import { useDownload } from '@/lib/use-download';
+import { prepareImage } from '@/components/evidence';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { isSuperAdmin } from '@/lib/permissions';
@@ -26,7 +28,9 @@ export default function BooksPage() {
   const boot = useBootstrap();
   const [tab, setTab] = useState<Tab>(sa ? 'pnl' : 'branch');
   const [range, setRange] = useState<Range>({ from: `${todayISO().slice(0, 8)}01`, to: todayISO() });
+  // Buugga laanta: laan waa waajib (default: tan koowaad) · P&L: '' = dhammaan laamaha (default)
   const [branchId, setBranchId] = useState('');
+  const [pnlBranch, setPnlBranch] = useState('');
   useEffect(() => {
     if (sa && !branchId && boot.data?.branches[0]) setBranchId(boot.data.branches[0].id);
   }, [sa, branchId, boot.data]);
@@ -50,12 +54,16 @@ export default function BooksPage() {
         <span>→</span>
         <Input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} className="max-w-40" />
         {sa && (tab === 'branch' || tab === 'pnl') && (
-          <div className="w-56"><BranchSelect value={branchId} onChange={setBranchId} branches={boot.data?.branches ?? []} allLabel={tab === 'pnl' ? t('common.allBranches') : undefined} /></div>
+          <div className="w-56">
+            {tab === 'pnl'
+              ? <BranchSelect value={pnlBranch} onChange={setPnlBranch} branches={boot.data?.branches ?? []} allLabel={t('common.allBranches')} />
+              : <BranchSelect value={branchId} onChange={setBranchId} branches={boot.data?.branches ?? []} />}
+          </div>
         )}
       </div>
       {tab === 'branch' && <BranchBook range={range} branchId={sa ? branchId : undefined} />}
       {tab === 'office' && sa && <OfficeBook range={range} />}
-      {tab === 'pnl' && <ProfitLoss range={range} branchId={sa ? branchId : undefined} />}
+      {tab === 'pnl' && <ProfitLoss range={range} branchId={sa ? pnlBranch : undefined} />}
       {tab === 'drivers' && <Drivers range={range} />}
     </div>
   );
@@ -68,10 +76,11 @@ type Account = (typeof ACCOUNTS)[number];
 const accountCurrency = (a: Account): Currency => (a === 'CASH_SLSH' ? 'SLSH' : 'USD');
 
 interface BookLine { id: string; at: string; kind: string; account: Account; currency: Currency; inAmount: number; outAmount: number; balance: number; ref: string | null; description: string | null; reference: string | null; category: string | null; expenseId: string | null; hasAttachment: boolean }
-interface BranchBookData { opening: Record<Account, number>; closing: Record<Account, number>; totals: { inUsdCents: number; outUsdCents: number; netUsdCents: number }; lines: BookLine[] }
+interface BranchBookData { opening: Record<Account, number>; closing: Record<Account, number>; totals: { inUsdCents: number; outUsdCents: number; netUsdCents: number }; lines: BookLine[]; truncated?: boolean; totalLines?: number }
 
 function BranchBook({ range, branchId }: { range: Range; branchId?: string }) {
   const { t } = useI18n();
+  const download = useDownload();
   const [account, setAccount] = useState<Account | ''>('');
   const q = { ...range, branchId, account: account || undefined };
   const book = useQuery({ queryKey: ['books', 'branch', q], queryFn: () => api<BranchBookData>('/ledger/branch', { query: q }) });
@@ -81,16 +90,17 @@ function BranchBook({ range, branchId }: { range: Range; branchId?: string }) {
   return (
     <div className="flex flex-col gap-4">
       <Alert tone="blue">{t('books.autoHint')}</Alert>
+      {d.truncated && <Alert tone="yellow">{t('books.truncated', { shown: d.lines.length, total: d.totalLines ?? 0 })}</Alert>}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {ACCOUNTS.map((a) => (
-          <button key={a} onClick={() => setAccount(account === a ? '' : a)} className={cx('rounded-xl border bg-white p-4 text-left', account === a ? 'border-navy ring-2 ring-navy' : 'border-gray-200')}>
+          <button key={a} onClick={() => setAccount(account === a ? '' : a)} className={cx('min-w-0 rounded-xl border bg-white p-3 text-left sm:p-4', account === a ? 'border-navy ring-2 ring-navy' : 'border-gray-200')}>
             <p className="text-xs font-medium uppercase text-gray-500">{t(`books.account.${a}`)}</p>
-            <p className="mt-1 text-xl font-bold text-navy">{money(d.closing[a], accountCurrency(a))}</p>
+            <p className="mt-1 break-words text-lg font-bold text-navy sm:text-xl">{money(d.closing[a], accountCurrency(a))}</p>
             <p className="text-xs text-gray-500">{t('books.opening')}: {money(d.opening[a], accountCurrency(a))}</p>
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label={t('books.cashIn')} value={usd(d.totals.inUsdCents)} tone="green" />
         <Stat label={t('books.cashOut')} value={usd(d.totals.outUsdCents)} tone="red" />
         <Stat label={t('books.net')} value={usd(d.totals.netUsdCents)} />
@@ -128,6 +138,7 @@ interface OfficeData { opening: Record<Currency, number>; closing: Record<Curren
 
 function OfficeBook({ range }: { range: Range }) {
   const { t } = useI18n();
+  const download = useDownload();
   const qc = useQueryClient();
   const book = useQuery({ queryKey: ['books', 'office', range], queryFn: () => api<OfficeData>('/ledger/office', { query: range }) });
   const cats = useQuery({ queryKey: ['books', 'categories'], queryFn: () => api<{ IN: string[]; OUT: string[] }>('/ledger/categories') });
@@ -135,11 +146,19 @@ function OfficeBook({ range }: { range: Range }) {
   const [voiding, setVoiding] = useState<OfficeLine | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ['books'] });
 
+  const { err } = useI18n();
+  const [attachError, setAttachError] = useState('');
   const attach = async (id: string, file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    await api(`/ledger/entries/${id}/attachment`, { method: 'POST', form });
-    refresh();
+    setAttachError('');
+    try {
+      const form = new FormData();
+      const body = file.type.startsWith('image/') ? await prepareImage(file) : file;
+      form.append('file', body, file.type.startsWith('image/') ? 'bill.jpg' : file.name);
+      await uploadWithProgress(`/ledger/entries/${id}/attachment`, form);
+      refresh();
+    } catch (e) {
+      setAttachError(err(e));
+    }
   };
 
   if (book.error) return <ErrorAlert error={book.error} />;
@@ -153,7 +172,8 @@ function OfficeBook({ range }: { range: Range }) {
         <Stat label={t('books.cashIn')} value={usd(d.totals.inUsdCents)} tone="green" />
         <Stat label={t('books.cashOut')} value={usd(d.totals.outUsdCents)} tone="red" />
       </div>
-      <div className="flex gap-2">
+      {attachError && <Alert>{attachError}</Alert>}
+      <div className="flex flex-wrap gap-2">
         <Button variant="success" size="lg" onClick={() => setEntry('IN')}>+ {t('books.cashIn')}</Button>
         <Button variant="danger" size="lg" onClick={() => setEntry('OUT')}>− {t('books.cashOut')}</Button>
         <Button variant="secondary" onClick={() => download('/ledger/office', { ...range, format: 'csv' }, `office-${range.from}.csv`)}>{t('common.downloadCsv')}</Button>
@@ -172,7 +192,7 @@ function OfficeBook({ range }: { range: Range }) {
                   <div className="flex gap-1">
                     <label className="cursor-pointer rounded-lg px-2 py-1 text-sm hover:bg-gray-100" title={t('books.attach')}>
                       {l.hasAttachment ? '📎✓' : '📎'}
-                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && attach(l.id, e.target.files[0])} />
+                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void attach(l.id, f); e.target.value = ''; }} />
                     </label>
                     {l.category !== 'DRIVER_PAY' && <Button size="sm" variant="ghost" onClick={() => setVoiding(l)}>{t('booking.void')}</Button>}
                   </div>
@@ -204,6 +224,10 @@ function EntryModal({ direction, categories, onClose, onDone }: { direction: 'IN
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [direction]);
+  // qaybaha ayaa dib u yimid (network gaabis) → tan koowaad dooro
+  useEffect(() => {
+    if (direction && categories.length && !categories.includes(f.category)) setF((x) => ({ ...x, category: categories[0] }));
+  }, [direction, categories, f.category]);
   const save = async () => {
     const amount = f.currency === 'USD' ? parseUsd(f.amount) : parseInteger(f.amount);
     if (!amount) return setError(t('errors.VALIDATION_ERROR'));
@@ -259,6 +283,7 @@ interface PnL { income: { key: string; usdCents: number }[]; expenses: { key: st
 
 function ProfitLoss({ range, branchId }: { range: Range; branchId?: string }) {
   const { t } = useI18n();
+  const download = useDownload();
   const q = { ...range, branchId: branchId || undefined };
   const r = useQuery({ queryKey: ['books', 'pnl', q], queryFn: () => api<PnL>('/reports/profit-loss', { query: q }) });
   if (r.error) return <ErrorAlert error={r.error} />;
@@ -325,27 +350,36 @@ function Drivers({ range }: { range: Range }) {
   const [open, setOpen] = useState<DriverRow | null>(null);
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { err } = useI18n();
   const [ran, setRan] = useState('');
+  const [running, setRunning] = useState(false);
   const runMonthly = async () => {
     const d = new Date(`${todayISO()}T12:00:00Z`);
     d.setUTCDate(0);
     const period = d.toISOString().slice(0, 7);
-    const res = await api<{ period: string; created: number }>('/driver-pay/run-monthly', { method: 'POST', body: { period } });
-    setRan(t('books.ranMonthly', { period: res.period, n: res.created }));
-    qc.invalidateQueries({ queryKey: ['books'] });
+    setRunning(true);
+    try {
+      const res = await api<{ period: string; created: number }>('/driver-pay/run-monthly', { method: 'POST', body: { period } });
+      setRan(t('books.ranMonthly', { period: res.period, n: res.created }));
+      qc.invalidateQueries({ queryKey: ['books'] });
+    } catch (e) {
+      setRan(err(e));
+    } finally {
+      setRunning(false);
+    }
   };
   if (r.error) return <ErrorAlert error={r.error} />;
   if (r.isLoading || !r.data) return <Loading />;
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label={t('books.earned')} value={usd(r.data.totals.earnedCents)} />
         <Stat label={t('books.paid')} value={usd(r.data.totals.paidCents)} />
         <Stat label={t('books.owed')} value={usd(r.data.totals.owedCents)} tone="red" />
       </div>
       {isSuperAdmin(user) && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={runMonthly}>{t('books.runMonthly')}</Button>
+          <Button size="sm" variant="secondary" onClick={runMonthly} loading={running}>{t('books.runMonthly')}</Button>
           {ran && <span className="text-sm text-emerald-700">{ran}</span>}
         </div>
       )}
@@ -401,8 +435,14 @@ function DriverStatement({ driver, range, onClose }: { driver: DriverRow; range:
         if (!cents) throw new Error('x');
         if (action === 'BONUS') await api(`/driver-pay/${driver.driverId}/bonus`, { method: 'POST', body: { amountCents: cents, note } });
         else {
-          const res = await api<{ id: string }>(`/driver-pay/${driver.driverId}/payments`, { method: 'POST', idempotencyKey: key.current, body: { kind: action, amountCents: cents, note: note || undefined } });
-          if (action !== 'DEDUCTION') window.open(`/print/driver-payment/${res.id}`, '_blank');
+          const tab = action !== 'DEDUCTION' ? pendingTab() : null;
+          try {
+            const res = await api<{ id: string }>(`/driver-pay/${driver.driverId}/payments`, { method: 'POST', idempotencyKey: key.current, body: { kind: action, amountCents: cents, note: note || undefined } });
+            tab?.go(`/print/driver-payment/${res.id}`);
+          } catch (e) {
+            tab?.cancel();
+            throw e;
+          }
         }
       }
       key.current = newKey();
