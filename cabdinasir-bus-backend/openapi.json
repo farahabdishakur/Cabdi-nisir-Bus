@@ -3503,6 +3503,186 @@
         ]
       }
     },
+    "/api/v1/dispatch": {
+      "get": {
+        "operationId": "DispatchController_overview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
+    "/api/v1/dispatch/candidates": {
+      "get": {
+        "operationId": "DispatchController_candidates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
+    "/api/v1/dispatch/{routeId}": {
+      "get": {
+        "operationId": "DispatchController_board",
+        "parameters": [
+          {
+            "name": "routeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
+    "/api/v1/dispatch/{routeId}/enqueue": {
+      "post": {
+        "operationId": "DispatchController_enqueue",
+        "parameters": [
+          {
+            "name": "routeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnqueueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
+    "/api/v1/dispatch/entries/{id}/move": {
+      "post": {
+        "operationId": "DispatchController_move",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
+    "/api/v1/dispatch/entries/{id}/remove": {
+      "post": {
+        "operationId": "DispatchController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
     "/api/v1/payments/mobile": {
       "get": {
         "operationId": "PaymentsController_mobile",
@@ -4269,6 +4449,18 @@
         "properties": {}
       },
       "ResolveClaimDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "EnqueueDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "MoveDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RemoveDto": {
         "type": "object",
         "properties": {}
       },

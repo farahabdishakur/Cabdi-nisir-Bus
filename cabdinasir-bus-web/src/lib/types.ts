@@ -38,6 +38,8 @@ export interface Vehicle {
   capacity: number;
   seatLayout: { rows: (string | null)[][]; front?: string[] };
   isActive: boolean;
+  defaultDriverId?: string | null;
+  defaultDriver?: { id: string; name: string } | null;
 }
 
 export interface Driver {
@@ -236,4 +238,40 @@ export interface ParcelClaim {
   resolvedAt: string | null;
   createdAt: string;
   parcel?: { id: string; trackingCode: string; status: ParcelStatus; senderName: string; receiverName: string; feeCents: number; declaredValueCents: number | null };
+}
+
+export type DispatchStatus = 'WAITING' | 'LOADING' | 'DEPARTED' | 'REMOVED';
+export interface DispatchEntry {
+  id: string;
+  routeId: string;
+  serviceDate: string;
+  position: number;
+  status: DispatchStatus;
+  tripId: string | null;
+  note: string | null;
+  removedReason: string | null;
+  loadingAt: string | null;
+  departedAt: string | null;
+  vehicle: { id: string; plate: string; model: string; capacity: number };
+  driver: { id: string; name: string; phone: string };
+  trip: { id: string; status: TripStatus; departureAt: string; taken: number; capacity: number; full: boolean } | null;
+}
+export interface DispatchCandidate {
+  vehicleId: string;
+  plate: string;
+  model: string;
+  capacity: number;
+  defaultDriver: { id: string; name: string } | null;
+  lastDepartedAt: string | null;
+}
+export interface DispatchBoard {
+  route: { id: string; from: Branch; to: Branch; ticketPriceCents: number };
+  date: string;
+  entries: DispatchEntry[];
+  stats: { waiting: number; loading: number; departed: number; passengers: number };
+  candidates: DispatchCandidate[];
+}
+export interface DispatchOverview {
+  date: string;
+  routes: { route: { id: string; from: Branch; to: Branch }; loading: { plate: string; driver: string; tripId: string | null; taken: number; capacity: number }[]; stats: DispatchBoard['stats']; next: string[] }[];
 }

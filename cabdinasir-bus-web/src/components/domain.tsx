@@ -199,6 +199,7 @@ export function ReasonModal({
   confirmLabel,
   danger,
   children,
+  reasonOptional,
 }: {
   open: boolean;
   title: string;
@@ -207,6 +208,8 @@ export function ReasonModal({
   confirmLabel?: string;
   danger?: boolean;
   children?: React.ReactNode;
+  /** Xaqiijin kaliya (sabab looma baahna) */
+  reasonOptional?: boolean;
 }) {
   const { t, err } = useI18n();
   const [reason, setReason] = useState('');
@@ -237,15 +240,17 @@ export function ReasonModal({
         }}
       >
         {children}
-        <Field label={t('common.reason')} required>
-          {(id) => <Textarea id={id} value={reason} onChange={(e) => setReason(e.target.value)} required minLength={3} />}
-        </Field>
+        {!reasonOptional && (
+          <Field label={t('common.reason')} required>
+            {(id) => <Textarea id={id} value={reason} onChange={(e) => setReason(e.target.value)} required minLength={3} />}
+          </Field>
+        )}
         {error && <Alert>{error}</Alert>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" variant={danger ? 'danger' : 'navy'} loading={busy} disabled={reason.trim().length < 3}>
+          <Button type="submit" variant={danger ? 'danger' : 'navy'} loading={busy} disabled={!reasonOptional && reason.trim().length < 3}>
             {confirmLabel ?? t('common.confirm')}
           </Button>
         </div>

@@ -280,26 +280,33 @@ function Vehicles() {
   const { t } = useI18n();
   const list = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') });
   const s = useSaver();
-  const [edit, setEdit] = useState<{ id?: string; plate: string; model: string; layout: SeatLayoutValue | null; isActive?: boolean } | null>(null);
+  const [edit, setEdit] = useState<{ id?: string; plate: string; model: string; layout: SeatLayoutValue | null; isActive?: boolean; defaultDriverId?: string | null } | null>(null);
+  const drivers = useQuery({ queryKey: ['drivers'], queryFn: () => api<Driver[]>('/drivers') });
   const [layout, setLayout] = useState<SeatLayoutValue | null>(null);
   const save = () =>
     s.run(() => (edit?.id
-      ? api(`/vehicles/${edit.id}`, { method: 'PATCH', body: { model: edit.model, seatLayout: layout, isActive: edit.isActive } })
-      : api('/vehicles', { method: 'POST', body: { plate: edit!.plate.trim(), model: edit!.model, seatLayout: layout } })), [['vehicles']], () => setEdit(null));
+      ? api(`/vehicles/${edit.id}`, { method: 'PATCH', body: { model: edit.model, seatLayout: layout, isActive: edit.isActive, defaultDriverId: edit.defaultDriverId || null } })
+      : api('/vehicles', { method: 'POST', body: { plate: edit!.plate.trim(), model: edit!.model, seatLayout: layout, ...(edit!.defaultDriverId && { defaultDriverId: edit!.defaultDriverId }) } })), [['vehicles']], () => setEdit(null));
   return (
     <Card title={t('admin.vehicles')} actions={<Button size="sm" onClick={() => setEdit({ plate: '', model: 'Toyota Hiace', layout: null })}>+ {t('common.add')}</Button>}>
-      <Table head={[t('admin.plate'), t('admin.model'), t('admin.capacity'), t('common.status'), '']} empty={!list.data?.length}>
+      <Table head={[t('admin.plate'), t('admin.model'), t('admin.capacity'), t('admin.defaultDriver'), t('common.status'), '']} empty={!list.data?.length}>
         {list.data?.map((v) => (
           <tr key={v.id}>
-            <Td className="font-mono font-bold">{v.plate}</Td><Td>{v.model}</Td><Td>{v.capacity}</Td>
+            <Td className="font-mono font-bold">{v.plate}</Td><Td>{v.model}</Td><Td>{v.capacity}</Td><Td>{v.defaultDriver?.name ?? '—'}</Td>
             <Td>{v.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
-            <Td><Button size="sm" variant="ghost" onClick={() => setEdit({ id: v.id, plate: v.plate, model: v.model, layout: v.seatLayout as SeatLayoutValue, isActive: v.isActive })}>{t('common.edit')}</Button></Td>
+            <Td><Button size="sm" variant="ghost" onClick={() => setEdit({ id: v.id, plate: v.plate, model: v.model, layout: v.seatLayout as SeatLayoutValue, isActive: v.isActive, defaultDriverId: v.defaultDriverId ?? null })}>{t('common.edit')}</Button></Td>
           </tr>
         ))}
       </Table>
       <FormModal open={!!edit} wide title={t('admin.vehicles')} onClose={() => setEdit(null)} busy={s.busy} error={s.error} onSave={save}>
         <Field label={t('admin.plate')} required>{(id) => <Input id={id} value={edit?.plate ?? ''} disabled={!!edit?.id} onChange={(e) => setEdit({ ...edit!, plate: e.target.value })} required />}</Field>
         <Field label={t('admin.model')} required>{(id) => <Input id={id} value={edit?.model ?? ''} onChange={(e) => setEdit({ ...edit!, model: e.target.value })} required />}</Field>
+        <Field label={t('admin.defaultDriver')} hint={t('admin.defaultDriverHint')}>{(id) => (
+          <Select id={id} value={edit?.defaultDriverId ?? ''} onChange={(e) => setEdit({ ...edit!, defaultDriverId: e.target.value || null })}>
+            <option value="">—</option>
+            {drivers.data?.filter((d) => d.isActive).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </Select>
+        )}</Field>
         <div>
           <p className="mb-1 text-sm font-medium">{t('admin.seatLayout')}</p>
           {edit && <SeatLayoutEditor key={edit.id ?? 'new'} value={edit.layout} onChange={setLayout} />}

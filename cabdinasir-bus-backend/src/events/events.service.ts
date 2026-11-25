@@ -8,7 +8,8 @@ export type AppEventType =
   | 'TRIP_STATUS'
   | 'PARCEL_CHANGED' // alaab cusub / status → "alaabta imanaysa" cusboonaysii
   | 'VOID_REQUEST' // manager-ka ogeysii
-  | 'CASH_SESSION'; // sanduuq la xiray → manager ansixi
+  | 'CASH_SESSION' // sanduuq la xiray → manager ansixi
+  | 'DISPATCH'; // safka gaadiidka isbeddelay
 
 export interface AppEvent {
   type: AppEventType;

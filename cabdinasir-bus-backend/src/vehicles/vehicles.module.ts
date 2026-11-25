@@ -2,7 +2,7 @@ import { Body, Controller, Get, Module, Param, Patch, Post } from '@nestjs/commo
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role, TripStatus } from '@prisma/client';
 import { Errors } from '../common/errors';
-import { IsBoolean, IsObject, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles, STAFF } from '../common/decorators';
 import { parseSeatLayout } from './seat-layout';
@@ -11,8 +11,10 @@ export class CreateVehicleDto {
   @IsString() @Length(2, 20) plate: string;
   @IsString() @Length(2, 60) model: string;
   @IsObject() seatLayout: object;
+  @IsOptional() @IsUUID() defaultDriverId?: string;
 }
 export class UpdateVehicleDto {
+  @ValidateIf((o) => o.defaultDriverId !== null && o.defaultDriverId !== undefined) @IsUUID() defaultDriverId?: string | null;
   @IsOptional() @IsString() @Length(2, 60) model?: string;
   @IsOptional() @IsObject() seatLayout?: object;
   @IsOptional() @IsBoolean() isActive?: boolean;
@@ -27,7 +29,7 @@ export class VehiclesController {
   @Roles(...STAFF)
   @Get()
   list() {
-    return this.prisma.vehicle.findMany({ orderBy: { plate: 'asc' } });
+    return this.prisma.vehicle.findMany({ orderBy: { plate: 'asc' }, include: { defaultDriver: { select: { id: true, name: true } } } });
   }
 
   @Roles(Role.SUPER_ADMIN)
@@ -35,7 +37,7 @@ export class VehiclesController {
   create(@Body() dto: CreateVehicleDto) {
     const { layout, seats } = parseSeatLayout(dto.seatLayout);
     return this.prisma.vehicle.create({
-      data: { plate: dto.plate.toUpperCase(), model: dto.model, seatLayout: layout as object, capacity: seats.length },
+      data: { plate: dto.plate.toUpperCase(), model: dto.model, seatLayout: layout as object, capacity: seats.length, defaultDriverId: dto.defaultDriverId },
     });
   }
 
@@ -60,6 +62,7 @@ export class VehiclesController {
       data: {
         model: dto.model,
         isActive: dto.isActive,
+        defaultDriverId: dto.defaultDriverId,
         ...(parsed && { seatLayout: parsed.layout as object, capacity: parsed.seats.length }),
       },
     });

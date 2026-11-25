@@ -5,15 +5,16 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
-import { can, isManager } from '@/lib/permissions';
-import { useCashSession } from '@/lib/queries';
+import { can, isManager, isSuperAdmin } from '@/lib/permissions';
+import { useBootstrap, useCashSession } from '@/lib/queries';
 import { time, todayISO, usd } from '@/lib/format';
-import type { Parcel, Trip } from '@/lib/types';
+import type { DispatchOverview, Parcel, Trip } from '@/lib/types';
 import { Alert, Card, Loading, Stat } from '@/components/ui';
 import { TripStatusBadge } from '@/components/domain';
 
 interface Dashboard {
   revenueUsdCents: number;
+  perBranch: { branch: { id: string; name: string }; totalUsdCents: number; expensesUsdCents: number; netUsdCents: number }[];
   trips: { trips: number; capacity: number; sold: number; occupancyPct: number };
   incomingParcels: Record<string, number>;
   parcelsAwaitingLoad: number;
@@ -30,13 +31,19 @@ export default function DashboardPage() {
   const incoming = useQuery({ queryKey: ['parcels', 'incoming'], queryFn: () => api<Parcel[]>('/parcels/incoming'), enabled: staff && !!user?.branchId });
   const dash = useQuery({ queryKey: ['reports', 'dashboard'], queryFn: () => api<Dashboard>('/reports/dashboard'), enabled: manager });
   const integrity = useQuery({ queryKey: ['reports', 'integrity'], queryFn: () => api<{ ok: boolean; issues: number }>('/reports/integrity'), enabled: can(user, 'integrity') });
+  const queue = useQuery({ queryKey: ['dispatch', 'overview'], queryFn: () => api<DispatchOverview>('/dispatch'), enabled: staff, refetchInterval: 30_000 });
+  const boot = useBootstrap();
+  const myCity = boot.data?.branches.find((b) => b.id === user?.branchId)?.city;
+  const myQueues = (queue.data?.routes ?? []).filter((r) => isSuperAdmin(user) || r.route.from.city === myCity);
+  // "Iibi tigidh": gaariga hadda buuxsamaya ee magaaladayda (haddii jiro) → toos seat map-kiisa
+  const loadingNow = myQueues.flatMap((r) => r.loading).find((l) => l.tripId && l.taken < l.capacity);
   const voids = useQuery({ queryKey: ['void-requests', 'PENDING'], queryFn: () => api<unknown[]>('/void-requests', { query: { status: 'PENDING' } }), enabled: manager });
 
   return (
     <div className="flex flex-col gap-4">
       {staff && user?.branchId && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <BigAction href="/trips" icon="🎫" label={t('dashboard.sellTicket')} />
+          <BigAction href={loadingNow ? `/trips/${loadingNow.tripId}` : '/trips'} icon="🎫" label={loadingNow ? `${t('dashboard.sellTicket')} · ${loadingNow.plate} (${loadingNow.taken}/${loadingNow.capacity})` : t('dashboard.sellTicket')} />
           <BigAction href="/parcels/new" icon="📦" label={t('dashboard.sendParcel')} />
           <BigAction href="/parcels/deliver" icon="🤝" label={t('dashboard.handOver')} />
         </div>
@@ -72,6 +79,42 @@ export default function DashboardPage() {
             </div>
           )}
         </>
+      )}
+
+      {isSuperAdmin(user) && dash.data && dash.data.perBranch.length > 0 && (
+        <Card title={t('dashboard.perBranch')} actions={<Link className="text-sm font-semibold text-navy hover:underline" href="/books">{t('nav.books')} →</Link>}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {dash.data.perBranch.map((b) => (
+              <div key={b.branch.id} className="rounded-lg border border-gray-200 p-3">
+                <p className="text-sm font-semibold text-gray-700">{b.branch.name}</p>
+                <p className="text-xl font-bold text-navy">{usd(b.totalUsdCents)}</p>
+                <p className="text-xs text-gray-500">{t('reports.expenses')}: {usd(b.expensesUsdCents)} · {t('books.net')}: <b className={b.netUsdCents < 0 ? 'text-red-700' : 'text-emerald-700'}>{usd(b.netUsdCents)}</b></p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {staff && myQueues.length > 0 && (
+        <Card title={`🚏 ${t('dispatch.overview')}`} actions={<Link className="text-sm font-semibold text-navy hover:underline" href="/dispatch">{t('nav.dispatch')} →</Link>}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {myQueues.map((r) => (
+              <div key={r.route.id} className="rounded-lg border border-gray-200 p-3">
+                <p className="text-sm font-semibold">{r.route.from.name} → {r.route.to.name}</p>
+                {r.loading.length ? r.loading.map((l) => (
+                  <Link key={l.plate} href={l.tripId ? `/trips/${l.tripId}` : '/dispatch'} className="mt-1 flex items-center justify-between rounded-md bg-emerald-50 px-2 py-1.5 hover:bg-emerald-100">
+                    <span><span className="font-mono font-bold">{l.plate}</span> <span className="text-xs text-gray-600">· {l.driver}</span></span>
+                    <span className="font-bold text-emerald-800">{l.taken}/{l.capacity}</span>
+                  </Link>
+                )) : <p className="mt-1 text-xs text-gray-500">{t('dispatch.queueEmpty')}</p>}
+                <p className="mt-1.5 text-xs text-gray-500">
+                  {r.next.length > 0 && <>{t('dispatch.next')}: <span className="font-mono">{r.next.join(' → ')}</span> · </>}
+                  {t('dispatch.departedToday')}: {r.stats.departed} · {r.stats.passengers} {t('dispatch.passengers')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">

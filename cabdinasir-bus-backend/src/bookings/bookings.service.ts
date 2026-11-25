@@ -1,3 +1,4 @@
+import { DispatchService } from '../dispatch/dispatch.service';
 import { Injectable } from '@nestjs/common';
 import { BookingStatus, PaymentKind, PaymentMethod, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,6 +37,7 @@ export class BookingsService {
     private readonly audit: AuditService,
     private readonly dir: BranchDirectory,
     private readonly notifications: NotificationsService,
+    private readonly dispatch: DispatchService,
   ) {}
 
   async create(user: AuthUser, dto: CreateBookingDto, idempotencyKey?: string) {
@@ -100,6 +102,7 @@ export class BookingsService {
           await this.cash.recordPayment(tx, user, branch.id, PaymentKind.TICKET, price.totalCents, dto.payment, { bookingId: booking.id });
         }
         await tx.seatHold.deleteMany({ where: { tripId: trip.id, seatNo: dto.seatNo } });
+        await this.dispatch.afterSeatChange(tx, trip.id, user.id); // gaariga buuxsamay → kan xiga ha furmo
         return tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include });
       });
     } catch (e) {
@@ -238,6 +241,7 @@ export class BookingsService {
           await this.cash.recordPayment(tx, user, b.branchId, PaymentKind.TRANSFER_DIFF, diff, pay, { bookingId: id });
         }
         await tx.seatHold.deleteMany({ where: { tripId: trip.id, seatNo: dto.seatNo } });
+        await this.dispatch.afterSeatChange(tx, trip.id, user.id);
         await this.audit.log(tx, user, 'TRANSFER', 'bookings', id, { tripId: b.tripId, seatNo: b.seatNo, priceCents: b.priceCents }, { tripId: trip.id, seatNo: dto.seatNo, priceCents: updated.priceCents });
         return tx.booking.findUniqueOrThrow({ where: { id }, include });
       });
@@ -300,6 +304,7 @@ export class BookingsService {
           receipt: receiptNo, price: formatUsd(price.totalCents), until: formatBusinessTime(until),
           pay: payHint(branch),
         });
+        await this.dispatch.afterSeatChange(tx, trip.id, user.id);
         return tx.booking.findUniqueOrThrow({ where: { id: b.id }, include });
       });
     } catch (e) {

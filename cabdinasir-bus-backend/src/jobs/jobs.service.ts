@@ -1,3 +1,4 @@
+import { DispatchService } from '../dispatch/dispatch.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -28,6 +29,7 @@ export class JobsService {
     private readonly reports: ReportsService,
     private readonly events: EventsService,
     private readonly driverPay: DriverPayService,
+    private readonly dispatch: DispatchService,
   ) {}
 
   private get enabled() {
@@ -75,6 +77,13 @@ export class JobsService {
     }
     if (expired.length) this.logger.log(`Reservations expired: ${expired.length}`);
     return { expired: expired.length };
+  }
+
+  /** 00:05 Africa/Mogadishu (21:05 UTC): safka gaadiidka — kuwii shalay sugayay waa la xiraa (maalin cusub, saf cusub) */
+  @Cron('5 21 * * *')
+  async dispatchNewDay() {
+    if (!this.enabled) return;
+    await this.dispatch.expireStale();
   }
 
   /** 1-da bisha 03:00 Africa/Mogadishu (00:00 UTC): mushaharka darawallada bishii hore */

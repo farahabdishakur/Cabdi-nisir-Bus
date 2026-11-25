@@ -19,6 +19,8 @@ export interface PricingSettings {
   maxReservationsPerPhone: number;
   /** 1 = alaabta lama dhiibi karo ilaa sawir (marxaladda DELIVER) laga qaado — caddayn ka dhan ah cabasho been ah */
   requireDeliveryPhoto: number;
+  /** 1 = gaariga marka uu gaadho wuxuu si toos ah u galaa safka soo laabashada (magaalada kale) */
+  queueAutoReturn: number;
 }
 
 export const DEFAULT_SETTINGS: PricingSettings = {
@@ -32,6 +34,7 @@ export const DEFAULT_SETTINGS: PricingSettings = {
   reservationCutoffMinutes: 60,
   maxReservationsPerPhone: 4,
   requireDeliveryPhoto: 0,
+  queueAutoReturn: 1,
 };
 
 /** Macluumaadka shirkadda ee rasiidka/label-ka ka muuqda (boodhka xafiiska). */

@@ -274,6 +274,17 @@ async function main() {
   await page.screenshot({ path: `${SHOTS}12-reports-daily.png` });
   log('reports: daily close');
 
+  // 9-0. Safka gaadiidka: maamuluhu wuxuu bilaabaa maalinta → gaariga koowaad iib ayuu u furmaa
+  await page.goto(`${WEB}/dispatch`);
+  await page.getByText('Bilow maalinta').waitFor();
+  await page.getByRole('button', { name: /^Bilow \(\d+ gaari\)/ }).click();
+  await page.getByText('Hadda la buuxinayaa').waitFor();
+  await page.screenshot({ path: `${SHOTS}22-dispatch.png`, fullPage: true });
+  log('dispatch queue: day started — first bus loading, others waiting in order');
+  await page.goto(`${WEB}/`);
+  await page.getByText('Safka gaadiidka (hadda)').waitFor();
+  log('dashboard shows the vehicle queue (loading bus + next)');
+
   // 9a. Xisaabaadka: automatic cashbook, driver pay, P&L
   await page.goto(`${WEB}/books`);
   await page.getByText('Lacag gashay').first().waitFor();

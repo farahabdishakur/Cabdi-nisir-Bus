@@ -85,6 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items: NavItem[] = [
     { href: '/', key: 'nav.dashboard', icon: '🏠', show: true },
     { href: '/search', key: 'common.search', icon: '🔎', show: staff },
+    { href: '/dispatch', key: 'nav.dispatch', icon: '🚏', show: staff },
     { href: '/trips', key: 'nav.trips', icon: '🚐', show: true },
     { href: '/bookings', key: 'nav.bookings', icon: '🎫', show: staff },
     // Super Admin laan ma laha (sanduuq ma haysto) → hawlaha alaabta laanta lagama qabto

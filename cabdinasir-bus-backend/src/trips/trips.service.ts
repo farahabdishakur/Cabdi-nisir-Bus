@@ -1,3 +1,4 @@
+import { DispatchService } from '../dispatch/dispatch.service';
 import { Injectable } from '@nestjs/common';
 import { ParcelStatus, Prisma, Role, TripStatus } from '@prisma/client';
 import { PrismaService, Tx } from '../prisma/prisma.service';
@@ -29,6 +30,7 @@ export class TripsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly dispatch: DispatchService,
     private readonly audit: AuditService,
     private readonly dir: BranchDirectory,
     private readonly driverPay: DriverPayService,
@@ -177,6 +179,8 @@ export class TripsService {
         await this.driverPay.accrueTrip(tx, id);
       }
       const updated = await tx.trip.update({ where: { id }, data, include: tripInclude });
+      // safka gaadiidka: baxay → kan xiga ha buuxsamo; gaadhay → safka soo laabashada
+      await this.dispatch.afterTripStatus(tx, trip, to, user.id);
       await this.audit.log(tx, user, `STATUS_${to}`, 'trips', id, { status: trip.status }, { status: to, reason: dto.reason });
       return updated;
     });

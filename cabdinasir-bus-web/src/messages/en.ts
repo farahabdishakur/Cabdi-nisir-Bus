@@ -15,6 +15,7 @@ const en: DeepPartial<Messages> = {
     language: 'Af-Soomaali', required: 'Required', saved: 'Saved', done: 'Done', optional: 'optional',
   },
   nav: {
+    dispatch: 'Vehicle queue',
     claims: 'Claims',
     dashboard: 'Home', trips: 'Trips', bookings: 'Tickets & reservations', parcelsNew: 'Send parcel', parcels: 'Parcels',
     incoming: 'Incoming parcels', outgoing: 'Outgoing parcels', deliver: 'Hand over parcel', cash: 'Cash drawer',
@@ -53,6 +54,7 @@ const en: DeepPartial<Messages> = {
     unused: 'Not used before ✓', used: 'Already used ({usedOn})', sendTo: 'Send to: {number}', paidVia: 'Paid via',
   },
   dashboard: {
+    perBranch: 'Branches today (income · expenses · net)',
     sellTicket: 'Sell ticket', sendParcel: 'Send parcel', handOver: 'Hand over parcel', todayTrips: "Today's trips", incoming: 'Incoming parcels',
     noSession: 'Your cash drawer is not open — you cannot take payments.', openSession: 'Open drawer', sessionOpen: 'Drawer is open',
     revenueToday: 'Revenue today', trips: 'Trips', occupancy: 'Occupancy', awaitingLoad: 'Parcels waiting to load', openSessions: 'Open drawers',
@@ -133,6 +135,17 @@ const en: DeepPartial<Messages> = {
     hint: 'Pick a tool (Seat, Aisle, Driver, Front seat) and click the cells. Numbers update automatically: left → right, top → bottom.',
     tpl: { hiace14: 'Hiace 14', noah7: 'Noah / Voxy 7', coaster29: 'Coaster 29', bus45: 'Large bus 45' },
   },
+  dispatch: {
+    title: 'Vehicle queue', loading: 'Loading', waiting: 'Waiting', departedToday: 'Departed today', passengersToday: 'Passengers today', passengers: 'passengers',
+    nowLoading: 'Loading now', fullWaiting: 'Full — waiting to depart', seatsTaken: 'seats taken', sell: 'Sell seat', depart: 'Vehicle departed', remove: 'Remove',
+    departConfirm: '{n}/{cap} passengers on board. After confirming, the next vehicle opens for sale.',
+    queue: 'Queue (order)', queueEmpty: 'No vehicles waiting', up: 'Move up', down: 'Move down', autoReturn: 'returned (auto)', endOfDay: 'Day ended',
+    emptyManager: "Today's queue is empty. On the right, pick the vehicles working today and press \"Start\".", emptyStaff: "Today's queue has not started — the manager starts it.",
+    startDay: 'Start the day', add: 'Add vehicles', startHint: 'Tick the vehicles working today (leave out absent ones). The order is a fair suggestion: whoever left first last time goes last. Change with ↑↓.',
+    addHint: 'A vehicle arrived or a driver returned — add to the end of the queue.', noCandidates: 'All vehicles are in a queue or on a trip.',
+    lastDeparted: 'Last departure', dupDriver: 'One driver cannot drive two vehicles.', startButton: 'Start ({n} vehicles)', addButton: 'Add ({n})',
+    overview: 'Vehicle queue (now)', next: 'Next',
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Copy #{n}',
     date: 'Date', customer: 'Customer name', phone: 'Phone', time: 'Time', vehicle: 'Vehicle', from: 'From', to: 'To', seat: 'Seat',
@@ -190,6 +203,7 @@ const en: DeepPartial<Messages> = {
     message: 'Message', retry: 'Retry', uptime: 'Uptime', jobsOff: 'Background jobs are off (JOBS_ENABLED).', smsFailed: '{n} SMS failed — check the SMS provider.',
   },
   admin: {
+    defaultDriver: 'Default driver', defaultDriverHint: 'The daily queue picks this driver automatically',
     seatLayoutHint: 'Pick a template or click cells to place seats',
     allCompany: 'Whole company',
     driverBranchHint: 'The branch that manages and pays this driver',
@@ -219,6 +233,9 @@ const en: DeepPartial<Messages> = {
     shareTripsWithinCity: '1 = Boorama 1 & 2 share one seat map',
   },
   errors: {
+    VEHICLE_BUSY: 'This vehicle or driver is on an active trip.',
+    ALREADY_QUEUED: 'A vehicle or driver is already in a queue.',
+    TRIP_HAS_PARCELS: 'Unload the parcels first.',
     SESSION_ALREADY_OPEN: 'You already have an open drawer.',
     REFERENCE_REQUIRED: 'Enter the Zaad/eDahab transaction number.',
     NO_EXCHANGE_RATE: 'SLSH rate not set — contact the Super Admin.',

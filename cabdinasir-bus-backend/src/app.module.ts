@@ -25,6 +25,7 @@ import { FinanceModule } from './finance/finance.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DriverPayModule } from './driver-pay/driver-pay.module';
 import { EvidenceModule } from './evidence/evidence.module';
+import { DispatchModule } from './dispatch/dispatch.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { VoidRequestsModule } from './void-requests/void-requests.module';
 import { ReportsModule } from './reports/reports.module';
@@ -66,6 +67,7 @@ import { EmitInterceptor } from './events/emit';
     FinanceModule,
     LedgerModule,
     EvidenceModule,
+    DispatchModule,
     PaymentsModule,
     VoidRequestsModule,
     ReportsModule,

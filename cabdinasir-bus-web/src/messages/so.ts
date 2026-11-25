@@ -44,6 +44,7 @@ const so = {
     optional: 'ikhtiyaari',
   },
   nav: {
+    dispatch: 'Safka gaadiidka',
     claims: 'Cabashooyinka',
     dashboard: 'Bogga hore',
     trips: 'Safarada',
@@ -136,6 +137,7 @@ const so = {
     paidVia: 'Lagu bixiyay',
   },
   dashboard: {
+    perBranch: 'Laamaha maanta (dakhli · kharash · saafi)',
     sellTicket: 'Tigidh iib',
     sendParcel: 'Alaab dir',
     handOver: 'Alaab wareeji',
@@ -343,6 +345,17 @@ const so = {
     hint: 'Dooro qalab (Kursi, Waddo, Darawal, Kursi hore) kadibna riix meelaha. Lambaradu si toos ah ayay isu habeeyaan: bidix → midig, kor → hoos.',
     tpl: { hiace14: 'Hiace 14', noah7: 'Noah / Voxy 7', coaster29: 'Coaster 29', bus45: 'Bas weyn 45' },
   },
+  dispatch: {
+    title: 'Safka gaadiidka', loading: 'Buuxsamaya', waiting: 'Sugaya', departedToday: 'Baxay maanta', passengersToday: 'Rakaab maanta', passengers: 'rakaab',
+    nowLoading: 'Hadda la buuxinayaa', fullWaiting: 'Wuu buuxsamay — sugaya bixitaan', seatsTaken: 'kursi la qabtay', sell: 'Iibi kursi', depart: 'Gaarigu wuu baxay', remove: 'Ka saar',
+    departConfirm: 'Gaariga {n}/{cap} rakaab ayaa saaran. Marka la xaqiijiyo, gaariga xiga ayaa iib u furmaya.',
+    queue: 'Safka (kala horreynta)', queueEmpty: 'Gaari sugaya ma jiro', up: 'Kor u qaad', down: 'Hoos u dhig', autoReturn: 'soo laabtay (toos)', endOfDay: 'Maalintii way dhammaatay',
+    emptyManager: 'Safka maanta waa madhan yahay. Dhinaca midig ka dooro gaadiidka shaqeynaya maanta oo riix "Bilow".', emptyStaff: 'Safka maanta weli lama bilaabin — maamulaha ayaa bilaabaya.',
+    startDay: 'Bilow maalinta', add: 'Ku dar gaadiid', startHint: 'Calaamadee gaadiidka maanta shaqeynaya (kuwa maqan ka reeb). Kala horreynta waa talo cadaalad ah: kii ugu horreeyay ee baxay waa dabada. ↑↓ ku beddel.',
+    addHint: 'Gaari yimid ama darawal soo laabtay — ku dar dabada safka.', noCandidates: 'Gaadiidka oo dhan saf ama safar ayay ku jiraan.',
+    lastDeparted: 'Bixitaankii u dambeeyay', dupDriver: 'Hal darawal laba gaari kuma qori kartid.', startButton: 'Bilow ({n} gaari)', addButton: 'Ku dar ({n})',
+    overview: 'Safka gaadiidka (hadda)', next: 'Xiga',
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Nuqul #{n}',
     date: 'Taariikh', customer: 'Magaca macmilka', phone: 'Taleefan', time: 'Waqtiga', vehicle: 'Gaadhiga', from: 'Ka', to: 'Ku', seat: 'Kursi',
@@ -454,6 +467,7 @@ const so = {
     smsFailed: '{n} SMS ayaa fashilmay — hubi provider-ka SMS.',
   },
   admin: {
+    defaultDriver: 'Darawalka caadiga ah', defaultDriverHint: 'Safka maalinta wuxuu si toos ah u doortaa darawalkan',
     allCompany: 'Shirkadda oo dhan',
     driverBranchHint: 'Laanta maamusha oo bixisa darawalkan',
    
@@ -493,6 +507,9 @@ const so = {
     editUserHint: 'Doorka ama laanta marka la beddelo, qofka waa laga saarayaa (mar kale ayuu soo galayaa).',
   },
   errors: {
+    VEHICLE_BUSY: 'Gaarigan ama darawalkan safar socda ayuu ku jiraa.',
+    ALREADY_QUEUED: 'Gaari ama darawal horay ayuu safka ugu jiray.',
+    TRIP_HAS_PARCELS: 'Marka hore alaabta ka deji gaariga.',
     AMOUNT_REQUIRED: 'Geli lacagta.',
     BPS_REQUIRED: 'Geli boqolleyda (%).',
     INVALID_CATEGORY: 'Qaybtan lama oggola.',

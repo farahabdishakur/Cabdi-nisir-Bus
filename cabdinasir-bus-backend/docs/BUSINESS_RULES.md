@@ -262,3 +262,12 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 - Safarka: beddelka xaaladda wuxuu xiraa safka (`FOR UPDATE`); iib/ballan/rar waxay qaataan `FOR SHARE` — tigidh lama iibin karo isla daqiiqadda gaarigu baxayo.
 - Buugga laanta: haraaga iyo wadarta waxaa laga xisaabiyaa muddada oo dhan (safafku 3000 ayay ku xaddidan yihiin).
 - Video/sawir uploads: disk (ma aha xusuusta) + xad 30/daqiiqad.
+
+## 30. Safka Gaadiidka Maalinta (Dispatch Queue)
+1. **Wado kasta saf gooni ah** (tusaale Boorama 1 → Wajaale). Maamulaha laanta (ama magaalada) iyo Super Admin ayaa maamula; shaqaalaha laamaha oo dhan way arkaan (live).
+2. **Bilowga maalinta:** maamuluhu wuxuu calaamadeeyaa gaadiidka maanta shaqeynaya (kuwa maqan waa laga reebaa) + darawalka (default: darawalka caadiga ah ee gaariga). **Kala horreynta (talo cadaalad ah):** gaariga ugu horreeyay ee baxay waa dabada; kuwa aan muddo bixin ayaa hore. Maamuluhu ↑↓ wuu beddeli karaa.
+3. **Gaariga koowaad = LOADING:** safar BOARDING ah ayaa si toos ah loo sameeyaa → iib. **Marka uu buuxsamo** (kuraasta oo dhan: tigidh + ballan) → gaariga xiga si toos ah ayuu iib u furmaa (hore loo iibin karaa).
+4. **Gaarigu wuu baxay** (maamule) → DEPARTED; kan xiga ayaa hore u soo dhaqaaqa. **Wuu gaadhay** → si toos ah ayuu u galaa safka soo laabashada ee magaalada kale (`queueAutoReturn` = 1).
+5. Gaari / darawal **hal saf oo furan** keliya (DB index) — laba saf ama safar socda isku mar ma gelin karo (`ALREADY_QUEUED`, `VEHICLE_BUSY`).
+6. **Ka saar** (darawal maqan / gaari xumaaday): gaari sugaya waqti kasta; gaariga buuxsamaya kaliya haddii aan tigidh ama alaab lagu rarin (safarka waa la joojiyaa). Safar la joojiyay → safka waa laga saaraa, kan xiga ayaa furmaa.
+7. **Maalin cusub (00:05):** kuwii shalay sugayay waa la xiraa — maalin kasta saf cusub. Gaariga weli buuxsamaya (tigidh leh) wuu sii jiraa.

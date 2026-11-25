@@ -42,8 +42,13 @@ export function useLiveEvents(enabled: boolean) {
                 /* ignore */
               }
               switch (ev.event) {
+                case 'DISPATCH':
+                  qc.invalidateQueries({ queryKey: ['dispatch'] });
+                  qc.invalidateQueries({ queryKey: ['trips'] });
+                  break;
                 case 'SEAT_CHANGED':
                 case 'TRIP_STATUS':
+                  qc.invalidateQueries({ queryKey: ['dispatch'] }); // gaari buuxsamay / baxay → safka
                   qc.invalidateQueries({ queryKey: ['trips'] });
                   if (data.tripId) qc.invalidateQueries({ queryKey: ['trip', data.tripId] });
                   if (data.targetTripId) qc.invalidateQueries({ queryKey: ['trip', data.targetTripId] });
