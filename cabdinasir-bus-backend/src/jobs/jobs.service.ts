@@ -7,6 +7,8 @@ import { SettingsService } from '../settings/settings.service';
 import { ReportsService } from '../reports/reports.service';
 import { EventsService } from '../events/events.service';
 import { expireReservations } from '../common/booking-status';
+import { DriverPayService } from '../driver-pay/driver-pay.service';
+import { businessDate } from '../common/time';
 
 const DAY_MS = 86400_000;
 const REMIND_AFTER_DAYS = 3;
@@ -25,6 +27,7 @@ export class JobsService {
     private readonly config: ConfigService,
     private readonly reports: ReportsService,
     private readonly events: EventsService,
+    private readonly driverPay: DriverPayService,
   ) {}
 
   private get enabled() {
@@ -72,6 +75,15 @@ export class JobsService {
     }
     if (expired.length) this.logger.log(`Reservations expired: ${expired.length}`);
     return { expired: expired.length };
+  }
+
+  /** 1-da bisha 03:00 Africa/Mogadishu (00:00 UTC): mushaharka darawallada bishii hore */
+  @Cron('0 0 1 * *')
+  async monthlySalaries() {
+    if (!this.enabled) return;
+    const [y, m] = businessDate().split('-').map(Number);
+    const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+    await this.driverPay.accrueMonthly(prev);
   }
 
   /** 08:00 Africa/Mogadishu (05:00 UTC): hubinta lacagta → SMS Super Admin haddii dhibaato jirto */

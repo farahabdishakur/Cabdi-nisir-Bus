@@ -23,6 +23,8 @@ import { BookingsModule } from './bookings/bookings.module';
 import { ParcelsModule } from './parcels/parcels.module';
 import { FinanceModule } from './finance/finance.module';
 import { PaymentsModule } from './payments/payments.module';
+import { DriverPayModule } from './driver-pay/driver-pay.module';
+import { LedgerModule } from './ledger/ledger.module';
 import { VoidRequestsModule } from './void-requests/void-requests.module';
 import { ReportsModule } from './reports/reports.module';
 import { CustomersModule } from './customers/customers.module';
@@ -49,6 +51,7 @@ import { EmitInterceptor } from './events/emit';
     AuthModule,
     SettingsModule,
     CashModule,
+    DriverPayModule,
     NotificationsModule,
     BranchesModule,
     UsersModule,
@@ -60,6 +63,7 @@ import { EmitInterceptor } from './events/emit';
     BookingsModule,
     ParcelsModule,
     FinanceModule,
+    LedgerModule,
     PaymentsModule,
     VoidRequestsModule,
     ReportsModule,

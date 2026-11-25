@@ -544,6 +544,308 @@
         ]
       }
     },
+    "/api/v1/driver-pay": {
+      "get": {
+        "operationId": "DriverPayController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/{driverId}/statement": {
+      "get": {
+        "operationId": "DriverPayController_statement",
+        "parameters": [
+          {
+            "name": "driverId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/{driverId}/rules": {
+      "get": {
+        "operationId": "DriverPayController_rules",
+        "parameters": [
+          {
+            "name": "driverId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/{driverId}/rule": {
+      "put": {
+        "operationId": "DriverPayController_setRule",
+        "parameters": [
+          {
+            "name": "driverId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/{driverId}/payments": {
+      "post": {
+        "operationId": "DriverPayController_pay",
+        "parameters": [
+          {
+            "name": "driverId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverPayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/{driverId}/bonus": {
+      "post": {
+        "operationId": "DriverPayController_bonus",
+        "parameters": [
+          {
+            "name": "driverId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BonusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/payments/{id}/void": {
+      "post": {
+        "operationId": "DriverPayController_voidPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/earnings/{id}/void": {
+      "post": {
+        "operationId": "DriverPayController_voidEarning",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
+    "/api/v1/driver-pay/run-monthly": {
+      "post": {
+        "operationId": "DriverPayController_runMonthly",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "driver-pay"
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "operationId": "NotificationsController_list",
@@ -2643,6 +2945,266 @@
         ]
       }
     },
+    "/api/v1/ledger/categories": {
+      "get": {
+        "operationId": "LedgerController_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/ledger/branch": {
+      "get": {
+        "operationId": "LedgerController_branch",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/ledger/office": {
+      "get": {
+        "operationId": "LedgerController_office",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/ledger/entries": {
+      "post": {
+        "operationId": "LedgerController_create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LedgerEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/ledger/entries/{id}/void": {
+      "post": {
+        "operationId": "LedgerController_void",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidLedgerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/ledger/entries/{id}/attachment": {
+      "post": {
+        "operationId": "LedgerController_attachLedger",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      },
+      "get": {
+        "operationId": "LedgerController_ledgerFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/expenses/{id}/attachment": {
+      "post": {
+        "operationId": "LedgerController_attachExpense",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      },
+      "get": {
+        "operationId": "LedgerController_expenseFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/reports/profit-loss": {
+      "get": {
+        "operationId": "LedgerController_pnl",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
     "/api/v1/payments/mobile": {
       "get": {
         "operationId": "PaymentsController_mobile",
@@ -3232,6 +3794,26 @@
         "type": "object",
         "properties": {}
       },
+      "PayRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DriverPayDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "BonusDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VoidDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PeriodDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateBranchDto": {
         "type": "object",
         "properties": {}
@@ -3368,11 +3950,15 @@
         "type": "object",
         "properties": {}
       },
-      "VoidDto": {
+      "CreateDepositDto": {
         "type": "object",
         "properties": {}
       },
-      "CreateDepositDto": {
+      "LedgerEntryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VoidLedgerDto": {
         "type": "object",
         "properties": {}
       },

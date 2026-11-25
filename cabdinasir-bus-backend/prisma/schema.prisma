@@ -58,6 +58,36 @@ enum PaymentKind {
   EXPENSE // kharash ka baxay sanduuqa (taban)
   DEPOSIT // lacag loo wareejiyay xafiiska guud / bangiga (taban)
   TRANSFER_DIFF // farqiga qiimaha marka tigidh la beddelo
+  DRIVER_PAY // lacag darawal la siiyay (horumar / mushahar) — sanduuqa ayay ka baxdaa (taban)
+}
+
+enum DriverPayType {
+  PER_TRIP // lacag go'an safar kasta
+  PERCENT_TICKETS // boqolley tigidhada safarka
+  PERCENT_TRIP_INCOME // boqolley tigidhada + alaabta safarka
+  MONTHLY_SALARY // mushahar bille ah
+}
+
+enum DriverEarningKind {
+  TRIP
+  SALARY
+  BONUS
+}
+
+enum DriverPaymentKind {
+  ADVANCE // horumar (ka hor intaan la kasban)
+  PAYOUT // mushahar / lacag la siiyay
+  DEDUCTION // ka jarid (ganaax, dhaawac) — lacag ma baxdo
+}
+
+enum LedgerBook {
+  BRANCH // buugga laanta (sanduuqyada)
+  HEAD_OFFICE // buugga xafiiska guud (Super Admin)
+}
+
+enum LedgerDirection {
+  IN
+  OUT
 }
 
 enum ExpenseCategory {
@@ -226,7 +256,10 @@ model Driver {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  trips Trip[]
+  trips    Trip[]
+  payRules DriverPayRule[]
+  earnings DriverEarning[]
+  payments DriverPayment[]
 
   @@map("drivers")
 }
@@ -507,6 +540,8 @@ model Expense {
   payment     Payment         @relation(fields: [paymentId], references: [id])
   createdById String
   idempotencyKey String?      @unique
+  /// Sawirka biilka / rasiidka (CashBook "Attach Bill")
+  attachmentUrl String?
   voidedAt    DateTime?
   voidedById  String?
   voidReason  String?
@@ -574,4 +609,99 @@ model Notification {
 
   @@index([status, sendAfter])
   @@map("notifications")
+}
+
+/// Sida darawalka loo bixiyo. Hal xeer firfircoon (effectiveFrom ugu dambeeya ee aan ka weynayn waqtiga safarka).
+model DriverPayRule {
+  id            String        @id @default(uuid())
+  driverId      String
+  driver        Driver        @relation(fields: [driverId], references: [id])
+  type          DriverPayType
+  /// PER_TRIP / MONTHLY_SALARY: senti
+  amountCents   Int           @default(0)
+  /// PERCENT_*: basis points (1000 = 10%)
+  bps           Int           @default(0)
+  effectiveFrom DateTime      @default(now())
+  createdById   String
+  createdAt     DateTime      @default(now())
+
+  @@index([driverId, effectiveFrom])
+  @@map("driver_pay_rules")
+}
+
+/// Waxa darawalku kasbaday — si toos ah (safar gaadhay / mushahar bille) ama gacan (bonus).
+model DriverEarning {
+  id          String            @id @default(uuid())
+  driverId    String
+  driver      Driver            @relation(fields: [driverId], references: [id])
+  kind        DriverEarningKind
+  tripId      String?
+  /// "YYYY-MM" mushaharka bille
+  period      String?
+  amountCents Int
+  basis       Json
+  note        String?
+  createdById String?
+  voidedAt    DateTime?
+  voidReason  String?
+  createdAt   DateTime          @default(now())
+
+  @@unique([driverId, tripId])
+  @@unique([driverId, period])
+  @@index([driverId, createdAt])
+  @@map("driver_earnings")
+}
+
+/// Lacag darawalka la siiyay (horumar / mushahar) ama laga jaray. Sanduuqa (DRIVER_PAY) ama xafiiska (ledger).
+model DriverPayment {
+  id            String            @id @default(uuid())
+  driverId      String
+  driver        Driver            @relation(fields: [driverId], references: [id])
+  kind          DriverPaymentKind
+  amountCents   Int
+  /// sanduuqa laanta
+  paymentId     String?           @unique
+  /// buugga xafiiska (Super Admin)
+  ledgerEntryId String?           @unique
+  note          String?
+  idempotencyKey String?          @unique
+  createdById   String
+  voidedAt      DateTime?
+  voidedById    String?
+  voidReason    String?
+  createdAt     DateTime          @default(now())
+
+  @@index([driverId, createdAt])
+  @@map("driver_payments")
+}
+
+/// Buugga xisaabaadka (CashBook): gelin gacan ah — dakhli kale, kharash kale, raasumaal, iibsasho …
+/// Lacagaha tigidhada/alaabta/kharashka sanduuqa si toos ah ayay buugga u galaan (payments) — halkan lama gelin.
+model LedgerEntry {
+  id             String          @id @default(uuid())
+  book           LedgerBook
+  branchId       String?
+  direction      LedgerDirection
+  category       String
+  description    String
+  currency       Currency
+  amount         Int
+  amountUsdCents Int
+  exchangeRate   Int?
+  method         PaymentMethod   @default(CASH)
+  reference      String?
+  entryDate      DateTime        @default(now())
+  /// P&L: kharashkan / dakhligan laan ama gaari gaar ah ayuu khuseeyaa (ikhtiyaari)
+  attributedBranchId String?
+  vehicleId      String?
+  attachmentUrl  String?
+  idempotencyKey String?         @unique
+  createdById    String
+  voidedAt       DateTime?
+  voidedById     String?
+  voidReason     String?
+  createdAt      DateTime        @default(now())
+
+  @@index([book, branchId, entryDate])
+  @@map("ledger_entries")
 }

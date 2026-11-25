@@ -9,6 +9,7 @@ import { parseSeatLayout } from '../vehicles/seat-layout';
 import { SettingsService } from '../settings/settings.service';
 import { AuditService } from '../audit/audit.service';
 import { BranchDirectory } from '../common/branch-directory.service';
+import { DriverPayService } from '../driver-pay/driver-pay.service';
 import { expireReservations, seatTaken, sold } from '../common/booking-status';
 import { BulkTripsDto, CreateTripDto, MoveBookingsDto, TripQuery, TripStatusDto, UpdateTripDto } from './trips.dto';
 
@@ -30,6 +31,7 @@ export class TripsService {
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
     private readonly dir: BranchDirectory,
+    private readonly driverPay: DriverPayService,
   ) {}
 
   /** Safar shaqaaluhu arki karaan: kuwa ka baxa ama u socda magaaladooda (Boorama: 2 laamood way wadaagaan). */
@@ -163,6 +165,10 @@ export class TripsService {
         // ballan aan la bixin = ma iman (no-show) → kursigu wuu dhacay
         await tx.booking.updateMany({ where: { tripId: id, status: 'RESERVED' }, data: { status: 'EXPIRED' } });
         await this.moveParcels(tx, user, id, ParcelStatus.LOADED, ParcelStatus.IN_TRANSIT, 'Vehicle departed');
+      }
+      if (to === 'ARRIVED') {
+        // safarka waa dhammaaday → kasbashada darawalka si toos ah (xeerkiisa: safar / boqolley)
+        await this.driverPay.accrueTrip(tx, id);
       }
       const updated = await tx.trip.update({ where: { id }, data, include: tripInclude });
       await this.audit.log(tx, user, `STATUS_${to}`, 'trips', id, { status: trip.status }, { status: to, reason: dto.reason });
