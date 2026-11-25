@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getAccessToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
-import { can } from '@/lib/permissions';
+import { can, isManager } from '@/lib/permissions';
 import { dateTime, phone, usd } from '@/lib/format';
 import type { Parcel } from '@/lib/types';
 import { Alert, Button, Card, Checkbox, Field, Input, Loading, PageHeader } from '@/components/ui';
@@ -70,8 +70,8 @@ export default function ParcelPage({ params }: { params: Promise<{ code: string 
         title={p.trackingCode}
         actions={
           <>
-            <Button variant="secondary" onClick={() => window.open(`/print/parcel/${p.id}`, '_blank')}>🖨 {t('common.print')}</Button>
-            {!closed && <Button variant="secondary" onClick={() => setModal('correct')}>{t('booking.correct')}</Button>}
+            <Button variant="secondary" onClick={() => window.open(`/print/parcel/${p.id}?reprint=1`, '_blank')}>🖨 {t('common.print')}</Button>
+            {!closed && (isManager(user) || (isFrom && ['REGISTERED', 'LOADED'].includes(p.status))) && <Button variant="secondary" onClick={() => setModal('correct')}>{t('booking.correct')}</Button>}
             {!closed && <Button variant="secondary" onClick={() => setModal('pin')}>{t('parcel.resetPin')}</Button>}
             {p.status === 'REGISTERED' && isFrom && (can(user, 'void')
               ? <Button variant="danger" onClick={() => setModal('void')}>{t('booking.void')}</Button>

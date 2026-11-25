@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import { dateTime, money, phone, todayISO, usd } from '@/lib/format';
 import type { Currency, Method } from '@/lib/types';
 import { Alert, Badge, Button, Card, Checkbox, Input, Loading, PageHeader, Select, Stat, Table, Td } from '@/components/ui';
+import { ErrorAlert } from '@/components/domain';
 
 interface MobileItem {
   id: string; createdAt: string; method: Method; kind: string; reference: string; payerPhone: string | null;
@@ -68,7 +69,7 @@ export default function ZaadPage() {
       )}
       {error && <Alert>{error}</Alert>}
       <Card actions={<Button variant="success" onClick={reconcile} loading={busy} disabled={!ids.length}>✓ {t('zaad.reconcileSelected')} ({ids.length})</Button>}>
-        {list.isLoading ? <Loading /> : (
+        {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : (
           <Table head={['', t('common.date'), t('payment.method'), t('payment.reference'), t('payment.payerPhone'), t('common.amount'), t('zaad.receipt'), t('zaad.cashier'), t('common.status')]} empty={!list.data?.items.length}>
             {list.data?.items.map((i) => (
               <tr key={i.id} className={i.amount < 0 ? 'bg-red-50' : ''}>

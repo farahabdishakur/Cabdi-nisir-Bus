@@ -3,14 +3,17 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, newKey } from '@/lib/api';
+import { api, ApiError, newKey } from '@/lib/api';
+import { enqueue, randomPin, useOnline, type OfflineItem } from '@/lib/offline';
+import { estimateParcel } from '@/lib/pricing';
+import { OfflineReceipt } from '@/components/offline-receipt';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useBootstrap, useCashSession } from '@/lib/queries';
 import { parseUsd, usd } from '@/lib/format';
 import type { Parcel, PaymentInput, PriceLine } from '@/lib/types';
 import { Alert, Button, Card, Checkbox, Field, Input, PageHeader, Select, Textarea } from '@/components/ui';
-import { CASH_USD, PartyInput, PaymentPicker, paymentReady } from '@/components/domain';
+import { CASH_USD, PartyInput, PaymentPicker, paymentReady, usePriceLabel } from '@/components/domain';
 
 interface Quote {
   totalCents: number;
@@ -45,7 +48,11 @@ export default function NewParcelPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Parcel | null>(null);
+  const [offlineDone, setOfflineDone] = useState<OfflineItem | null>(null);
+  const [estimate, setEstimate] = useState(false);
+  const online = useOnline();
   const key = useRef(newKey());
+  const priceLabel = usePriceLabel();
 
   const category = boot.data?.categories.find((c) => c.id === categoryId);
   const weightKg = Number(weight);
@@ -55,17 +62,36 @@ export default function NewParcelPage() {
   useEffect(() => {
     setQuote(null);
     setQuoteError('');
+    setEstimate(false);
     if (!toBranchId || !categoryId || !(weightKg > 0)) return;
+    const local = () => {
+      // offline: qiyaas (qaacidada backend-ka) — server-ka ayaa go'aamiya marka la sync-gareeyo
+      const route = boot.data?.routes.find((r) => r.fromBranchId === user?.branchId && r.toBranchId === toBranchId);
+      const cat = boot.data?.categories.find((c) => c.id === categoryId);
+      if (!route || !cat || !boot.data) return setQuoteError(t('errors.ROUTE_NOT_FOUND'));
+      if (cat.isProhibited) return setQuoteError(t('errors.PARCEL_PROHIBITED'));
+      const cents = estimateParcel({
+        baseFeeCents: cat.baseFeeCents, perKgMultiplier: Number(cat.perKgMultiplier), parcelPerKgCents: route.parcelPerKgCents, parcelMinFeeCents: route.parcelMinFeeCents,
+        weightKg, isFragile: fragile, fragileSurchargeCents: boot.data.settings.fragileSurchargeCents, insured, declaredValueCents: declaredCents, insuranceBps: boot.data.settings.insuranceBps,
+      });
+      setEstimate(true);
+      setQuote({ totalCents: cents, lines: [{ label: 'estimate', cents }] });
+    };
+    if (!online) {
+      local();
+      return;
+    }
     const h = setTimeout(() => {
       api<Quote>('/parcels/quote', { method: 'POST', body: { toBranchId, categoryId, weightKg, isFragile: fragile, insured, ...(declaredCents && { declaredValueCents: declaredCents }) } })
         .then(setQuote)
-        .catch((e) => setQuoteError(err(e)));
+        .catch((e) => (e instanceof ApiError && e.code === 'NETWORK_ERROR' ? local() : setQuoteError(err(e))));
     }, 300);
     return () => clearTimeout(h);
-  }, [toBranchId, categoryId, weightKg, fragile, insured, declaredCents, err]);
+  }, [toBranchId, categoryId, weightKg, fragile, insured, declaredCents, err, online, boot.data, user?.branchId, t]);
 
   const reset = () => {
     setDone(null);
+    setOfflineDone(null);
     setSender({ name: '', phone: '' });
     setReceiver({ name: '', phone: '' });
     setWeight('');
@@ -78,32 +104,70 @@ export default function NewParcelPage() {
     key.current = newKey();
   };
 
+  const saveOffline = async (body: OfflineItem['parcel']) => {
+    const item: OfflineItem = {
+      idempotencyKey: key.current, offlineCreatedAt: new Date().toISOString(), pickupPin: randomPin(), parcel: body,
+      estimateCents: quote?.totalCents ?? 0, toBranchName: destinations.find((b) => b.id === toBranchId)?.name ?? '', status: 'pending',
+    };
+    await enqueue(item);
+    setOfflineDone(item);
+    setTimeout(() => window.print(), 300);
+  };
+
   const submit = async () => {
     setBusy(true);
     setError('');
+    const body = {
+      toBranchId, categoryId, weightKg, pieces: Number(pieces), description: description || undefined,
+      senderName: sender.name.trim(), senderPhone: sender.phone.trim(), receiverName: receiver.name.trim(), receiverPhone: receiver.phone.trim(),
+      isFragile: fragile, insured, packagingOk: packaging, payer,
+      ...(declaredCents && { declaredValueCents: declaredCents }),
+      ...(payer === 'SENDER' && { payment: pay }),
+    };
+    if (!online) {
+      await saveOffline(body).catch((e) => setError(err(e)));
+      setBusy(false);
+      return;
+    }
     try {
-      const p = await api<Parcel>('/parcels', {
-        method: 'POST',
-        idempotencyKey: key.current,
-        body: {
-          toBranchId, categoryId, weightKg, pieces: Number(pieces), description: description || undefined,
-          senderName: sender.name.trim(), senderPhone: sender.phone.trim(), receiverName: receiver.name.trim(), receiverPhone: receiver.phone.trim(),
-          isFragile: fragile, insured, packagingOk: packaging, payer,
-          ...(declaredCents && { declaredValueCents: declaredCents }),
-          ...(payer === 'SENDER' && { payment: pay }),
-        },
-      });
+      const p = await api<Parcel>('/parcels', { method: 'POST', idempotencyKey: key.current, body });
       setDone(p);
       qc.invalidateQueries({ queryKey: ['parcels'] });
       qc.invalidateQueries({ queryKey: ['cash'] });
       if (p.pickupPin) sessionStorage.setItem(`pin:${p.id}`, p.pickupPin);
       window.open(`/print/parcel/${p.id}`, '_blank');
     } catch (e) {
-      setError(err(e));
+      // internet-ku hadda ayuu go'ay → isla key-ga ayaa offline lagu kaydinayaa (sync-ka laba jeer ma noqonayo)
+      if (e instanceof ApiError && e.code === 'NETWORK_ERROR') await saveOffline(body).catch((x) => setError(err(x)));
+      else setError(err(e));
     } finally {
       setBusy(false);
     }
   };
+
+  if (offlineDone) {
+    return (
+      <div className="mx-auto max-w-lg">
+        <Card title={`📴 ${t('offline.saved')}`}>
+          <div className="flex flex-col gap-3 text-center">
+            <Alert tone="yellow">{t('offline.savedHint')}</Alert>
+            <p className="font-mono text-xl font-black text-navy">OFFLINE-{offlineDone.idempotencyKey.slice(0, 8).toUpperCase()}</p>
+            <OfflineReceipt item={offlineDone} />
+            <div className="rounded-xl bg-amber-50 p-4">
+              <p className="text-sm text-amber-900">{t('parcel.pin')}</p>
+              <p className="font-mono text-4xl font-black tracking-widest text-amber-900">{offlineDone.pickupPin}</p>
+            </div>
+            <p className="text-lg font-bold">≈ {usd(offlineDone.estimateCents)} · {offlineDone.parcel.payer === 'SENDER' ? t('parcel.payerSender') : t('parcel.payerReceiver')}</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="secondary" onClick={() => window.print()}>🖨 {t('common.print')}</Button>
+              <Link href="/offline"><Button variant="secondary">{t('nav.offline')}</Button></Link>
+              <Button onClick={reset}>+ {t('parcel.newTitle')}</Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (done) {
     return (
@@ -134,7 +198,7 @@ export default function NewParcelPage() {
     toBranchId && categoryId && weightKg > 0 && Number(pieces) >= 1 && quote && !category?.isProhibited &&
     sender.name.trim() && sender.phone.trim() && receiver.name.trim() && receiver.phone.trim() &&
     (payer === 'RECEIVER' || paymentReady(pay));
-  const noSession = payer === 'SENDER' && !session.isLoading && !session.data;
+  const noSession = online && payer === 'SENDER' && !session.isLoading && !session.data;
 
   return (
     <div>
@@ -193,12 +257,13 @@ export default function NewParcelPage() {
               <>
                 <ul className="mb-2 text-sm text-gray-600">
                   {quote.lines.map((l) => (
-                    <li key={l.label} className="flex justify-between"><span>{l.label}</span><span>{usd(l.cents)}</span></li>
+                    <li key={l.label} className="flex justify-between"><span>{priceLabel(l.label)}</span><span>{usd(l.cents)}</span></li>
                   ))}
                 </ul>
                 <p className="flex justify-between border-t pt-2 text-2xl font-black text-navy"><span>{t('common.total')}</span><span>{usd(quote.totalCents)}</span></p>
               </>
             ) : quoteError ? <Alert>{quoteError}</Alert> : <p className="text-sm text-gray-500">—</p>}
+            {estimate && <p className="mt-2 text-xs font-semibold text-amber-700">📴 {t('offline.estimate')}</p>}
           </Card>
           <Card title={t('parcel.payer')}>
             <div className="mb-3 flex flex-col gap-2">
@@ -208,6 +273,7 @@ export default function NewParcelPage() {
             {payer === 'SENDER' && <PaymentPicker value={pay} onChange={setPay} />}
             {noSession && <div className="mt-3"><Alert tone="yellow">{t('dashboard.noSession')} <Link href="/cash" className="font-bold underline">{t('dashboard.openSession')}</Link></Alert></div>}
           </Card>
+          {!online && <Alert tone="yellow">📴 {t('offline.banner')}</Alert>}
           {error && <Alert>{error}</Alert>}
           <Button size="lg" onClick={submit} loading={busy} disabled={!ready || noSession}>
             {t('parcel.register')} {quote ? usd(quote.totalCents) : ''}

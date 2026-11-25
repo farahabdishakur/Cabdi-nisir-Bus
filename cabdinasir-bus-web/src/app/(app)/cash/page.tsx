@@ -10,7 +10,7 @@ import { useCashSession } from '@/lib/queries';
 import { dateTime, money, parseInteger, parseUsd, slsh, todayISO, usd } from '@/lib/format';
 import type { CashSession, Currency, Method } from '@/lib/types';
 import { Alert, Badge, Button, Card, Field, Input, Loading, Modal, PageHeader, Select, Stat, Table, Td } from '@/components/ui';
-import { ReasonModal } from '@/components/domain';
+import { ReasonModal, ErrorAlert } from '@/components/domain';
 
 interface Expense { id: string; category: string; description: string; voidedAt: string | null; createdAt: string; payment: { amount: number; currency: Currency; method: Method } }
 interface Deposit { id: string; target: string; note: string | null; confirmedAt: string | null; createdAt: string; branch?: { name: string }; payment: { amount: number; currency: Currency } }
@@ -73,7 +73,7 @@ export default function CashPage() {
         </Alert>
       )}
 
-      {session.isLoading ? <Loading /> : !s ? (
+      {session.error ? <ErrorAlert error={session.error} /> : session.isLoading ? <Loading /> : !s ? (
         user?.branchId && (
           <Card title={t('cash.open')}>
             <div className="grid gap-3 sm:grid-cols-3 sm:items-end">
@@ -255,7 +255,18 @@ function BranchSessions() {
   const { t, err } = useI18n();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const list = useQuery({ queryKey: ['cash', 'sessions'], queryFn: () => api<(CashSession & { cashierId: string })[]>('/cash-sessions', { query: { date: todayISO() } }) });
+  // maanta + kuwa weli furan (karraani ka tagay maalin hore)
+  const list = useQuery({
+    queryKey: ['cash', 'sessions'],
+    queryFn: async () => {
+      const [today, open] = await Promise.all([
+        api<(CashSession & { cashierId: string })[]>('/cash-sessions', { query: { date: todayISO() } }),
+        api<(CashSession & { cashierId: string })[]>('/cash-sessions', { query: { open: true } }),
+      ]);
+      const all = new Map([...open, ...today].map((s) => [s.id, s]));
+      return [...all.values()].sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+    },
+  });
   const [force, setForce] = useState<CashSession | null>(null);
   const [counted, setCounted] = useState({ usd: '', slsh: '' });
   const [error, setError] = useState('');

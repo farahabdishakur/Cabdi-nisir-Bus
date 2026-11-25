@@ -194,6 +194,63 @@ async function main() {
   await page.getByText('Zaad ✓').first().waitFor();
   log('"Zaad ✓" marker in tickets list');
 
+  // 8b. reprint is counted (anti-fraud)
+  await page.getByRole('cell', { name: 'BO1-T-000001' }).click();
+  const [rp] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('dialog').getByRole('button', { name: /Daabac/ }).click()]);
+  await rp.getByText(/Dib u daabac #1/).waitFor();
+  await rp.close();
+  log('reprint counted on the receipt (#1)');
+
+  // 8c. transfer: change seat 3 → 9
+  await page.getByRole('dialog').getByRole('button', { name: /Beddel kursi/ }).click();
+  await page.getByRole('combobox', { name: /^Kursi/ }).selectOption('9');
+  await page.getByRole('button', { name: 'Xaqiiji' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  log('ticket moved from seat 3 to seat 9');
+
+  // 8d. global search from the top bar
+  await page.keyboard.press('/');
+  await page.keyboard.type('0634200200');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/\/search\?q=/);
+  await page.getByText(trackingCode).first().waitFor();
+  log('global search finds the parcel by phone');
+
+  // 8e. OFFLINE: register a parcel without internet, then it syncs automatically
+  await page.goto(`${WEB}/parcels/new`);
+  await page.getByLabel('Laanta loo dirayo').selectOption({ label: 'Wajaale' });
+  await ctx.setOffline(true);
+  await page.getByText(/Offline/).first().waitFor();
+  const ph = page.getByLabel('Taleefan');
+  const nm = page.getByLabel('Magac');
+  await ph.nth(0).fill('0634300300');
+  await nm.nth(0).fill('Diraha Offline');
+  await ph.nth(1).fill('0634400400');
+  await nm.nth(1).fill('Qaataha Offline');
+  await page.getByLabel('Nooca alaabta').selectOption({ label: 'Dhar' });
+  await page.getByLabel(/Miisaanka/).fill('5');
+  await page.getByText(/Qiyaas offline/).waitFor();
+  await page.getByRole('button', { name: /Qaataha \(marka la qaato/ }).click();
+  await page.screenshot({ path: `${SHOTS}16-offline-form.png`, fullPage: true });
+  await page.getByRole('button', { name: /^Diiwaangeli/ }).click();
+  await page.getByText(/Waa la kaydiyay \(offline\)/).waitFor();
+  await page.getByText(/^OFFLINE-/).first().waitFor();
+  await page.emulateMedia({ media: 'print' });
+  await page.screenshot({ path: `${SHOTS}17-offline-receipt.png`, fullPage: true });
+  await page.emulateMedia({ media: 'screen' });
+  log('offline: parcel saved locally + offline receipt with PIN');
+  // reload while offline: the page comes from the service worker cache and the cashier stays signed in
+  await page.goto(`${WEB}/parcels/new`).catch(() => undefined);
+  await page.getByLabel('Laanta loo dirayo').waitFor();
+  if (page.url().includes('/login')) fail('offline reload logged the cashier out');
+  log('offline reload: page served from cache, still signed in');
+  await ctx.setOffline(false);
+  await page.goto(`${WEB}/offline`);
+  await page.getByRole('button', { name: /Dir hadda/ }).click();
+  await page.getByText(/CB-BO1-000002/).waitFor();
+  await page.screenshot({ path: `${SHOTS}18-offline-synced.png` });
+  log('back online: parcel synced → real code CB-BO1-000002');
+
   // 9. manager: reports + Zaad reconciliation
   await page.getByRole('button', { name: /ka bax/i }).click();
   await page.waitForURL(`${WEB}/login`);
@@ -205,6 +262,9 @@ async function main() {
   await page.getByRole('button', { name: /la hubiyay/ }).click();
   await page.getByText('ZD-E2E-001').waitFor({ state: 'detached' });
   log('manager reconciled the Zaad payment');
+  await page.goto(`${WEB}/system`);
+  await page.getByText('TRANSFER').first().waitFor();
+  log('manager: audit log shows the seat transfer');
   await page.goto(`${WEB}/reports`);
   await page.getByText(/Dakhli/).first().waitFor();
   await page.screenshot({ path: `${SHOTS}12-reports-daily.png` });
@@ -245,6 +305,19 @@ async function main() {
   await page.getByText(/Alaabta waa la wareejiyay/).waitFor();
   log('handed over with PIN + COD $4.60 collected');
 
+  // 9d. public pages (no login): tracking + schedule
+  const pub = await browser.newContext();
+  const pp0 = await pub.newPage();
+  await pp0.goto(`${WEB}/track?code=${trackingCode}`);
+  await pp0.getByLabel(/4-ta god/).fill('0200');
+  await pp0.getByRole('button', { name: 'Raadi' }).click();
+  await pp0.getByText(/La wareejiyay/).first().waitFor();
+  await pp0.screenshot({ path: `${SHOTS}19-public-track.png`, fullPage: true });
+  await pp0.goto(`${WEB}/schedule`);
+  await pp0.getByText(/Jadwalka safarada/).first().waitFor();
+  await pub.close();
+  log('public: parcel tracking (no login) + schedule page');
+
   // 10. phone layout
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   const pp = await phone.newPage();
@@ -257,7 +330,7 @@ async function main() {
   log('phone layout: no horizontal scroll');
 
   await browser.close();
-  const real = consoleErrors.filter((e) => !/Failed to load resource|401|409|400/.test(e));
+  const real = consoleErrors.filter((e) => !/Failed to load resource|401|409|400|Failed to fetch RSC payload|ERR_INTERNET_DISCONNECTED/.test(e));
   if (real.length) fail(`console errors:\n${real.join('\n')}`);
   console.log(`\nALL ${step} STEPS PASSED`);
 }

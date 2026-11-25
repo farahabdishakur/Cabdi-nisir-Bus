@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [idle, setIdle] = useState(false);
+  useEffect(() => setIdle(new URLSearchParams(window.location.search).has('idle')), []);
 
   useEffect(() => {
     if (!loading && user) router.replace(user.mustChangePassword ? '/change-password' : '/');
@@ -48,12 +50,17 @@ export default function LoginPage() {
           <Field label={t('auth.password')} required>
             {(id) => <Input id={id} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
           </Field>
+          {idle && !error && <Alert tone="yellow">{t('auth.idle')}</Alert>}
           {error && <Alert>{error}</Alert>}
           <Button type="submit" size="lg" loading={busy}>
             {t('auth.submit')}
           </Button>
         </form>
-        <button className="mt-4 w-full text-center text-sm text-gray-500 hover:underline" onClick={() => setLang(lang === 'so' ? 'en' : 'so')}>
+        <div className="mt-4 flex justify-center gap-4 text-sm">
+          <a href="/track" className="text-navy hover:underline">📦 {t('public.track')}</a>
+          <a href="/schedule" className="text-navy hover:underline">🚐 {t('public.schedule')}</a>
+        </div>
+        <button className="mt-2 w-full text-center text-sm text-gray-500 hover:underline" onClick={() => setLang(lang === 'so' ? 'en' : 'so')}>
           {t('common.language')}
         </button>
       </div>

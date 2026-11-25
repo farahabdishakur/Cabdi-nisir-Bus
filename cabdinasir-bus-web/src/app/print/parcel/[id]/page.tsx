@@ -9,6 +9,7 @@ import { useBootstrap } from '@/lib/queries';
 import { dateTime, money, phone, usd } from '@/lib/format';
 import type { Parcel } from '@/lib/types';
 import { Hr, PrintShell, Qr, Row } from '@/components/print';
+import { usePriceLabel } from '@/components/domain';
 
 /**
  * Rasiidka alaabta (80mm) + label/sticker xabbad kasta (QR + laanta loo dirayo far waaweyn).
@@ -19,8 +20,19 @@ export default function ParcelPrint({ params }: { params: Promise<{ id: string }
   const { t } = useI18n();
   const { user } = useAuth();
   const boot = useBootstrap();
-  const q = useQuery({ queryKey: ['print', 'parcel', id], queryFn: () => api<Parcel>(`/parcels/${id}`), enabled: !!user });
+  // ?reprint=1 → dib u daabac: waa la tiriyaa + audit (rasiid nuqul ah khiyaano looguma isticmaali karo)
+  const [mode, setMode] = useState<'first' | 'reprint' | null>(null);
+  useEffect(() => setMode(new URLSearchParams(window.location.search).get('reprint') ? 'reprint' : 'first'), []);
+  const q = useQuery({
+    queryKey: ['print', 'parcel', id, mode],
+    queryFn: () => (mode === 'reprint' ? api<Parcel>(`/parcels/${id}/reprint`, { method: 'POST' }) : api<Parcel>(`/parcels/${id}`)),
+    enabled: !!user && !!mode,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: false, // dib u daabac hal mar oo keliya ha la tiriyo
+  });
   const [pin, setPin] = useState<string | null>(null);
+  const priceLabel = usePriceLabel();
   useEffect(() => {
     try {
       const v = sessionStorage.getItem(`pin:${id}`);
@@ -49,6 +61,7 @@ export default function ParcelPrint({ params }: { params: Promise<{ id: string }
             <Hr />
             <p className="text-center text-lg font-bold">📦 {p.trackingCode}</p>
             <p className="text-center">{t('booking.receipt')} {p.receiptNo}</p>
+            {p.printCount > 0 && <p className="text-center">({t('common.reprint')} #{p.printCount})</p>}
             <Hr />
             <Row k={t('parcel.to')} v={p.toBranch.name} bold />
             <Row k={t('parcel.sender')} v={`${p.senderName} ${phone(p.senderPhone)}`} />
@@ -57,7 +70,7 @@ export default function ParcelPrint({ params }: { params: Promise<{ id: string }
             <Row k={t('parcel.pieces')} v={`${p.pieces}× · ${String(p.weightKg)} kg${p.isFragile ? ' · ⚠️' : ''}`} />
             {p.declaredValueCents ? <Row k={t('parcel.declared')} v={usd(p.declaredValueCents)} /> : null}
             <Hr />
-            {p.priceBreakdown.lines.map((l) => <Row key={l.label} k={l.label} v={usd(l.cents)} />)}
+            {p.priceBreakdown.lines.map((l) => <Row key={l.label} k={priceLabel(l.label)} v={usd(l.cents)} />)}
             <Row k={t('common.total')} v={usd(p.feeCents)} bold />
             {cod ? <p className="text-center text-sm font-bold">COD — {t('parcel.payerReceiver')}</p> : income.map((x) => (
               <div key={x.id}>
@@ -75,7 +88,8 @@ export default function ParcelPrint({ params }: { params: Promise<{ id: string }
             )}
             <Row k={t('common.date')} v={dateTime(p.offlineCreatedAt ?? p.createdAt)} />
             <Hr />
-            <div className="flex justify-center py-1"><Qr value={p.trackingCode} /></div>
+            <div className="flex justify-center py-1"><Qr value={`${typeof window !== 'undefined' ? window.location.origin : ''}/track?code=${p.trackingCode}`} /></div>
+            <p className="text-center text-[10px]">{t('public.trackOnline')}: /track</p>
             <p className="text-[10px]">{c.parcelRules.map((r, i) => `${i + 1}. ${r}`).join(' ')}</p>
             <p className="text-center">{c.receiptFooter}</p>
           </div>

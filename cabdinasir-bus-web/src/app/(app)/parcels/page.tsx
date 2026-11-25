@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import { dateTime, phone, usd } from '@/lib/format';
 import type { Paged, Parcel, ParcelStatus } from '@/lib/types';
 import { Button, Card, Input, Loading, PageHeader, Select, Table, Td } from '@/components/ui';
-import { PaidVia, ParcelStatusBadge } from '@/components/domain';
+import { PaidVia, ParcelStatusBadge, ErrorAlert } from '@/components/domain';
 
 const STATUSES: ParcelStatus[] = ['REGISTERED', 'LOADED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'MISSING', 'DAMAGED', 'VOIDED'];
 
@@ -43,7 +43,7 @@ export default function ParcelsPage() {
         </form>
       </div>
       <Card>
-        {list.isLoading ? <Loading /> : (
+        {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : (
           <Table head={[t('parcel.tracking'), t('common.status'), t('parcel.sender'), t('parcel.receiver'), t('parcel.to'), t('parcel.fee'), t('payment.paidVia'), t('common.date')]} empty={!list.data?.data.length}>
             {list.data?.data.map((p) => (
               <tr key={p.id} className="hover:bg-gray-50">

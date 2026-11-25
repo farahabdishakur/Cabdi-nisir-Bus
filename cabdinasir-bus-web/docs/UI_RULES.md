@@ -41,9 +41,12 @@ Isticmaalayaashu waa karraaniyo xafiis mashquul ah ku jira, macmiilna hor taagan
 | Manifest safarka | A4 | rakaabka + alaabta, saxiixa darawalka & karraaniga |
 - Daabacaadda kadib rasiid si toos ah — badhan "Dib u daabac" (re-print waa la diiwaangeliyaa).
 
-## 6. Offline (Phase 2)
+## 6. Offline (waa la dhisay)
 - Calaamad topbar: 🟢 Online / 🔴 Offline + tirada sugaysa.
-- Offline: alaab diiwaangelin & rasiid ku-meel-gaar ah (`OFFLINE-xxxx`) waa la oggol yahay; **tigidh iib offline lama oggola** (kursiga laba jeer ayaa la iibin karaa).
+- Offline: alaab diiwaangelin & rasiid ku-meel-gaar ah (`OFFLINE-xxxx`, PIN client-ka, qiimaha "≈ qiyaas") waa la oggol yahay; **tigidh iib offline lama oggola** (kursiga laba jeer ayaa la iibin karaa).
+- Rasiidka offline isla bogga ayaa lagu daabacaa (`.print-area`) — internet la'aan tab cusub lama furi karo.
+- Bogga reload offline: service worker-ka ayaa bixiya; user-ka tab-kan waa la sii hayaa (sessionStorage — token ma aha).
+- Bogga `/offline`: sugaya · la diray (koodh dhab ah) · khalad (sabab) · dib u daabac.
 - Marka internet-ku soo noqdo: queue-ga waxaa lagu diraa `Idempotency-Key`.
 
 ## 7. Helitaanka (Accessibility)

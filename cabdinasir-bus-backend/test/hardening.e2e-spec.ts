@@ -134,6 +134,10 @@ describe('Hardening (e2e)', () => {
   it('force close: manager closes a session the cashier left open', async () => {
     const wajManager = api(app, await login(app, '0621'));
     const s = await prisma.cashSession.findFirstOrThrow({ where: { cashierId: base.users.borCashier.id, closedAt: null } });
+    // drawer opened on a previous day still appears in the "open" list
+    await prisma.cashSession.update({ where: { id: s.id }, data: { openedAt: new Date(Date.now() - 2 * 86400_000) } });
+    const openList = await borManager.get('/cash-sessions?open=true').expect(200);
+    expect(openList.body.map((x: { id: string }) => x.id)).toContain(s.id);
     expect((await borCashier.post(`/cash-sessions/${s.id}/force-close`, { countedUsdCents: 0, countedSlsh: 0, note: 'x' })).status).toBe(403);
     expect((await wajManager.post(`/cash-sessions/${s.id}/force-close`, { countedUsdCents: 0, countedSlsh: 0, note: 'x' })).body.error.code).toBe('FORBIDDEN_BRANCH');
     expect((await borManager.post(`/cash-sessions/${s.id}/force-close`, { countedUsdCents: 0, countedSlsh: 0 })).body.error.code).toBe('REASON_REQUIRED');

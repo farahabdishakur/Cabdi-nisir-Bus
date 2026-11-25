@@ -1,0 +1,10 @@
+{
+  "name": "Cabdinasir Bus",
+  "short_name": "Cabdinasir",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1f2a6b",
+  "theme_color": "#1f2a6b",
+  "lang": "so",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

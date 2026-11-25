@@ -11,13 +11,15 @@ import { useBootstrap } from '@/lib/queries';
 import { localToIso, time, todayISO } from '@/lib/format';
 import type { Driver, Trip, Vehicle } from '@/lib/types';
 import { Alert, Button, Card, Field, Input, Loading, Modal, PageHeader, Select } from '@/components/ui';
-import { TripStatusBadge } from '@/components/domain';
+import { ErrorAlert, TripStatusBadge } from '@/components/domain';
+import { ScheduleModal } from '@/components/trip-forms';
 
 export default function TripsPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const [day, setDay] = useState(todayISO());
   const [creating, setCreating] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const trips = useQuery({ queryKey: ['trips', day], queryFn: () => api<Trip[]>('/trips', { query: { date: day } }), refetchInterval: 30_000 });
 
   const shift = (d: number) => {
@@ -28,7 +30,15 @@ export default function TripsPage() {
 
   return (
     <div>
-      <PageHeader title={t('trips.title')} actions={can(user, 'manageTrips') && <Button onClick={() => setCreating(true)}>+ {t('trips.new')}</Button>} />
+      <PageHeader
+        title={t('trips.title')}
+        actions={can(user, 'manageTrips') && (
+          <>
+            <Button variant="secondary" onClick={() => setScheduling(true)}>🗓 {t('trips.schedule')}</Button>
+            <Button onClick={() => setCreating(true)}>+ {t('trips.new')}</Button>
+          </>
+        )}
+      />
       <div className="mb-4 flex items-center gap-2">
         <Button variant="secondary" onClick={() => shift(-1)} aria-label="prev">
           ←
@@ -44,7 +54,9 @@ export default function TripsPage() {
         )}
       </div>
 
-      {trips.isLoading ? (
+      {trips.error ? (
+        <ErrorAlert error={trips.error} />
+      ) : trips.isLoading ? (
         <Loading />
       ) : !trips.data?.length ? (
         <Card>
@@ -83,6 +95,7 @@ export default function TripsPage() {
           ))}
         </div>
       )}
+      <ScheduleModal open={scheduling} onClose={() => setScheduling(false)} day={day} />
       <NewTripModal open={creating} onClose={() => setCreating(false)} day={day} superAdmin={isSuperAdmin(user)} branchId={user?.branchId ?? null} />
     </div>
   );

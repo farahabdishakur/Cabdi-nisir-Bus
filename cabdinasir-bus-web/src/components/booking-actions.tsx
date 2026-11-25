@@ -6,10 +6,12 @@ import { api, newKey } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { can } from '@/lib/permissions';
+import { useMyCity } from '@/lib/queries';
 import { dateTime, phone, usd } from '@/lib/format';
 import type { Booking, PaymentInput } from '@/lib/types';
 import { Alert, Button, Checkbox, Field, Input, Modal } from './ui';
 import { BookingStatusBadge, CASH_USD, PaidVia, PaymentPicker, paymentReady, ReasonModal } from './domain';
+import { TransferModal } from './transfer-modal';
 
 /** Faahfaahinta tigidhka + ficillada (bixi ballan, jooji, void / codso void, sax, daabac). */
 export function BookingModal({ booking, onClose }: { booking: Booking | null; onClose: () => void }) {
@@ -19,10 +21,11 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
   const [pay, setPay] = useState<PaymentInput>(CASH_USD);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
-  const [modal, setModal] = useState<'' | 'cancel' | 'void' | 'request' | 'correct'>('');
+  const [modal, setModal] = useState<'' | 'cancel' | 'void' | 'request' | 'correct' | 'transfer'>('');
   const [refund, setRefund] = useState(true);
   const [fix, setFix] = useState({ passengerName: '', passengerPhone: '' });
   const key = useRef(newKey());
+  const myCity = useMyCity();
 
   useEffect(() => {
     setPay(CASH_USD);
@@ -106,7 +109,7 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
 
         <div className="flex flex-wrap gap-2">
           {b.status !== 'RESERVED' && b.status !== 'EXPIRED' && (
-            <Button variant="secondary" onClick={() => window.open(`/print/ticket/${b.id}`, '_blank')}>
+            <Button variant="secondary" onClick={() => window.open(`/print/ticket/${b.id}?reprint=1`, '_blank')}>
               🖨 {t('common.print')}
             </Button>
           )}
@@ -120,6 +123,11 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
               {t('booking.correct')}
             </Button>
           )}
+          {b.status === 'CONFIRMED' && (
+            <Button variant="secondary" onClick={() => setModal('transfer')}>
+              ⇄ {t('booking.transfer')}
+            </Button>
+          )}
           {b.status === 'CONFIRMED' && (can(user, 'void') ? (
             <Button variant="danger" onClick={() => setModal('void')}>
               {t('booking.void')}
@@ -129,7 +137,7 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
               {t('booking.requestVoid')}
             </Button>
           ))}
-          {b.status === 'CONFIRMED' && (
+          {b.status === 'CONFIRMED' && (user?.role === 'SUPER_ADMIN' || myCity === b.trip?.route.fromBranch.city) && (
             <Button
               variant="navy"
               onClick={async () => {
@@ -149,6 +157,7 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
         {error && b.status !== 'RESERVED' && <div className="mt-3"><Alert>{error}</Alert></div>}
       </Modal>
 
+      <TransferModal booking={b} open={modal === 'transfer'} onClose={() => setModal('')} onDone={() => { refresh(); onClose(); }} />
       <ReasonModal
         open={modal === 'cancel'}
         title={t('booking.cancelReservation')}

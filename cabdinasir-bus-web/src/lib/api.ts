@@ -34,6 +34,8 @@ const BASE = '/api/v1';
 let accessToken: string | null = null;
 let refreshing: Promise<TokenResponse | null> | null = null;
 let onSession: (s: TokenResponse | null) => void = () => undefined;
+/** true = refresh-kii ugu dambeeyay internet ayaa ka go'naa (ma aha 401) — offline fadhiga ha la tirtirin */
+export let lastRefreshWasOffline = false;
 
 export function setSessionListener(fn: (s: TokenResponse | null) => void) {
   onSession = fn;
@@ -53,6 +55,7 @@ export function refreshSession(): Promise<TokenResponse | null> {
   refreshing ??= (async () => {
     try {
       const res = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      lastRefreshWasOffline = false;
       if (!res.ok) {
         applySession(null);
         return null;
@@ -61,6 +64,7 @@ export function refreshSession(): Promise<TokenResponse | null> {
       applySession(data);
       return data;
     } catch {
+      lastRefreshWasOffline = true;
       return null;
     } finally {
       refreshing = null;

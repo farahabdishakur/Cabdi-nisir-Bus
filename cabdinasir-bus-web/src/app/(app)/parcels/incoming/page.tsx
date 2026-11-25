@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import { dateTime, phone, usd } from '@/lib/format';
 import type { Parcel } from '@/lib/types';
 import { Alert, Button, Card, Loading, PageHeader } from '@/components/ui';
-import { ParcelStatusBadge } from '@/components/domain';
+import { ParcelStatusBadge, ErrorAlert } from '@/components/domain';
 
 /**
  * Alaabta imanaysa (laantayda): waa la arkaa ka hor inta gaarigu iman.
@@ -55,7 +55,7 @@ export default function IncomingPage() {
           {result.missing.length > 0 && <Alert>{t('parcel.missing')}: {result.missing.map((m) => `${m.trackingCode} (${m.receiverName})`).join(', ')}</Alert>}
         </div>
       )}
-      {list.isLoading ? <Loading /> : !list.data?.length ? <Card><p className="text-sm text-gray-500">{t('common.empty')}</p></Card> : (
+      {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : !list.data?.length ? <Card><p className="text-sm text-gray-500">{t('common.empty')}</p></Card> : (
         <div className="flex flex-col gap-4">
           {[...groups.entries()].map(([key, parcels]) => {
             const inTransit = parcels[0].status === 'IN_TRANSIT' || parcels[0].status === 'MISSING';

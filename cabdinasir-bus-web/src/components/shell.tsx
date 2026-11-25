@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { useHotkeys, useIdleLogout } from '@/lib/hotkeys';
+import { loadQueue, pruneSynced, syncQueue, useOfflineQueue, useOnline } from '@/lib/offline';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useLiveEvents } from '@/lib/live';
@@ -28,6 +31,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   const session = useCashSession();
   const live = useLiveEvents(!!user && !user.mustChangePassword);
   const [menu, setMenu] = useState(false);
+  const [q, setQ] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const focusSearch = useCallback(() => searchRef.current?.focus(), []);
+  const active_ = !!user && !user.mustChangePassword;
+  useHotkeys(focusSearch, active_);
+  const onIdle = useCallback(() => {
+    void logout().then(() => router.replace('/login?idle=1'));
+  }, [logout, router]);
+  useIdleLogout(onIdle, active_);
+
+  // offline: alaabta sugaysa → si toos ah u dir marka internet-ku soo noqdo (+ daqiiqad kasta)
+  const online = useOnline();
+  const queue = useOfflineQueue();
+  const pending = queue.filter((i) => i.status !== 'synced').length;
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!active_) return;
+    void loadQueue().then(() => pruneSynced());
+  }, [active_]);
+  useEffect(() => {
+    if (!active_ || !online) return;
+    const run = () =>
+      syncQueue()
+        .then((r) => {
+          if (r?.synced) void qc.invalidateQueries({ queryKey: ['parcels'] });
+        })
+        .catch(() => undefined);
+    void run();
+    const h = setInterval(run, 60_000);
+    return () => clearInterval(h);
+  }, [active_, online, qc]);
 
   useEffect(() => {
     if (loading) return;
@@ -48,17 +82,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const staff = user.role !== 'DRIVER';
   const items: NavItem[] = [
     { href: '/', key: 'nav.dashboard', icon: '🏠', show: true },
+    { href: '/search', key: 'common.search', icon: '🔎', show: staff },
     { href: '/trips', key: 'nav.trips', icon: '🚐', show: true },
     { href: '/bookings', key: 'nav.bookings', icon: '🎫', show: staff },
-    { href: '/parcels/new', key: 'nav.parcelsNew', icon: '📦', show: staff },
-    { href: '/parcels/incoming', key: 'nav.incoming', icon: '📥', show: staff },
-    { href: '/parcels/outgoing', key: 'nav.outgoing', icon: '📤', show: staff },
-    { href: '/parcels/deliver', key: 'nav.deliver', icon: '🤝', show: staff },
+    // Super Admin laan ma laha (sanduuq ma haysto) → hawlaha alaabta laanta lagama qabto
+    { href: '/parcels/new', key: 'nav.parcelsNew', icon: '📦', show: staff && !!user.branchId },
+    { href: '/parcels/incoming', key: 'nav.incoming', icon: '📥', show: staff && !!user.branchId },
+    { href: '/parcels/outgoing', key: 'nav.outgoing', icon: '📤', show: staff && !!user.branchId },
+    { href: '/parcels/deliver', key: 'nav.deliver', icon: '🤝', show: staff && !!user.branchId },
     { href: '/parcels', key: 'nav.parcels', icon: '🔎', show: staff },
+    { href: '/offline', key: 'nav.offline', icon: '📴', show: staff && !!user.branchId },
     { href: '/cash', key: 'nav.cash', icon: '💵', show: staff && !!user.branchId },
     { href: '/void-requests', key: 'nav.voidRequests', icon: '↩️', show: staff },
     { href: '/zaad', key: 'nav.zaad', icon: '📱', show: can(user, 'reconcileZaad') },
     { href: '/reports', key: 'nav.reports', icon: '📊', show: can(user, 'reports') },
+    { href: '/system', key: 'nav.system', icon: '🛡', show: isManager(user) },
     { href: '/admin', key: 'nav.admin', icon: '⚙️', show: isManager(user) },
   ];
   const active = (href: string) => (href === '/' ? path === '/' : path === href || (path.startsWith(href + '/') && !items.some((i) => i.href !== href && i.href.startsWith(href + '/') && path.startsWith(i.href))));
@@ -110,12 +148,35 @@ export function AppShell({ children }: { children: ReactNode }) {
               {user.name} · {t(`roles.${user.role}`)}
             </p>
           </div>
+          {staff && (
+            <form
+              className="hidden md:block"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (q.trim().length >= 2) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
+              }}
+            >
+              <input
+                ref={searchRef}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={`🔎 ${t('search.short')}`}
+                aria-label={t('common.search')}
+                className="h-9 w-56 rounded-lg border border-gray-300 px-3 text-sm focus:border-navy focus:outline-none"
+              />
+            </form>
+          )}
           {user.branchId && staff && (
             <Link
               href="/cash"
               className={cx('hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-block', session.data ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800')}
             >
               💵 {session.data ? t('dashboard.sessionOpen') : t('dashboard.openSession')}
+            </Link>
+          )}
+          {(!online || pending > 0) && (
+            <Link href="/offline" className={cx('rounded-full px-3 py-1 text-xs font-semibold', online ? 'bg-amber-100 text-amber-900' : 'bg-red-600 text-white')}>
+              {online ? `⏳ ${pending}` : `📴 ${t('common.offline')}${pending ? ` · ${pending}` : ''}`}
             </Link>
           )}
           <span className={cx('hidden items-center gap-1 text-xs sm:flex', live ? 'text-emerald-700' : 'text-gray-400')} title="live">

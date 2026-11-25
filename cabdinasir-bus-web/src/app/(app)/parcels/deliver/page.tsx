@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import { dateTime, phone, usd } from '@/lib/format';
 import type { Paged, Parcel, PaymentInput } from '@/lib/types';
 import { Alert, Button, Card, Field, Input, Loading, PageHeader } from '@/components/ui';
-import { CASH_USD, ParcelStatusBadge, PaymentPicker, paymentReady } from '@/components/domain';
+import { CASH_USD, ParcelStatusBadge, PaymentPicker, paymentReady, ErrorAlert } from '@/components/domain';
 
 /** Wareejin: raadi (koodh/taleefan/magac) → hubi magaca + PIN → COD/kayd → Wareeji → rasiid. */
 export default function DeliverPage() {
@@ -77,7 +77,7 @@ export default function DeliverPage() {
 
       {!selected && search && (
         <Card>
-          {results.isLoading ? <Loading /> : !ready.length ? <p className="text-sm text-gray-500">{t('common.empty')}</p> : (
+          {results.error ? <ErrorAlert error={results.error} /> : results.isLoading ? <Loading /> : !ready.length ? <p className="text-sm text-gray-500">{t('common.empty')}</p> : (
             <ul className="divide-y divide-gray-100">
               {ready.map((p) => (
                 <li key={p.id}>

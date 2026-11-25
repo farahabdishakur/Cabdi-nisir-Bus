@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: 'Cabdinasir Bus',
   description: 'Tigidh, ballan, alaab iyo sanduuq — Boorama · Wajaale',
   robots: { index: false, follow: false },
+  manifest: '/manifest.webmanifest',
+  icons: { icon: '/icon.svg' },
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#1f2a6b' };

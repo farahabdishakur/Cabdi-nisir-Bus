@@ -34,7 +34,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {staff && (
+      {staff && user?.branchId && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <BigAction href="/trips" icon="🎫" label={t('dashboard.sellTicket')} />
           <BigAction href="/parcels/new" icon="📦" label={t('dashboard.sendParcel')} />

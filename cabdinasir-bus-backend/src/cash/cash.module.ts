@@ -12,6 +12,8 @@ class SessionQuery {
   @IsOptional() @IsUUID() branchId?: string;
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @Transform(({ value }) => value === 'true') @IsBoolean() pendingApproval?: boolean;
+  /** true = sanduuqyada weli furan (taariikh kasta) — kuwa karraanigu ka tagay maalin hore */
+  @IsOptional() @Transform(({ value }) => value === 'true') @IsBoolean() open?: boolean;
 }
 
 @ApiTags('cash-sessions')

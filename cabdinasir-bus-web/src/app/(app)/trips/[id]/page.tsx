@@ -6,14 +6,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, newKey } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
-import { can, isManager } from '@/lib/permissions';
-import { useBootstrap, useCashSession } from '@/lib/queries';
+import { can } from '@/lib/permissions';
+import { useBootstrap, useCashSession, useUpcomingTrips } from '@/lib/queries';
 import { dateTime, parseUsd, time, usd } from '@/lib/format';
 import type { Booking, PaymentInput, SeatMapData, SeatState, Trip, TripStatus } from '@/lib/types';
 import { Alert, Button, Card, Field, Input, Loading, Modal, PageHeader, Select } from '@/components/ui';
-import { CASH_USD, PartyInput, PaymentPicker, paymentReady, ReasonModal, TripStatusBadge } from '@/components/domain';
+import { CASH_USD, PartyInput, PaymentPicker, paymentReady, ReasonModal, TripStatusBadge, ErrorAlert } from '@/components/domain';
 import { SeatMap } from '@/components/seat-map';
 import { BookingModal } from '@/components/booking-actions';
+import { EditTripModal } from '@/components/trip-forms';
 
 const NEXT_STATUS: Partial<Record<TripStatus, TripStatus[]>> = {
   SCHEDULED: ['BOARDING', 'DEPARTED', 'CANCELLED'],
@@ -35,6 +36,20 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [error, setError] = useState('');
   const [statusModal, setStatusModal] = useState<TripStatus | null>(null);
   const [moving, setMoving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const boot = useBootstrap();
+  const driver = user?.role === 'DRIVER';
+  // kursiga la hayo — marka bogga laga baxo waa la sii daayaa (qof kale ha sugin 3 daqiiqo)
+  const heldRef = useRef<string | null>(null);
+  useEffect(() => {
+    heldRef.current = selected?.seatNo ?? null;
+  }, [selected]);
+  useEffect(
+    () => () => {
+      if (heldRef.current) void api(`/trips/${id}/seats/${encodeURIComponent(heldRef.current)}/hold`, { method: 'DELETE' }).catch(() => undefined);
+    },
+    [id],
+  );
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['trip', id] });
@@ -59,7 +74,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const pick = async (s: SeatState) => {
     setError('');
     if (s.state === 'AVAILABLE' || s.state === 'HELD_BY_ME') {
-      if (!can(user, 'sell')) return;
+      if (!canSellHere) return;
       if (selected && selected.seatNo !== s.seatNo) await release();
       hold.mutate(s.seatNo);
     } else if ((s.state === 'BOOKED' || s.state === 'RESERVED') && s.booking) {
@@ -80,7 +95,17 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   if (!trip.data) return <Alert>{err(trip.error)}</Alert>;
   const tr = trip.data;
   const open = tr.status === 'SCHEDULED' || tr.status === 'BOARDING';
-  const allowed = (NEXT_STATUS[tr.status] ?? []).filter((s) => isManager(user) || (s === 'BOARDING' && can(user, 'sell')));
+  // Tigidh waxaa iibiya laamaha magaalada laga baxayo (Boorama 1 & 2); Wajaale safarka Boorama wuu arkaa oo keliya
+  const myCity = boot.data?.branches.find((b) => b.id === user?.branchId)?.city;
+  const canSellHere = can(user, 'sell') && (user?.role === 'SUPER_ADMIN' || (!!myCity && myCity === tr.route.fromBranch.city));
+  if (driver) return <DriverManifest trip={tr} />;
+  // backend: bixitaan/joojin/beddel = maamulaha laanta safarka leh; gaadhay/xir = maamule magaalada loo socdo
+  const isSA = user?.role === 'SUPER_ADMIN';
+  const ownsTrip = isSA || (user?.role === 'BRANCH_MANAGER' && user.branchId === tr.route.fromBranchId);
+  const destManager = isSA || (user?.role === 'BRANCH_MANAGER' && !!myCity && myCity === tr.route.toBranch.city);
+  const allowed = (NEXT_STATUS[tr.status] ?? []).filter((s) =>
+    s === 'ARRIVED' || s === 'CLOSED' ? destManager : s === 'BOARDING' ? ownsTrip || (user?.role === 'CASHIER' && canSellHere) : ownsTrip,
+  );
 
   return (
     <div>
@@ -91,10 +116,15 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             <Link href={`/print/manifest/${id}`} target="_blank">
               <Button variant="secondary">🖨 {t('trips.manifest')}</Button>
             </Link>
-            {isManager(user) && open && (
-              <Button variant="secondary" onClick={() => setMoving(true)}>
-                {t('trips.move')}
-              </Button>
+            {ownsTrip && open && (
+              <>
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                  ✎ {t('trips.edit')}
+                </Button>
+                <Button variant="secondary" onClick={() => setMoving(true)}>
+                  {t('trips.move')}
+                </Button>
+              </>
             )}
           </>
         }
@@ -123,14 +153,14 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
 
       <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
         <Card title={t('trips.seats')}>
-          {seats.isLoading || !seats.data ? <Loading /> : <SeatMap data={seats.data} onPick={pick} selected={selected?.seatNo} />}
+          {seats.error ? <ErrorAlert error={seats.error} /> : seats.isLoading || !seats.data ? <Loading /> : <SeatMap data={seats.data} onPick={pick} selected={selected?.seatNo} />}
         </Card>
         <div>
-          {selected && open ? (
+          {selected && open && canSellHere ? (
             <SellPanel trip={tr} seat={selected} onDone={() => setSelected(null)} onCancel={release} />
           ) : (
             <Card>
-              <p className="text-sm text-gray-600">{open ? t('seat.pick') : t('errors.TRIP_CLOSED_FOR_SALE')}</p>
+              <p className="text-sm text-gray-600">{!open ? t('errors.TRIP_CLOSED_FOR_SALE') : canSellHere ? t('seat.pick') : t('trips.viewOnly')}</p>
             </Card>
           )}
         </div>
@@ -139,6 +169,39 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       <BookingModal booking={booking} onClose={() => setBooking(null)} />
       <ReasonModal open={statusModal === 'CANCELLED'} title={t('trips.toCancelled')} danger onClose={() => setStatusModal(null)} onSubmit={(reason) => changeStatus('CANCELLED', reason)} />
       <MoveModal open={moving} onClose={() => setMoving(false)} trip={tr} />
+      <EditTripModal trip={tr} open={editing} onClose={() => setEditing(false)} />
+    </div>
+  );
+}
+
+/** Darawalka: liiska rakaabka & alaabta (seat map ma iibiyo). */
+function DriverManifest({ trip }: { trip: Trip }) {
+  const { t } = useI18n();
+  const m = useQuery({
+    queryKey: ['trip', trip.id, 'manifest'],
+    queryFn: () => api<{ passengers: { seatNo: string; passengerName: string; passengerPhone: string; status: string }[]; parcels: { trackingCode: string; receiverName: string; pieces: number }[]; totals: { passengers: number; parcels: number; pieces: number } }>(`/trips/${trip.id}/manifest`),
+    refetchInterval: 30_000,
+  });
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader title={`${time(trip.departureAt)} · ${trip.route.fromBranch.name} → ${trip.route.toBranch.name}`} />
+      <div className="flex flex-wrap gap-3 text-sm"><TripStatusBadge s={trip.status} /><span>🚐 {trip.vehicle.plate}</span></div>
+      {m.error ? <ErrorAlert error={m.error} /> : m.isLoading ? <Loading /> : m.data && (
+        <>
+          <Card title={`${t('trips.passengers')} (${m.data.totals.passengers})`}>
+            <ul className="divide-y divide-gray-100">
+              {m.data.passengers.map((p) => (
+                <li key={p.seatNo} className="flex justify-between py-2 text-sm"><span><b>{p.seatNo}</b> · {p.passengerName}</span><span className="text-gray-500">{t(`bookingStatus.${p.status}`)}</span></li>
+              ))}
+            </ul>
+          </Card>
+          <Card title={`${t('trips.parcels')} (${m.data.totals.parcels} · ${m.data.totals.pieces}×)`}>
+            <ul className="divide-y divide-gray-100">
+              {m.data.parcels.map((p) => <li key={p.trackingCode} className="py-2 text-sm font-mono">{p.trackingCode} · {p.receiverName} · {p.pieces}×</li>)}
+            </ul>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
@@ -257,8 +320,7 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
 function MoveModal({ open, onClose, trip }: { open: boolean; onClose: () => void; trip: Trip }) {
   const { t, err } = useI18n();
   const qc = useQueryClient();
-  const day = trip.departureAt.slice(0, 10);
-  const trips = useQuery({ queryKey: ['trips', 'move', day], queryFn: () => api<Trip[]>('/trips', { query: { status: 'SCHEDULED' } }), enabled: open });
+  const trips = useUpcomingTrips(open);
   const [target, setTarget] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');

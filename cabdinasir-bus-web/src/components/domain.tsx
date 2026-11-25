@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
-import { useMyBranch } from '@/lib/queries';
+import { useBootstrap, useMyBranch } from '@/lib/queries';
 import type { BookingStatus, Method, ParcelStatus, Payment, PaymentInput, TripStatus } from '@/lib/types';
 import { Alert, Badge, Button, Field, Input, Modal, Select, Textarea } from './ui';
 
@@ -59,6 +59,8 @@ export function PaidVia({ payments }: { payments: Payment[] }) {
 export function PaymentPicker({ value, onChange }: { value: PaymentInput; onChange: (p: PaymentInput) => void }) {
   const { t } = useI18n();
   const branch = useMyBranch();
+  const boot = useBootstrap();
+  const rate = boot.data?.exchangeRate?.usdToSlsh;
   const [check, setCheck] = useState<{ used: boolean; usedOn?: string } | null>(null);
   const mobile = value.method !== 'CASH';
   const number = value.method === 'ZAAD' ? branch?.zaadNumber : value.method === 'EDAHAB' ? branch?.edahabNumber : null;
@@ -100,6 +102,7 @@ export function PaymentPicker({ value, onChange }: { value: PaymentInput; onChan
           </button>
         ))}
       </div>
+      {value.currency === 'SLSH' && (rate ? <p className="text-xs text-gray-600">1 USD = {rate.toLocaleString('en-US')} SLSH</p> : <Alert>{t('errors.NO_EXCHANGE_RATE')}</Alert>)}
       {mobile && (
         <>
           {number && <Alert tone="blue">{t('payment.sendTo', { number })}</Alert>}
@@ -266,4 +269,22 @@ export function BranchSelect({ value, onChange, branches, allLabel, id }: { valu
 
 export function isApiError(e: unknown, code: string) {
   return e instanceof ApiError && e.code === code;
+}
+
+/** Khaladka query-ga (server / internet) — fariin la fahmi karo halkii bog madhan. */
+export function ErrorAlert({ error }: { error: unknown }) {
+  const { err } = useI18n();
+  return <Alert>{err(error)}</Alert>;
+}
+
+/** Sharraxaadda qiimaha (backend: base_fee, weight_12kg, fragile …) → qoraal la fahmi karo. */
+export function usePriceLabel() {
+  const { t } = useI18n();
+  return (label: string) => {
+    const w = /^weight_(\d+)kg$/.exec(label);
+    if (w) return t('priceLine.weight', { kg: w[1] });
+    const key = `priceLine.${label}`;
+    const v = t(key);
+    return v === key ? label : v;
+  };
 }

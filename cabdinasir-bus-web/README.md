@@ -1,7 +1,8 @@
 # Cabdinasir Bus — Website (Dashboard)
 
 Website-ka shaqaalaha iyo Super Admin-ka Cabdinasir Bus: iibka tigidhada (seat map), ballan taleefan, Zaad/eDahab,
-alaab (dir · rar · gaadhay · wareeji), sanduuqa, warbixinada, iyo maamulka.
+alaab (dir · rar · gaadhay · wareeji — **offline-na**), sanduuqa, warbixinada, nidaamka (audit), iyo maamulka.
+Bogagga dadweynaha (login la'aan): `/track` (raadinta alaabta) · `/schedule` (jadwalka safarada).
 
 - Backend: repo gaar ah → `cabdinasir-bus-backend`
 - Xeerarka repo-ga: [`CLAUDE.md`](CLAUDE.md) · Naqshadda: [`docs/UI_RULES.md`](docs/UI_RULES.md) · Warbixinta: [`docs/REPORT.md`](docs/REPORT.md)
@@ -26,9 +27,10 @@ npm test          # unit (lacag/waqti formatting)
 npm run lint && npm run typecheck && npm run build
 npm run e2e       # browser dhab ah (Playwright) — backend (database demo cusub, THROTTLE_DISABLED=true) + website (port 3001) waa inay socdaan
 ```
-E2E (18 tallaabo): login · fur sanduuqa · iib tigidh + rasiid · ballan taleefan · bixi ballanta Zaad · Zaad mar labaad la diiday ·
-alaab dir (COD) + PIN · rar gaariga · calaamadda "Zaad ✓" · manager: barbar dhig Zaad + warbixino + gaarigu baxay ·
-Wajaale: gaadhay → PIN khaldan la diiday → wareejin + COD · taleefan (390px) scroll la'aan. Sawirro: `e2e/screenshots/`.
+E2E (26 tallaabo): login · fur sanduuqa · iib tigidh + rasiid · ballan taleefan · bixi ballanta Zaad · Zaad mar labaad la diiday ·
+alaab dir (COD) + PIN · rar gaariga · "Zaad ✓" · dib u daabac (#1) · beddel kursi · raadin guud · **offline: alaab → reload → sync** ·
+manager: barbar dhig Zaad + audit log + warbixino + gaarigu baxay · Wajaale: gaadhay → PIN khaldan → wareejin + COD ·
+bogagga dadweynaha (tracking + jadwal) · taleefan (390px). Sawirro: `e2e/screenshots/`. Database demo cusub ayuu u baahan yahay (backend: dropdb/createdb + seed).
 
 ## Production
 `Dockerfile` (port 3001). Waxaa la kiciyaa backend-ka `docker-compose.prod.yml` (service `web`, repo-gan oo ku jira `../web`) + Caddy (`APP_DOMAIN`).

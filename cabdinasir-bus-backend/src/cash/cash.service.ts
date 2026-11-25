@@ -207,10 +207,11 @@ export class CashService {
     });
   }
 
-  list(user: AuthUser, q: { branchId?: string; date?: string; pendingApproval?: boolean }) {
+  list(user: AuthUser, q: { branchId?: string; date?: string; pendingApproval?: boolean; open?: boolean }) {
     const where: Prisma.CashSessionWhereInput = { branchId: branchFilter(user, q.branchId) };
     if (user.role === 'CASHIER') where.cashierId = user.id;
-    if (q.date) {
+    if (q.open) where.closedAt = null;
+    else if (q.date) {
       const { start, end } = businessDayRange(q.date);
       where.openedAt = { gte: start, lt: end };
     }

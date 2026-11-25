@@ -16,7 +16,7 @@ Akhri ka hor intaadan wax beddelin:
 - **Data:** TanStack Query (server state) · React state (forms) — validation-ka dhabta ah waa backend-ka
 - **i18n:** `src/lib/i18n.tsx` + `src/messages/so.ts` (default) / `en.ts` — next-intl lama isticmaalin (fudud, client-side)
 - **Live:** SSE `GET /events` (`@microsoft/fetch-event-source`, Authorization header) → queries-ka ayaa is-cusboonaysiiya
-- **PWA / Offline:** service worker + IndexedDB queue (Phase 2 — backend `/sync` waa diyaar)
+- **Offline:** `public/sw.js` (static cache-first · bogag & RSC network-first · `/api` weligiis) + IndexedDB queue (`lib/offline.ts`) → `POST /sync/parcels`. Alaab kaliya; tigidh/wareejin online kaliya.
 - **Daabacaad:** CSS print 80mm (thermal) + A4 manifest · QR: `qrcode`
 - **Tests:** Vitest (unit) · Playwright (e2e browser dhab ah: `e2e/run.mjs`)
 
@@ -42,6 +42,7 @@ src/
 
 ## 3. Xeerarka Lagama Maarmaanka ah (MUST)
 1. **Backend-ka ayaa go'aamiya.** Frontend-ku qiime ma xisaabiyo — wuxuu wacaa `POST /parcels/quote` oo muujiyaa natiijada. Qiime weligaa ha u dirin backend-ka.
+   *Ka reeban (keliya):* offline — `lib/pricing.ts` waa qiyaas (nuqul backend `pricing.ts`), rasiidka "≈" iyo "qiyaas" ayaa ku qoran; sync-ka server-ka ayaa go'aamiya. Backend-ka qaacidadiisa haddii la beddelo, `lib/pricing.ts` + `pricing.test.ts` sidoo kale beddel.
 2. **Permissions UI = qurxin kaliya.** `lib/permissions.ts` wuxuu qariyaa badhamada, laakiin amniga dhabta ah waa backend. Ha ku tiirsanaan.
 3. **Lacag:** API-ga wuxuu soo celiyaa cents (integer). Muujinta waxaa sameeya `lib/format.ts` oo keliya (`$4.60`, `46,000 SLSH`). Float xisaab ha ku samaynin.
 4. **Qoraal kasta oo user-ku arko** wuxuu ku jiraa `messages/so.ts` + `en.ts`. Qoraal toos ah (hard-coded) component-ka ha ku qorin.

@@ -10,7 +10,7 @@ import { useBootstrap } from '@/lib/queries';
 import { dateTime, money, slsh, time, todayISO, usd } from '@/lib/format';
 import type { Currency, Method } from '@/lib/types';
 import { Alert, Badge, Button, Card, Input, Loading, PageHeader, Stat, Table, Td } from '@/components/ui';
-import { BranchSelect } from '@/components/domain';
+import { BranchSelect, ErrorAlert } from '@/components/domain';
 
 type Tab = 'daily' | 'revenue' | 'trips' | 'cashiers' | 'integrity';
 
@@ -70,6 +70,7 @@ function DailyClose({ day, branchId }: { day: string; branchId: string }) {
       sessions: { id: string; cashier: string; openedAt: string; closedAt: string | null; variance: { USD: number; SLSH: number } | null; approved: boolean }[];
     }>('/reports/daily-close', { query: { date: day, branchId: branchId || undefined } }),
   });
+  if (r.error) return <ErrorAlert error={r.error} />;
   if (r.isLoading || !r.data) return <Loading />;
   const d = r.data;
   return (
@@ -84,7 +85,7 @@ function DailyClose({ day, branchId }: { day: string; branchId: string }) {
       </div>
       <Card title={t('cash.byMethod')}>
         <Table head={['', t('payment.method'), '#', t('common.amount')]} empty={!d.breakdown.length}>
-          {d.breakdown.map((b, i) => <tr key={i}><Td>{b.kind}</Td><Td>{t(`method.${b.method}`)}</Td><Td>{b.count}</Td><Td className="font-semibold">{money(b.amount, b.currency)}</Td></tr>)}
+          {d.breakdown.map((b, i) => <tr key={i}><Td>{t(`paymentKind.${b.kind}`)}</Td><Td>{t(`method.${b.method}`)}</Td><Td>{b.count}</Td><Td className="font-semibold">{money(b.amount, b.currency)}</Td></tr>)}
         </Table>
       </Card>
       <Card title={t('cash.sessions')}>
@@ -109,6 +110,7 @@ function Revenue({ q }: { q: Q }) {
     queryKey: ['reports', 'revenue', q],
     queryFn: () => api<{ totalUsdCents: number; expensesUsdCents: number; netUsdCents: number; perBranch: { branch: { name: string }; byKind: Record<string, number>; totalUsdCents: number; expensesUsdCents: number; netUsdCents: number }[]; daily: { day: string; usdCents: number }[] }>('/reports/revenue', { query: q }),
   });
+  if (r.error) return <ErrorAlert error={r.error} />;
   if (r.isLoading || !r.data) return <Loading />;
   const max = Math.max(1, ...r.data.daily.map((d) => d.usdCents));
   return (
@@ -154,6 +156,7 @@ function TripsProfit({ q }: { q: Q }) {
     queryKey: ['reports', 'trips-profit', q],
     queryFn: () => api<{ trips: { tripId: string; departureAt: string; route: string; vehicle: string; driver: string; passengers: number; capacity: number; parcels: number; ticketsUsdCents: number; parcelsUsdCents: number; expensesUsdCents: number; profitUsdCents: number }[]; totals: { profitUsdCents: number; lossMakingTrips: number; trips: number } }>('/reports/trips-profit', { query: q }),
   });
+  if (r.error) return <ErrorAlert error={r.error} />;
   if (r.isLoading || !r.data) return <Loading />;
   return (
     <Card title={`${t('reports.profit')}: ${usd(r.data.totals.profitUsdCents)} · ${r.data.totals.trips} ${t('dashboard.trips')}`} actions={<Button size="sm" variant="secondary" onClick={() => download('/reports/trips-profit', { ...q, format: 'csv' }, `trips-${q.from}.csv`)}>{t('common.downloadCsv')}</Button>}>
@@ -176,6 +179,7 @@ function Cashiers({ q }: { q: Q }) {
     queryKey: ['reports', 'cashiers', q],
     queryFn: () => api<{ cashiers: { userId: string; name: string; role: string; tickets: number; parcels: number; deliveries: number; incomeUsdCents: number; varianceUsdCents: number; varianceSlsh: number }[] }>('/reports/cashiers', { query: q }),
   });
+  if (r.error) return <ErrorAlert error={r.error} />;
   if (r.isLoading || !r.data) return <Loading />;
   return (
     <Card title={t('reports.cashiers')}>
@@ -196,6 +200,7 @@ function Cashiers({ q }: { q: Q }) {
 function Integrity({ branchId }: { branchId: string }) {
   const { t } = useI18n();
   const r = useQuery({ queryKey: ['reports', 'integrity', branchId], queryFn: () => api<{ ok: boolean; issues: number; failedSms: number; checks: Record<string, unknown[]> }>('/reports/integrity', { query: { branchId: branchId || undefined } }) });
+  if (r.error) return <ErrorAlert error={r.error} />;
   if (r.isLoading || !r.data) return <Loading />;
   return (
     <div className="flex flex-col gap-3">

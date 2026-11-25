@@ -2,7 +2,9 @@
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, applySession, refreshSession, SessionUser, setSessionListener } from './api';
+import { api, applySession, lastRefreshWasOffline, refreshSession, SessionUser, setSessionListener } from './api';
+
+const LAST_USER = 'session:user';
 
 interface Auth {
   user: SessionUser | null;
@@ -23,10 +25,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSessionListener((s) => {
       setUser(s?.user ?? null);
+      try {
+        if (s) sessionStorage.setItem(LAST_USER, JSON.stringify(s.user));
+        else sessionStorage.removeItem(LAST_USER);
+      } catch {
+        /* ignore */
+      }
       if (!s) qc.clear();
     });
-    // bogga marka la furo: cookie-ga refresh → access token (xusuusta)
-    refreshSession().finally(() => setLoading(false));
+    // bogga marka la furo: cookie-ga refresh → access token (xusuusta).
+    // Offline (internet go'an, ma aha 401): user-kii tab-kan ayaa la sii hayaa → alaab offline ayaa la diiwaangelin karaa;
+    // marka internet-ku soo noqdo, 401 → refresh → token cusub (cookie).
+    refreshSession()
+      .then((s) => {
+        if (!s && lastRefreshWasOffline) {
+          try {
+            const u = sessionStorage.getItem(LAST_USER);
+            if (u) setUser(JSON.parse(u) as SessionUser);
+          } catch {
+            /* ignore */
+          }
+        }
+      })
+      .finally(() => setLoading(false));
   }, [qc]);
 
   const login = useCallback(async (phone: string, password: string) => {

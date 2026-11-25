@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -16,7 +16,17 @@ export default function TicketPrint({ params }: { params: Promise<{ id: string }
   const { t } = useI18n();
   const { user } = useAuth();
   const boot = useBootstrap();
-  const b = useQuery({ queryKey: ['print', 'ticket', id], queryFn: () => api<Booking>(`/bookings/${id}`), enabled: !!user });
+  // ?reprint=1 → dib u daabac: waa la tiriyaa + audit (rasiid nuqul ah khiyaano looguma isticmaali karo)
+  const [mode, setMode] = useState<'first' | 'reprint' | null>(null);
+  useEffect(() => setMode(new URLSearchParams(window.location.search).get('reprint') ? 'reprint' : 'first'), []);
+  const b = useQuery({
+    queryKey: ['print', 'ticket', id, mode],
+    queryFn: () => (mode === 'reprint' ? api<Booking>(`/bookings/${id}/reprint`, { method: 'POST' }) : api<Booking>(`/bookings/${id}`)),
+    enabled: !!user && !!mode,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: false, // dib u daabac hal mar oo keliya ha la tiriyo
+  });
   const bk = b.data;
   const branch = boot.data?.branches.find((x) => x.id === bk?.branchId);
   const c = boot.data?.company;

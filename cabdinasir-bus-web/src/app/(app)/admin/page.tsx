@@ -10,7 +10,7 @@ import { useBootstrap } from '@/lib/queries';
 import { centsToInput, parseUsd, phone, usd } from '@/lib/format';
 import type { Branch, Category, Company, Driver, Role, Route, Vehicle } from '@/lib/types';
 import { Alert, Badge, Button, Card, Checkbox, Field, Input, Loading, Modal, PageHeader, Select, Table, Td, Textarea } from '@/components/ui';
-import { BranchSelect } from '@/components/domain';
+import { BranchSelect, ErrorAlert } from '@/components/domain';
 
 type Tab = 'branches' | 'routes' | 'vehicles' | 'drivers' | 'users' | 'categories' | 'settings';
 
@@ -87,6 +87,7 @@ function Users() {
   const s = useSaver();
   const [open, setOpen] = useState(false);
   const [reset, setReset] = useState<UserRow | null>(null);
+  const [editU, setEditU] = useState<UserRow | null>(null);
   const [form, setForm] = useState({ name: '', phone: '', password: '', role: 'CASHIER' as Role, branchId: user?.branchId ?? '' });
   const [pw, setPw] = useState('');
   const roles: Role[] = sa ? ['CASHIER', 'BRANCH_MANAGER', 'DRIVER', 'SUPER_ADMIN'] : ['CASHIER', 'DRIVER'];
@@ -94,7 +95,7 @@ function Users() {
 
   return (
     <Card title={t('admin.users')} actions={<Button size="sm" onClick={() => setOpen(true)}>+ {t('common.add')}</Button>}>
-      {list.isLoading ? <Loading /> : (
+      {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : (
         <Table head={[t('common.name'), t('common.phone'), t('admin.role'), t('common.branch'), t('common.status'), '']} empty={!list.data?.length}>
           {list.data?.map((u) => (
             <tr key={u.id}>
@@ -107,6 +108,7 @@ function Users() {
                 {u.id !== user?.id && (
                   <div className="flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => s.run(() => api(`/users/${u.id}`, { method: 'PATCH', body: { isActive: !u.isActive } }), [['admin', 'users']])}>{u.isActive ? t('common.inactive') : t('common.active')}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditU(u)}>{t('common.edit')}</Button>
                     <Button size="sm" variant="ghost" onClick={() => { setReset(u); setPw(''); }}>{t('admin.resetPassword')}</Button>
                   </div>
                 )}
@@ -117,12 +119,19 @@ function Users() {
       )}
       {s.error && !open && !reset && <div className="mt-2"><Alert>{s.error}</Alert></div>}
       <FormModal open={open} title={t('admin.users')} onClose={() => setOpen(false)} busy={s.busy} error={s.error}
-        onSave={() => s.run(() => api('/users', { method: 'POST', body: { ...form, branchId: form.role === 'SUPER_ADMIN' ? undefined : form.branchId } }), [['admin', 'users']], () => setOpen(false))}>
+        onSave={() => s.run(() => api('/users', { method: 'POST', body: { ...form, branchId: form.role === 'SUPER_ADMIN' || !form.branchId ? undefined : form.branchId } }), [['admin', 'users']], () => setOpen(false))}>
         <Field label={t('common.name')} required>{(id) => <Input id={id} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />}</Field>
         <Field label={t('common.phone')} required>{(id) => <Input id={id} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />}</Field>
         <Field label={t('admin.password')} hint={t('auth.rule')} required>{(id) => <Input id={id} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />}</Field>
         <Field label={t('admin.role')}>{(id) => <Select id={id} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>{roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}</Select>}</Field>
         {sa && form.role !== 'SUPER_ADMIN' && <Field label={t('common.branch')}>{(id) => <BranchSelect id={id} value={form.branchId} onChange={(v) => setForm({ ...form, branchId: v })} branches={boot.data?.branches ?? []} allLabel="—" />}</Field>}
+      </FormModal>
+      <FormModal open={!!editU} title={`${t('common.edit')}: ${editU?.name ?? ''}`} onClose={() => setEditU(null)} busy={s.busy} error={s.error}
+        onSave={() => s.run(() => api(`/users/${editU!.id}`, { method: 'PATCH', body: { name: editU!.name, role: editU!.role, ...(sa && editU!.role !== 'SUPER_ADMIN' && editU!.branchId && { branchId: editU!.branchId }) } }), [['admin', 'users']], () => setEditU(null))}>
+        <Field label={t('common.name')} required>{(id) => <Input id={id} value={editU?.name ?? ''} onChange={(e) => setEditU({ ...editU!, name: e.target.value })} required />}</Field>
+        <Field label={t('admin.role')}>{(id) => <Select id={id} value={editU?.role ?? 'CASHIER'} onChange={(e) => setEditU({ ...editU!, role: e.target.value as Role })}>{roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}</Select>}</Field>
+        {sa && editU?.role !== 'SUPER_ADMIN' && <Field label={t('common.branch')}>{(id) => <BranchSelect id={id} value={editU?.branchId ?? ''} onChange={(v) => setEditU({ ...editU!, branchId: v })} branches={boot.data?.branches ?? []} allLabel="—" />}</Field>}
+        <Alert tone="yellow">{t('admin.editUserHint')}</Alert>
       </FormModal>
       <FormModal open={!!reset} title={`${t('admin.resetPassword')}: ${reset?.name ?? ''}`} onClose={() => setReset(null)} busy={s.busy} error={s.error}
         onSave={() => s.run(() => api(`/users/${reset!.id}/reset-password`, { method: 'POST', body: { password: pw } }), [['admin', 'users']], () => setReset(null))}>
@@ -137,15 +146,17 @@ function Users() {
 function Drivers() {
   const { t } = useI18n();
   const list = useQuery({ queryKey: ['drivers'], queryFn: () => api<Driver[]>('/drivers') });
+  const accounts = useQuery({ queryKey: ['admin', 'users', 'DRIVER'], queryFn: () => api<UserRow[]>('/users', { query: { role: 'DRIVER' } }) });
   const s = useSaver();
   const [edit, setEdit] = useState<Partial<Driver> | null>(null);
+  const accountName = (id: string | null) => accounts.data?.find((a) => a.id === id)?.phone;
   return (
     <Card title={t('admin.drivers')} actions={<Button size="sm" onClick={() => setEdit({ name: '', phone: '', licenseNo: '' })}>+ {t('common.add')}</Button>}>
-      {list.isLoading ? <Loading /> : (
-        <Table head={[t('common.name'), t('common.phone'), t('admin.license'), t('common.status'), '']} empty={!list.data?.length}>
+      {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : (
+        <Table head={[t('common.name'), t('common.phone'), t('admin.license'), t('admin.account'), t('common.status'), '']} empty={!list.data?.length}>
           {list.data?.map((d) => (
             <tr key={d.id}>
-              <Td className="font-semibold">{d.name}</Td><Td>{phone(d.phone)}</Td><Td>{d.licenseNo ?? '—'}</Td>
+              <Td className="font-semibold">{d.name}</Td><Td>{phone(d.phone)}</Td><Td>{d.licenseNo ?? '—'}</Td><Td>{d.userId ? `✓ ${accountName(d.userId) ?? ''}` : '—'}</Td>
               <Td>{d.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
               <Td><Button size="sm" variant="ghost" onClick={() => setEdit(d)}>{t('common.edit')}</Button></Td>
             </tr>
@@ -154,11 +165,17 @@ function Drivers() {
       )}
       <FormModal open={!!edit} title={t('admin.drivers')} onClose={() => setEdit(null)} busy={s.busy} error={s.error}
         onSave={() => s.run(() => edit?.id
-          ? api(`/drivers/${edit.id}`, { method: 'PATCH', body: { name: edit.name, phone: edit.phone, licenseNo: edit.licenseNo || undefined, isActive: edit.isActive } })
-          : api('/drivers', { method: 'POST', body: { name: edit?.name, phone: edit?.phone, licenseNo: edit?.licenseNo || undefined } }), [['drivers']], () => setEdit(null))}>
+          ? api(`/drivers/${edit.id}`, { method: 'PATCH', body: { name: edit.name, phone: edit.phone, licenseNo: edit.licenseNo || undefined, isActive: edit.isActive, ...(edit.userId && { userId: edit.userId }) } })
+          : api('/drivers', { method: 'POST', body: { name: edit?.name, phone: edit?.phone, licenseNo: edit?.licenseNo || undefined, ...(edit?.userId && { userId: edit.userId }) } }), [['drivers']], () => setEdit(null))}>
         <Field label={t('common.name')} required>{(id) => <Input id={id} value={edit?.name ?? ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required />}</Field>
         <Field label={t('common.phone')} required>{(id) => <Input id={id} value={edit?.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} required />}</Field>
         <Field label={t('admin.license')}>{(id) => <Input id={id} value={edit?.licenseNo ?? ''} onChange={(e) => setEdit({ ...edit, licenseNo: e.target.value })} />}</Field>
+        <Field label={t('admin.account')} hint={t('admin.accountHint')}>{(id) => (
+          <Select id={id} value={edit?.userId ?? ''} onChange={(e) => setEdit({ ...edit, userId: e.target.value || null })}>
+            <option value="">—</option>
+            {accounts.data?.map((a) => <option key={a.id} value={a.id}>{a.name} · {phone(a.phone)}</option>)}
+          </Select>
+        )}</Field>
         {edit?.id && <Checkbox label={t('common.active')} checked={!!edit.isActive} onChange={(v) => setEdit({ ...edit, isActive: v })} />}
       </FormModal>
     </Card>
@@ -248,6 +265,9 @@ function Routes() {
 
 // ------------------------------------------------------------------ vehicles (seat layout)
 
+/** Dejinta lacagta ah (senti backend-ka) — UI-gu dollar ayuu muujiyaa */
+const MONEY_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents'];
+
 const HIACE_14 = { rows: [['D', null, '1', '2'], ['3', '4', null, '5'], ['6', '7', null, '8'], ['9', '10', null, '11'], ['12', '13', '14', null]], front: ['1', '2'] };
 
 function Vehicles() {
@@ -278,7 +298,7 @@ function Vehicles() {
       <FormModal open={!!edit} title={t('admin.vehicles')} onClose={() => setEdit(null)} busy={s.busy} error={s.error} onSave={save}>
         <Field label={t('admin.plate')} required>{(id) => <Input id={id} value={edit?.plate ?? ''} disabled={!!edit?.id} onChange={(e) => setEdit({ ...edit!, plate: e.target.value })} required />}</Field>
         <Field label={t('admin.model')} required>{(id) => <Input id={id} value={edit?.model ?? ''} onChange={(e) => setEdit({ ...edit!, model: e.target.value })} required />}</Field>
-        <Field label="Seat layout (JSON)" hint='"D" = darawal, null = marin'>{(id) => <Textarea id={id} rows={5} className="font-mono text-xs" value={edit?.layout ?? ''} onChange={(e) => setEdit({ ...edit!, layout: e.target.value })} />}</Field>
+        <Field label={t('admin.seatLayout')} hint={t('admin.seatLayoutHint')}>{(id) => <Textarea id={id} rows={5} className="font-mono text-xs" value={edit?.layout ?? ''} onChange={(e) => setEdit({ ...edit!, layout: e.target.value })} />}</Field>
         {edit?.id && <Checkbox label={t('common.active')} checked={!!edit.isActive} onChange={(v) => setEdit({ ...edit, isActive: v })} />}
       </FormModal>
     </Card>
@@ -298,7 +318,7 @@ function Categories() {
   };
   return (
     <Card title={t('admin.categories')} actions={<Button size="sm" onClick={() => setEdit({ nameSo: '', nameEn: '', base: '1.00', mult: '1', isProhibited: false })}>+ {t('common.add')}</Button>}>
-      <Table head={[t('common.name'), 'English', t('admin.baseFee'), t('admin.multiplier'), '', '']} empty={!list.data?.length}>
+      <Table head={[t('common.name'), t('admin.nameEn'), t('admin.baseFee'), t('admin.multiplier'), '', '']} empty={!list.data?.length}>
         {list.data?.map((c) => (
           <tr key={c.id}>
             <Td className="font-semibold">{c.nameSo}</Td><Td>{c.nameEn}</Td><Td>{usd(c.baseFeeCents)}</Td><Td>×{String(c.perKgMultiplier)}</Td>
@@ -309,7 +329,7 @@ function Categories() {
       </Table>
       <FormModal open={!!edit} title={t('admin.categories')} onClose={() => setEdit(null)} busy={s.busy} error={s.error} onSave={save}>
         <Field label={t('common.name')} required>{(id) => <Input id={id} value={edit?.nameSo ?? ''} onChange={(e) => setEdit({ ...edit!, nameSo: e.target.value })} required />}</Field>
-        <Field label="English" required>{(id) => <Input id={id} value={edit?.nameEn ?? ''} onChange={(e) => setEdit({ ...edit!, nameEn: e.target.value })} required />}</Field>
+        <Field label={t('admin.nameEn')} required>{(id) => <Input id={id} value={edit?.nameEn ?? ''} onChange={(e) => setEdit({ ...edit!, nameEn: e.target.value })} required />}</Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label={t('admin.baseFee')}>{(id) => <Input id={id} inputMode="decimal" value={edit?.base ?? ''} onChange={(e) => setEdit({ ...edit!, base: e.target.value })} />}</Field>
           <Field label={t('admin.multiplier')}>{(id) => <Input id={id} inputMode="decimal" value={edit?.mult ?? ''} onChange={(e) => setEdit({ ...edit!, mult: e.target.value })} />}</Field>
@@ -336,13 +356,14 @@ function Settings() {
     if (!boot.data) return;
     setRate(String(boot.data.exchangeRate?.usdToSlsh ?? ''));
     const st = boot.data.settings as Record<string, number>;
-    setP(Object.fromEntries(Object.entries(st).map(([k, v]) => [k, String(v)])));
+    setP(Object.fromEntries(Object.entries(st).map(([k, v]) => [k, MONEY_FIELDS.includes(k) ? centsToInput(v) : String(v)])));
     setCompany(boot.data.company);
   }, [boot.data]);
 
   const done = () => setOk(t('common.saved'));
   if (!boot.data || !company) return <Loading />;
-  const NUM_FIELDS = ['fragileSurchargeCents', 'insuranceBps', 'maxDiscountBps', 'seatHoldSeconds', 'uncollectedDays', 'storageFeePerDayCents', 'shareTripsWithinCity', 'reservationCutoffMinutes', 'maxReservationsPerPhone'];
+  const NUM_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents', 'insuranceBps', 'maxDiscountBps', 'seatHoldSeconds', 'uncollectedDays', 'reservationCutoffMinutes', 'maxReservationsPerPhone', 'shareTripsWithinCity'];
+  const toValue = (k: string) => (MONEY_FIELDS.includes(k) ? parseUsd(p[k]) ?? 0 : Number(p[k]));
 
   return (
     <div className="flex flex-col gap-4">
@@ -355,18 +376,20 @@ function Settings() {
         </form>
       </Card>
       <Card title={t('admin.settings')}>
-        <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); s.run(() => api('/pricing-settings', { method: 'PUT', body: Object.fromEntries(NUM_FIELDS.filter((k) => p[k] !== undefined && p[k] !== '').map((k) => [k, Number(p[k])])) }), [['bootstrap']], done); }}>
-          {NUM_FIELDS.map((k) => <Field key={k} label={k}>{(id) => <Input id={id} inputMode="numeric" value={p[k] ?? ''} onChange={(e) => setP({ ...p, [k]: e.target.value })} />}</Field>)}
+        <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); s.run(() => api('/pricing-settings', { method: 'PUT', body: Object.fromEntries(NUM_FIELDS.filter((k) => p[k] !== undefined && p[k] !== '').map((k) => [k, toValue(k)])) }), [['bootstrap']], done); }}>
+          {NUM_FIELDS.map((k) => <Field key={k} label={t(`settingsField.${k}`)} hint={t(`settingsHint.${k}`)}>{(id) => <Input id={id} inputMode={MONEY_FIELDS.includes(k) ? 'decimal' : 'numeric'} value={p[k] ?? ''} onChange={(e) => setP({ ...p, [k]: e.target.value })} />}</Field>)}
           <div className="sm:col-span-3"><Button type="submit" loading={s.busy}>{t('common.save')}</Button></div>
         </form>
       </Card>
       <Card title={t('admin.company')}>
         <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); s.run(() => api('/company', { method: 'PUT', body: company }), [['bootstrap']], done); }}>
           <Field label={t('common.name')}>{(id) => <Input id={id} value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} />}</Field>
-          <Field label="Tagline">{(id) => <Input id={id} value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} />}</Field>
-          <Field label="Mission">{(id) => <Textarea id={id} value={company.mission} onChange={(e) => setCompany({ ...company, mission: e.target.value })} />}</Field>
-          <Field label="Parcel rules (1 line = 1 rule)">{(id) => <Textarea id={id} rows={5} value={company.parcelRules.join('\n')} onChange={(e) => setCompany({ ...company, parcelRules: e.target.value.split('\n').filter(Boolean) })} />}</Field>
-          <Field label="Receipt footer">{(id) => <Input id={id} value={company.receiptFooter} onChange={(e) => setCompany({ ...company, receiptFooter: e.target.value })} />}</Field>
+          <Field label={t('company.tagline')}>{(id) => <Input id={id} value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} />}</Field>
+          <Field label={t('company.mission')}>{(id) => <Textarea id={id} value={company.mission} onChange={(e) => setCompany({ ...company, mission: e.target.value })} />}</Field>
+          <Field label={t('company.slogans')} hint={t('company.oneLine')}>{(id) => <Textarea id={id} rows={2} value={company.slogans.join('\n')} onChange={(e) => setCompany({ ...company, slogans: e.target.value.split('\n').filter(Boolean) })} />}</Field>
+          <Field label={t('company.passengerRules')} hint={t('company.oneLine')}>{(id) => <Textarea id={id} rows={3} value={company.passengerRules.join('\n')} onChange={(e) => setCompany({ ...company, passengerRules: e.target.value.split('\n').filter(Boolean) })} />}</Field>
+          <Field label={t('company.parcelRules')} hint={t('company.oneLine')}>{(id) => <Textarea id={id} rows={5} value={company.parcelRules.join('\n')} onChange={(e) => setCompany({ ...company, parcelRules: e.target.value.split('\n').filter(Boolean) })} />}</Field>
+          <Field label={t('company.receiptFooter')}>{(id) => <Input id={id} value={company.receiptFooter} onChange={(e) => setCompany({ ...company, receiptFooter: e.target.value })} />}</Field>
           <Button type="submit" loading={s.busy}>{t('common.save')}</Button>
         </form>
       </Card>

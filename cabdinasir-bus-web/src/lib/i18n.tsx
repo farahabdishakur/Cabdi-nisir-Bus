@@ -25,6 +25,8 @@ interface I18n {
   t: T;
   /** Khalad API → fariin Af-Soomaali/English */
   err: (e: unknown) => string;
+  /** Koodh khalad (tusaale natiijada bulk) → qoraal; haddii aan la aqoon → fallback */
+  codeText: (code: string, fallback?: string) => string;
 }
 
 const Ctx = createContext<I18n | null>(null);
@@ -71,7 +73,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [lang, t],
   );
 
-  return <Ctx.Provider value={{ lang, setLang, t, err }}>{children}</Ctx.Provider>;
+  const codeText = useCallback(
+    (code: string, fallback?: string) => lookup(DICTS[lang], `errors.${code}`) ?? lookup(so, `errors.${code}`) ?? fallback ?? code,
+    [lang],
+  );
+
+  return <Ctx.Provider value={{ lang, setLang, t, err, codeText }}>{children}</Ctx.Provider>;
 }
 
 export function useI18n() {

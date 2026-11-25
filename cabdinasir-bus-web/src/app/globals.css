@@ -42,3 +42,19 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: #000;
 }
+
+/* Daabacaad isla bogga (offline — tab cusub lama furi karo internet la'aan): kaliya .print-area ayaa la daabacaa */
+@media print {
+  body:has(.print-area) * {
+    visibility: hidden;
+  }
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * {
+    visibility: visible;
+  }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}

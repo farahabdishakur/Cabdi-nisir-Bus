@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import { dateTime, phone, time, todayISO } from '@/lib/format';
 import type { Parcel, Trip } from '@/lib/types';
 import { Alert, Button, Card, Field, Loading, PageHeader, Select } from '@/components/ui';
-import { ParcelStatusBadge } from '@/components/domain';
+import { ParcelStatusBadge, ErrorAlert } from '@/components/domain';
 
 /** Alaabta baxaysa: dooro safarka → calaamadee alaabta → "Rar" (gaariga ku xir). */
 export default function OutgoingPage() {
@@ -73,7 +73,7 @@ export default function OutgoingPage() {
         {error && <div className="mt-3"><Alert>{error}</Alert></div>}
       </Card>
 
-      {list.isLoading ? <Loading /> : (
+      {list.error ? <ErrorAlert error={list.error} /> : list.isLoading ? <Loading /> : (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title={`${t('parcelStatus.REGISTERED')} (${waiting.length})`}>
             <ul className="divide-y divide-gray-100">
