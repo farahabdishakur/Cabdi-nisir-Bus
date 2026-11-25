@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Midabada shirkadda (boodhka xafiiska) — UI_RULES §2 */
+@theme {
+  --color-brand: #b3202a;
+  --color-brand-dark: #8e1820;
+  --color-navy: #1f2a6b;
+  --color-navy-dark: #161e4f;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+}
+
+html,
+body {
+  background: #f5f6fa;
+  color: #111827;
+}
+
+/* Focus muuqda (accessibility) */
+:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+
+/* Daabacaadda: 80mm thermal (rasiid/label) — UI_RULES §5 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff;
+  }
+  @page {
+    margin: 4mm;
+  }
+}
+
+.receipt {
+  width: 72mm;
+  font-size: 12px;
+  line-height: 1.35;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #000;
+}

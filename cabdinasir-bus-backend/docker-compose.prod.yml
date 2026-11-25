@@ -28,16 +28,25 @@ services:
     depends_on:
       db: { condition: service_healthy }
 
+  # Website-ka (repo cabdinasir-bus-web — waa in lagu clone-gareeyaa ../web)
+  web:
+    build: ../web
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3000
+    depends_on: [api]
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment:
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
-    depends_on: [api]
+    depends_on: [api, web]
 
 volumes:
   pgdata:

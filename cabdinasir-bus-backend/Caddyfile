@@ -1,6 +1,24 @@
-# HTTPS automatic (Let's Encrypt). Website-ka (app.*) wuxuu ku dari doonaa block kale marka la dhiso.
+# HTTPS automatic (Let's Encrypt).
+# app.*: website-ka + /api isla domain-ka (cookie-ga refresh = same-origin; SSE /api/v1/events si toos ah ayuu u flush-gareeyaa)
+{$APP_DOMAIN} {
+	# SSE (live events) lama cadaadiyo — gzip wuu xannibi karaa event-yada
+	@compressible not path /api/v1/events
+	encode @compressible gzip
+	request_body {
+		max_size 6MB
+	}
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:3001
+	}
+}
+
+# api.*: API toos ah (mustaqbalka: app taleefan / integrations)
 {$API_DOMAIN} {
-	encode gzip
+	@compressible not path /api/v1/events
+	encode @compressible gzip
 	reverse_proxy api:3000
 	request_body {
 		max_size 6MB

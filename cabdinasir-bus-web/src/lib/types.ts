@@ -1,0 +1,204 @@
+/** Qaababka xogta backend-ka (kuwa website-ku isticmaalo). Lacag = senti (USD) / shilin (SLSH) — integer. */
+
+export type Role = 'SUPER_ADMIN' | 'BRANCH_MANAGER' | 'CASHIER' | 'DRIVER';
+export type Method = 'CASH' | 'ZAAD' | 'EDAHAB';
+export type Currency = 'USD' | 'SLSH';
+export type TripStatus = 'SCHEDULED' | 'BOARDING' | 'DEPARTED' | 'ARRIVED' | 'CLOSED' | 'CANCELLED';
+export type BookingStatus = 'RESERVED' | 'CONFIRMED' | 'BOARDED' | 'VOIDED' | 'EXPIRED';
+export type ParcelStatus = 'REGISTERED' | 'LOADED' | 'IN_TRANSIT' | 'ARRIVED' | 'DELIVERED' | 'VOIDED' | 'MISSING' | 'DAMAGED';
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  city: string;
+  phones: string[];
+  zaadNumber: string | null;
+  edahabNumber: string | null;
+  isActive: boolean;
+}
+
+export interface Route {
+  id: string;
+  fromBranchId: string;
+  toBranchId: string;
+  fromBranch?: Branch;
+  toBranch?: Branch;
+  ticketPriceCents: number;
+  frontSeatSurchargeCents: number;
+  parcelPerKgCents: number;
+  parcelMinFeeCents: number;
+  isActive: boolean;
+}
+
+export interface Vehicle {
+  id: string;
+  plate: string;
+  model: string;
+  capacity: number;
+  seatLayout: { rows: (string | null)[][]; front?: string[] };
+  isActive: boolean;
+}
+
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  licenseNo: string | null;
+  branchId: string | null;
+  userId: string | null;
+  isActive: boolean;
+}
+
+export interface Trip {
+  id: string;
+  routeId: string;
+  route: Route & { fromBranch: Branch; toBranch: Branch };
+  vehicle: Vehicle;
+  driver: Driver;
+  departureAt: string;
+  status: TripStatus;
+  seatsSold?: number;
+  seatsReserved?: number;
+  seatsAvailable?: number;
+}
+
+export interface Payment {
+  id: string;
+  kind: 'TICKET' | 'PARCEL' | 'REFUND' | 'STORAGE' | 'EXPENSE' | 'DEPOSIT' | 'TRANSFER_DIFF';
+  method: Method;
+  currency: Currency;
+  amount: number;
+  amountUsdCents: number;
+  reference: string | null;
+  payerPhone: string | null;
+  branchId: string;
+  createdAt: string;
+}
+
+export interface PriceLine {
+  label: string;
+  cents: number;
+}
+
+export interface Booking {
+  id: string;
+  receiptNo: string;
+  tripId: string;
+  trip?: Trip;
+  seatNo: string;
+  passengerName: string;
+  passengerPhone: string;
+  priceCents: number;
+  discountCents: number;
+  priceBreakdown: { lines: PriceLine[]; totalCents: number };
+  status: BookingStatus;
+  branchId: string;
+  reservedUntil: string | null;
+  printCount: number;
+  payments: Payment[];
+  createdAt: string;
+}
+
+export interface Category {
+  id: string;
+  nameSo: string;
+  nameEn: string;
+  baseFeeCents: number;
+  perKgMultiplier: string | number;
+  isProhibited: boolean;
+  isActive: boolean;
+}
+
+export interface Parcel {
+  id: string;
+  trackingCode: string;
+  receiptNo: string;
+  fromBranchId: string;
+  toBranchId: string;
+  fromBranch: Branch;
+  toBranch: Branch;
+  tripId: string | null;
+  trip?: { id: string; departureAt: string; status: TripStatus; vehicle: { plate: string } } | null;
+  senderName: string;
+  senderPhone: string;
+  receiverName: string;
+  receiverPhone: string;
+  category: Category;
+  pieces: number;
+  weightKg: string | number;
+  description: string | null;
+  declaredValueCents: number | null;
+  isFragile: boolean;
+  insured: boolean;
+  payer: 'SENDER' | 'RECEIVER';
+  feeCents: number;
+  priceBreakdown: { lines: PriceLine[]; totalCents: number };
+  paidAt: string | null;
+  status: ParcelStatus;
+  deliveredToName: string | null;
+  deliveredAt: string | null;
+  arrivedAt: string | null;
+  photoUrl: string | null;
+  printCount: number;
+  payments: Payment[];
+  createdAt: string;
+  offlineCreatedAt: string | null;
+  history?: { id: string; fromStatus: ParcelStatus | null; toStatus: ParcelStatus; note: string | null; createdAt: string }[];
+  storageFeeCents?: number;
+  pickupPin?: string | null;
+}
+
+export interface SeatState {
+  seatNo: string;
+  state: 'AVAILABLE' | 'HELD' | 'HELD_BY_ME' | 'BOOKED' | 'RESERVED';
+  expiresAt?: string;
+  reservedUntil?: string;
+  booking?: { id: string; receiptNo: string; passengerName: string; status: BookingStatus };
+}
+
+export interface SeatMapData {
+  tripId: string;
+  status: TripStatus;
+  layout: { rows: (string | null)[][]; front?: string[] };
+  seats: SeatState[];
+}
+
+export interface CashSession {
+  id: string;
+  branchId: string;
+  openedAt: string;
+  closedAt: string | null;
+  openingFloat: { USD: number; SLSH: number };
+  expected: { USD: number; SLSH: number } | null;
+  counted: { USD: number; SLSH: number } | null;
+  variance: { USD: number; SLSH: number } | null;
+  approvedAt: string | null;
+  summary?: {
+    expectedCash: { USD: number; SLSH: number };
+    byMethod: { method: Method; currency: Currency; count: number; amount: number; amountUsdCents: number }[];
+    totalUsdCents: number;
+  };
+}
+
+export interface Company {
+  name: string;
+  tagline: string;
+  mission: string;
+  slogans: string[];
+  passengerRules: string[];
+  parcelRules: string[];
+  receiptFooter: string;
+}
+
+export interface Paged<T> {
+  data: T[];
+  meta: { page: number; limit: number; total: number };
+}
+
+export interface PaymentInput {
+  method: Method;
+  currency: Currency;
+  reference?: string;
+  payerPhone?: string;
+}

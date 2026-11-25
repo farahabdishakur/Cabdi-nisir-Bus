@@ -1,6 +1,6 @@
 # Warbixinta Website-ka — Cabdinasir Bus Web
 
-**Repo:** `cabdinasir-bus-web` · **Xaaladda:** Naqshad (code wali lama bilaabin) · **Taariikh:** 2026-11-24
+**Repo:** `cabdinasir-bus-web` · **Xaaladda:** Phase 1 waa la dhisay oo la tijaabiyay (browser dhab ah, 18 tallaabo) · **Taariikh:** 2026-11-24
 **Backend:** `cabdinasir-bus-backend` (`NEXT_PUBLIC_API_URL`)
 
 ---
@@ -126,3 +126,6 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 
 ## 9. Changelog / Xaaladda
 - **2026-11-24** — Naqshadda, xeerarka (`CLAUDE.md`, `UI_RULES.md`) iyo warbixintan la qoray. Code: 0%.
+- **2026-11-25** — **Phase 1 website-ka la dhisay** (v0.1.0): login + password ku-meel-gaar · dashboard role kasta · safarada + seat map (hold timer, live SSE) · iib tigidh (Cash/Zaad/eDahab + discount manager) · ballan taleefan (bixi / jooji) · tigidhada & ballamaha (void / codso void / sax / fuulay) · alaab dir (qiimaha live, autofill, PIN) · alaabta baxaysa (rar) · imanaysa (xaqiiji, maqan) · wareejin (PIN + COD + kayd) · faahfaahinta alaabta (taariikh, sawir, PIN cusub, sax, void, maqan/dhaawacmay) · sanduuqa (fur/xir, kharash, wareejin, ansixi, xir-karraani-tagay, Super Admin xaqiiji) · barbar dhig Zaad · codsiyada void · warbixino (xiritaan maalinle, dakhli, faa'iidada safarada, karraaniyada, integrity, CSV) · maamul (shaqaale, darawallo, laamo + lambarada Zaad, routes & qiime, gaadiid, noocyo, dejin, shirkadda) · daabacaad 80mm (tigidh, alaab + label xabbad kasta, QR) + manifest A4 · Af-Soomaali/English · taleefan 390px.
+  Tests: 6 unit + **E2E 18 tallaabo (Playwright, backend dhab ah)** — dhammaan way gudbeen. Dockerfile + Caddy (app domain, /api → backend, SSE gzip la'aan).
+  **Wali:** offline mode (PWA/IndexedDB — backend diyaar), bogga dadweynaha (tracking / jadwal), barcode scanner, dark mode.

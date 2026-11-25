@@ -114,11 +114,13 @@ Provider-ka VPS-ka snapshot toddobaadle ah ayaa sidoo kale la daaraa.
 # 1. Server Ubuntu 24.04 + Docker
 curl -fsSL https://get.docker.com | sh
 
-# 2. Code
-git clone <backend-repo> /opt/cabdinasir/api && cd /opt/cabdinasir/api
+# 2. Code (labada repo isku meel)
+git clone <backend-repo> /opt/cabdinasir/api
+git clone <web-repo>     /opt/cabdinasir/web
+cd /opt/cabdinasir/api
 cp .env.example .env && nano .env      # NODE_ENV=production, secrets cusub, CORS_ORIGIN, SMS_*
 
-# 3. Kici (API + Postgres + Caddy HTTPS)
+# 3. Kici (API + website + Postgres + Caddy HTTPS)
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 4. Xogta aasaasiga (hal mar)
