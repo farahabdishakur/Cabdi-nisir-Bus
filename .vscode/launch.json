@@ -1,0 +1,58 @@
+{
+  // VS Code: Run and Debug (Ctrl+Shift+D) → dooro "▶ Kici dhammaan" → F5
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "⚙️ Backend (API · port 3000)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev:local",
+      "cwd": "${workspaceFolder}/cabdinasir-bus-backend"
+    },
+    {
+      "name": "🌐 Website (port 3001)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/cabdinasir-bus-web"
+    },
+    {
+      "name": "👑 Super Admin (daaqad gooni ah)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:3001/login?phone=0630000000",
+      "userDataDir": "${workspaceFolder}/.vscode/.browser-superadmin",
+      "preLaunchTask": "⏳ Sug website-ka"
+    },
+    {
+      "name": "👤 Shaqaalaha — karraani (daaqad gooni ah)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:3001/login?phone=0631000002",
+      "userDataDir": "${workspaceFolder}/.vscode/.browser-staff",
+      "preLaunchTask": "⏳ Sug website-ka"
+    },
+    {
+      "name": "📖 Backend API docs (Swagger)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:3000/api/docs",
+      "userDataDir": "${workspaceFolder}/.vscode/.browser-docs",
+      "preLaunchTask": "⏳ Sug website-ka"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "▶ Kici dhammaan (Backend + Website + Super Admin + Shaqaalaha)",
+      "configurations": ["⚙️ Backend (API · port 3000)", "🌐 Website (port 3001)", "👑 Super Admin (daaqad gooni ah)", "👤 Shaqaalaha — karraani (daaqad gooni ah)"],
+      "preLaunchTask": "📦 Diyaari (npm install — hal mar)",
+      "stopAll": true
+    },
+    {
+      "name": "▶ Backend + Website kaliya",
+      "configurations": ["⚙️ Backend (API · port 3000)", "🌐 Website (port 3001)"],
+      "preLaunchTask": "📦 Diyaari (npm install — hal mar)",
+      "stopAll": true
+    }
+  ]
+}

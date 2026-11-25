@@ -16,6 +16,11 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [idle, setIdle] = useState(false);
+  // ?phone=… (VS Code: daaqadda Super Admin / Shaqaalaha) → taleefanka hore loo buuxiyo
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('phone');
+    if (p && /^[0-9+ ]{6,20}$/.test(p)) setPhone(p);
+  }, []);
   useEffect(() => setIdle(new URLSearchParams(window.location.search).has('idle')), []);
 
   useEffect(() => {
