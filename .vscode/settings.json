@@ -1,0 +1,9 @@
+{
+  // Windows: PowerShell-ka badanaa wuu diidaa npm ("running scripts is disabled") → Command Prompt isticmaal
+  "terminal.integrated.defaultProfile.windows": "Command Prompt",
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.localdb": true
+  }
+}
