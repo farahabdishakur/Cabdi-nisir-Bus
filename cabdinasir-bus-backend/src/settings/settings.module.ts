@@ -31,6 +31,7 @@ export class UpdateSettingsDto {
   @IsOptional() @IsInt() @Min(0) @Max(1) requireDeliveryPhoto?: number;
   @IsOptional() @IsInt() @Min(0) @Max(1) queueAutoReturn?: number;
   @IsOptional() @IsInt() @Min(0) @Max(2) ticketMode?: number;
+  @IsOptional() @IsInt() @Min(10) @Max(600) queueEstimatedMinutes?: number;
 }
 export class UpdateCompanyDto {
   @IsOptional() @IsString() @Length(2, 80) name?: string;

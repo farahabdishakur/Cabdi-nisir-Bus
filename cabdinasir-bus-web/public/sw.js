@@ -4,7 +4,7 @@
  * - bogagga (navigation): network-first → haddii internet-ku go'o, nuqulkii ugu dambeeyay
  * - /api/* : WEligiis lama kaydiyo (xog lacageed — had iyo jeer server-ka)
  */
-const VERSION = 'cb-v2';
+const VERSION = 'cb-v3';
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 

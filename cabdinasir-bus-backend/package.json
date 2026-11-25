@@ -17,7 +17,8 @@
     "db:seed": "ts-node prisma/seed.ts",
     "openapi": "ts-node scripts/export-openapi.ts",
     "backup": "bash scripts/backup.sh",
-    "dev:local": "node scripts/dev-local.mjs"
+    "dev:local": "node scripts/dev-local.mjs",
+    "demo:day": "node scripts/demo-day.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

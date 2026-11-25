@@ -226,7 +226,9 @@ export class DispatchService {
       const busy = await tx.trip.findFirst({ where: { status: { in: BUSY_TRIP }, OR: [{ vehicleId: w.vehicleId }, { driverId: w.driverId }] }, select: { id: true } });
       if (busy || !w.vehicle.isActive || !w.driver.isActive) continue;
       parseSeatLayout(w.vehicle.seatLayout);
-      const trip = await tx.trip.create({ data: { routeId, vehicleId: w.vehicleId, driverId: w.driverId, departureAt: new Date(), status: 'BOARDING', createdById: userId } });
+      // waqtiga bixitaanka = qiyaas (gaarigu wuxuu baxaa marka uu buuxsamo) → ballan taleefan waa suurtagal; marka uu baxo waqtiga dhabta ah ayaa la qoraa
+      const { queueEstimatedMinutes } = await this.settings.get(tx);
+      const trip = await tx.trip.create({ data: { routeId, vehicleId: w.vehicleId, driverId: w.driverId, departureAt: new Date(Date.now() + queueEstimatedMinutes * 60_000), status: 'BOARDING', createdById: userId } });
       await tx.dispatchEntry.update({ where: { id: w.id }, data: { status: 'LOADING', tripId: trip.id, loadingAt: new Date() } });
       return;
     }
@@ -244,7 +246,9 @@ export class DispatchService {
   async afterTripStatus(tx: Tx, trip: { id: string; routeId: string; vehicleId: string; driverId: string }, to: TripStatus, userId: string) {
     const e = await tx.dispatchEntry.findUnique({ where: { tripId: trip.id } });
     if (e && to === 'DEPARTED') {
-      await tx.dispatchEntry.update({ where: { id: e.id }, data: { status: 'DEPARTED', departedAt: new Date() } });
+      const now = new Date();
+      await tx.dispatchEntry.update({ where: { id: e.id }, data: { status: 'DEPARTED', departedAt: now } });
+      await tx.trip.update({ where: { id: trip.id }, data: { departureAt: now } }); // waqtiga dhabta ah (qiyaastii waa la beddelay)
       await this.ensureOpen(tx, e.routeId, userId);
     }
     if (e && to === 'CANCELLED' && OPEN.includes(e.status)) {

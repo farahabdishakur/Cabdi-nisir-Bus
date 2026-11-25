@@ -16,6 +16,13 @@
       "presentation": { "reveal": "silent" }
     },
     {
+      "label": "🎬 Xog bandhig (maalin shaqo oo dhab u eg)",
+      "type": "shell",
+      "command": "npm run demo:day",
+      "options": { "cwd": "${workspaceFolder}/cabdinasir-bus-backend" },
+      "problemMatcher": []
+    },
+    {
       "label": "🧹 Tirtir xogta tijaabada (bilow cusub)",
       "type": "shell",
       "command": "node -e \"require('fs').rmSync('cabdinasir-bus-backend/.localdb',{recursive:true,force:true});console.log('✓ La tirtiray — mar kale kici')\"",

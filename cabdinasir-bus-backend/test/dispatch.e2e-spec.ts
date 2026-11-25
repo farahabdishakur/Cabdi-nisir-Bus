@@ -58,6 +58,8 @@ describe('Dispatch queue (e2e)', () => {
     expect([first.vehicle.plate, second.vehicle.plate, third.vehicle.plate]).toEqual(['BUS-1', 'BUS-2', 'BUS-3']);
     expect(first.status).toBe('LOADING');
     expect(first.trip).toMatchObject({ status: 'BOARDING', taken: 0, capacity: 10 });
+    // qiyaas: ~90 daqiiqo → ballan taleefan waa suurtagal
+    expect(new Date(first.trip.departureAt).getTime() - Date.now()).toBeGreaterThan(80 * 60_000);
     expect([second.status, third.status]).toEqual(['WAITING', 'WAITING']);
     // isla gaariga laba saf lama gelin karo
     expect((await manager.post(`/dispatch/${base.route.id}/enqueue`, { items: [{ vehicleId: v[1], driverId: d[1] }] })).body.error.code).toBe('ALREADY_QUEUED');
@@ -97,6 +99,9 @@ describe('Dispatch queue (e2e)', () => {
     await manager.patch(`/trips/${bus1.tripId}/status`, { status: 'DEPARTED' }).expect(200);
     const after = (await manager.get(`/dispatch/${base.route.id}`).expect(200)).body;
     expect(after.entries.find((e: { id: string }) => e.id === bus1.id).status).toBe('DEPARTED');
+    // waqtiga bixitaanka dhabta ah ayaa la qoray (qiyaastii +90 daqiiqo waa la beddelay)
+    const t1 = await prisma.trip.findUniqueOrThrow({ where: { id: bus1.tripId } });
+    expect(Math.abs(t1.departureAt.getTime() - Date.now())).toBeLessThan(60_000);
     expect(after.stats).toMatchObject({ departed: 1, passengers: 10, loading: 1 });
 
     await wajManager.patch(`/trips/${bus1.tripId}/status`, { status: 'ARRIVED' }).expect(200);

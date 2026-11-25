@@ -1,6 +1,7 @@
 /** Af-Soomaali (default). Qoraal kasta oo user-ku arko halkan ayuu ku jiraa (CLAUDE.md §3.4). */
 const so = {
   common: {
+    installApp: 'Rakib app-ka',
     appName: 'Cabdinasir Bus',
     save: 'Kaydi',
     cancel: 'Jooji',

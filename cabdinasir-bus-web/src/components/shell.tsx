@@ -2,6 +2,7 @@
 
 import { BrandMark } from './brand';
 import { PaperCopyHost } from './paper-ticket';
+import { InstallAppButton } from './install-app';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -192,6 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button className="rounded-lg px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100" onClick={() => setLang(lang === 'so' ? 'en' : 'so')}>
             {lang === 'so' ? 'EN' : 'SO'}
           </button>
+          <InstallAppButton />
           <Link href="/change-password" className="hidden rounded-lg px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 sm:inline">
             {t('nav.profile')}
           </Link>

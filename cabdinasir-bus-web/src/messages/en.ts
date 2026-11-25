@@ -5,6 +5,7 @@ type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]>
 /** English — wixii maqan Af-Soomaali ayaa la muujinayaa. */
 const en: DeepPartial<Messages> = {
   common: {
+    installApp: 'Install app',
     appName: 'Cabdinasir Bus',
    
     save: 'Save', cancel: 'Cancel', close: 'Close', confirm: 'Confirm', back: 'Back', search: 'Search', loading: 'Loading…',

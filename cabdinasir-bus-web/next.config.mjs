@@ -7,6 +7,8 @@ const API = process.env.API_URL ?? 'http://localhost:3000';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // calaamadda "N" ee development-ka (bandhigga) ha muuqan
+  devIndicators: false,
   poweredByHeader: false,
   async rewrites() {
     return [{ source: '/api/v1/:path*', destination: `${API}/api/v1/:path*` }];

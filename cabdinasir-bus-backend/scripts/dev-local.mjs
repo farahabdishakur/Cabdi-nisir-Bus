@@ -55,6 +55,8 @@ const env = {
   SEED_DEMO: 'true',
   SEED_SUPER_ADMIN_PASSWORD: fileEnv.SEED_SUPER_ADMIN_PASSWORD ?? 'ChangeMe123!',
   NODE_ENV: 'development',
+  // kombiyuutarka tijaabada kaliya: bandhigga (demo:day) + daaqado badan → xadka login-ka (5/daqiiqo) ha xannibin
+  THROTTLE_DISABLED: fileEnv.THROTTLE_DISABLED ?? 'true',
 };
 
 // 2. database

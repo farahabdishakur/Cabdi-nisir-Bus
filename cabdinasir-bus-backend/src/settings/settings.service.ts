@@ -23,6 +23,8 @@ export interface PricingSettings {
   queueAutoReturn: number;
   /** Tigidhka: 0 = printer (rasiid daabac) · 1 = warqad gacanta lagu qoro (lambarka warqadda waajib) · 2 = labadaba (lambar ikhtiyaari) */
   ticketMode: number;
+  /** Safka gaadiidka: qiyaasta bixitaanka gaariga buuxsamaya (daqiiqo) — ballan taleefan waxay ku xiran tahay */
+  queueEstimatedMinutes: number;
 }
 
 export const DEFAULT_SETTINGS: PricingSettings = {
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: PricingSettings = {
   requireDeliveryPhoto: 0,
   queueAutoReturn: 1,
   ticketMode: 1,
+  queueEstimatedMinutes: 90,
 };
 
 /** Macluumaadka shirkadda ee rasiidka/label-ka ka muuqda (boodhka xafiiska). */
