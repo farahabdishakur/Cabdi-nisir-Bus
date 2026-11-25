@@ -1,5 +1,7 @@
 # Bandhigga (Demo) — Cabdinasir Bus
 
+🎬 **Video (87 ilbiriqsi):** [`docs/bandhig/bandhig-video.mp4`](docs/bandhig/bandhig-video.mp4) — haddii kombiyuutarku dhib keeno, kan tus.
+
 Hagaha bandhigga milkiilayaasha: **sida loo kiciyo**, **sida loo diyaariyo**, iyo **waxa la tusayo** (Super Admin → Boorama 1 → Boorama 2 → Wajaale). Waqtiga: **20–25 daqiiqo**.
 
 ---
