@@ -19,7 +19,20 @@ https://github.com/farahabdishakur/Cabdi-nisir-Bus/archive/refs/heads/ccr-6915eb
 
 (Git: `git clone -b ccr-6915eb85-u3sjbx https://github.com/farahabdishakur/Cabdi-nisir-Bus.git`)
 
-## 3. Ku fur VS Code oo kici
+## 3. Kici — HAL AMAR (ugu fudud)
+
+**Ikhtiyaar A:** folder-ka laba jeer riix **`KICI.bat`**.
+
+**Ikhtiyaar B:** VS Code terminal-ka (folder-ka ugu sarreeya — halka `KICI.bat` ku jiro):
+```
+npm run dev
+```
+Wax walba isaga ayaa qabanaya: `npm install` (markii ugu horreysay 3–10 daqiiqo) → backend + database → website → browser-ka ayaa furmaya.
+Marka uu qoro **✓ DIYAAR** → http://localhost:3001 . Daaqadda ha xirin; jooji: **Ctrl + C**.
+
+> `cd` looma baahna. Haddii PowerShell uu yiraahdo *"running scripts is disabled"* → `npm.cmd run dev`.
+
+## 3b. VS Code Run and Debug (ikhtiyaari)
 
 1. VS Code → **File → Open Folder…** → dooro galka (kan ay ku jiraan `cabdinasir-bus-backend` iyo `cabdinasir-bus-web`).
    Haddii la weydiiyo *"Do you trust the authors?"* → **Yes, I trust**.
