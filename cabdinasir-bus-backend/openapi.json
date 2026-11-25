@@ -3233,6 +3233,221 @@
         ]
       }
     },
+    "/api/v1/parcels/{id}/media": {
+      "post": {
+        "operationId": "EvidenceController_add",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      },
+      "get": {
+        "operationId": "EvidenceController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/media/{id}": {
+      "get": {
+        "operationId": "EvidenceController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/parcels/{id}/claims": {
+      "post": {
+        "operationId": "EvidenceController_open",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenClaimDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/claims": {
+      "get": {
+        "operationId": "EvidenceController_claims",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/claims/{id}": {
+      "get": {
+        "operationId": "EvidenceController_claim",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/claims/{id}/resolve": {
+      "post": {
+        "operationId": "EvidenceController_resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveClaimDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
     "/api/v1/payments/mobile": {
       "get": {
         "operationId": "PaymentsController_mobile",
@@ -3987,6 +4202,18 @@
         "properties": {}
       },
       "VoidLedgerDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "MediaUploadDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "OpenClaimDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ResolveClaimDto": {
         "type": "object",
         "properties": {}
       },

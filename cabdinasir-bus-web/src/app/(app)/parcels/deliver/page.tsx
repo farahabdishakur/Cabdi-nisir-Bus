@@ -8,6 +8,8 @@ import { dateTime, phone, usd } from '@/lib/format';
 import type { Paged, Parcel, PaymentInput } from '@/lib/types';
 import { Alert, Button, Card, Field, Input, Loading, PageHeader } from '@/components/ui';
 import { CASH_USD, ParcelStatusBadge, PaymentPicker, paymentReady, ErrorAlert } from '@/components/domain';
+import { EvidenceCapture, EvidenceGallery, useParcelMedia } from '@/components/evidence';
+import { useBootstrap } from '@/lib/queries';
 
 /** Wareejin: raadi (koodh/taleefan/magac) → hubi magaca + PIN → COD/kayd → Wareeji → rasiid. */
 export default function DeliverPage() {
@@ -22,6 +24,11 @@ export default function DeliverPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Parcel | null>(null);
+  const boot = useBootstrap();
+  const media = useParcelMedia(selected?.id);
+  const photoRequired = !!boot.data?.settings.requireDeliveryPhoto;
+  const before = (media.data ?? []).filter((m) => m.stage === 'REGISTER' || m.stage === 'LOAD');
+  const handover = (media.data ?? []).filter((m) => m.stage === 'DELIVER');
 
   const results = useQuery({
     queryKey: ['parcels', 'deliver', search],
@@ -114,9 +121,21 @@ export default function DeliverPage() {
                 {(id) => <Input id={id} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} />}
               </Field>
             </div>
+            <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+              <p className="text-sm font-semibold">📷 {t('evidence.deliverTitle')} {photoRequired && <span className="text-red-600">*</span>}</p>
+              {before.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs text-gray-600">{t('evidence.compareHint')}</p>
+                  <EvidenceGallery media={before} />
+                </div>
+              )}
+              <p className="text-xs text-gray-600">{t('evidence.deliverHint')}</p>
+              <EvidenceCapture parcelId={selected.id} trackingCode={selected.trackingCode} stage="DELIVER" compact />
+              {handover.length > 0 && <EvidenceGallery media={handover} />}
+            </div>
             {due > 0 && <PaymentPicker value={pay} onChange={setPay} />}
             {error && <Alert>{error}</Alert>}
-            <Button size="lg" variant="success" onClick={deliver} loading={busy} disabled={pin.length !== 4 || receivedBy.trim().length < 2 || (due > 0 && !paymentReady(pay))}>
+            <Button size="lg" variant="success" onClick={deliver} loading={busy} disabled={pin.length !== 4 || receivedBy.trim().length < 2 || (due > 0 && !paymentReady(pay)) || (photoRequired && !handover.length)}>
               🤝 {t('parcel.deliver')} {due > 0 ? usd(due) : ''}
             </Button>
           </div>

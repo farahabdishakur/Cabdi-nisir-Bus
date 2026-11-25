@@ -16,6 +16,13 @@ FILE="$BACKUP_DIR/cabdinasir-$STAMP.dump"
 pg_dump --format=custom --no-owner --dbname="${DATABASE_URL%%\?*}" --file="$FILE"
 echo "backup: $FILE ($(du -h "$FILE" | cut -f1))"
 
+# Sawirada/video-yada caddaynta + biilasha (lama tirtiraan → nuqul mirror ah oo kordhaya)
+if [[ -n "${UPLOAD_DIR:-}" && -d "$UPLOAD_DIR" ]]; then
+  mkdir -p "$BACKUP_DIR/uploads"
+  if command -v rsync >/dev/null; then rsync -a "$UPLOAD_DIR/" "$BACKUP_DIR/uploads/"; else cp -an "$UPLOAD_DIR/." "$BACKUP_DIR/uploads/"; fi
+  echo "uploads: $BACKUP_DIR/uploads ($(du -sh "$BACKUP_DIR/uploads" | cut -f1))"
+fi
+
 find "$BACKUP_DIR" -name 'cabdinasir-*.dump' -mtime +"$KEEP_DAYS" -print -exec rm -f {} \;
 
 if [[ -n "${OFFSITE_CMD:-}" ]]; then

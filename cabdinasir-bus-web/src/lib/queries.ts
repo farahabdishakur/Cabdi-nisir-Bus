@@ -20,6 +20,7 @@ export interface Bootstrap {
     reservationCutoffMinutes: number;
     maxReservationsPerPhone: number;
     shareTripsWithinCity: number;
+    requireDeliveryPhoto: number;
   };
   company: Company;
   exchangeRate: { usdToSlsh: number; date: string } | null;

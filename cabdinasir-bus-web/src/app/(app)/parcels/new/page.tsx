@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { EvidenceCapture } from '@/components/evidence';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, newKey } from '@/lib/api';
@@ -48,6 +49,7 @@ export default function NewParcelPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Parcel | null>(null);
+  const [shots, setShots] = useState(0);
   const [offlineDone, setOfflineDone] = useState<OfflineItem | null>(null);
   const [estimate, setEstimate] = useState(false);
   const online = useOnline();
@@ -90,6 +92,7 @@ export default function NewParcelPage() {
   }, [toBranchId, categoryId, weightKg, fragile, insured, declaredCents, err, online, boot.data, user?.branchId, t]);
 
   const reset = () => {
+    setShots(0);
     setDone(null);
     setOfflineDone(null);
     setSender({ name: '', phone: '' });
@@ -183,6 +186,12 @@ export default function NewParcelPage() {
               </div>
             )}
             <p className="text-lg font-bold">{usd(done.feeCents)} · {done.payer === 'SENDER' ? t('parcel.payerSender') : t('parcel.payerReceiver')}</p>
+            <div className="rounded-xl border border-dashed border-navy/40 bg-indigo-50/50 p-3 text-left">
+              <p className="mb-1 text-sm font-semibold text-navy">📷 {t('evidence.registerTitle')}</p>
+              <p className="mb-2 text-xs text-gray-600">{t('evidence.registerHint')}</p>
+              <EvidenceCapture parcelId={done.id} trackingCode={done.trackingCode} stage="REGISTER" compact onDone={() => setShots((n) => n + 1)} />
+              {shots > 0 && <p className="mt-1 text-xs font-semibold text-emerald-700">✓ {t('evidence.saved', { n: shots })}</p>}
+            </div>
             <div className="flex flex-wrap justify-center gap-2">
               <Button variant="secondary" onClick={() => window.open(`/print/parcel/${done.id}`, '_blank')}>🖨 {t('common.print')}</Button>
               <Link href={`/parcels/${done.trackingCode}`}><Button variant="secondary">{t('parcel.tracking')}</Button></Link>

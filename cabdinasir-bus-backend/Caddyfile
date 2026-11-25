@@ -4,7 +4,13 @@
 	# SSE (live events) lama cadaadiyo — gzip wuu xannibi karaa event-yada
 	@compressible not path /api/v1/events
 	encode @compressible gzip
-	request_body {
+	# Video caddayn ah (alaabta) — 50MB; wax kale 6MB
+	@media path_regexp media ^/api/v1/parcels/[^/]+/media$
+	request_body @media {
+		max_size 50MB
+	}
+	@notmedia not path_regexp ^/api/v1/parcels/[^/]+/media$
+	request_body @notmedia {
 		max_size 6MB
 	}
 	handle /api/* {
@@ -20,7 +26,13 @@
 	@compressible not path /api/v1/events
 	encode @compressible gzip
 	reverse_proxy api:3000
-	request_body {
+	# Video caddayn ah (alaabta) — 50MB; wax kale 6MB
+	@media path_regexp media ^/api/v1/parcels/[^/]+/media$
+	request_body @media {
+		max_size 50MB
+	}
+	@notmedia not path_regexp ^/api/v1/parcels/[^/]+/media$
+	request_body @notmedia {
 		max_size 6MB
 	}
 }

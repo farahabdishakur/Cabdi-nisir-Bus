@@ -10,6 +10,8 @@ export const TEMPLATES = {
   BOOKING_RESERVED:
     'Cabdinasir Bus: Kursi {seat} waa laguu qabtay {from} - {to}, {departure}. Ballan: {receipt}. Bixi {price} ka hor {until}{pay}, haddii kale kursigu wuu furmayaa.',
   PARCEL_DELIVERED: 'Cabdinasir Bus: Alaabtii aad u dirtay {receiver} ({code}) waa la gaarsiiyay. Mahadsanid.',
+  CLAIM_OPENED: 'Cabdinasir Bus: Cabashadaada {claim} ee alaabta {code} waa la diiwaangeliyay. Waan baari doonnaa, jawaab ayaa lagu soo diri doonaa.',
+  CLAIM_RESOLVED: 'Cabdinasir Bus: Cabashada {claim} ({code}): {decision}. {note}',
 } as const;
 
 export type TemplateKey = keyof typeof TEMPLATES;

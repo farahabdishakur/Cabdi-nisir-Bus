@@ -300,6 +300,9 @@ export class ParcelsService {
     const p0 = await this.prisma.parcel.findUnique({ where: { id } });
     if (!p0) throw Errors.notFound('Parcel', id);
     this.assertSide(user, p0, 'to');
+    if ((await this.settings.get()).requireDeliveryPhoto && !(await this.prisma.parcelMedia.count({ where: { parcelId: id, stage: 'DELIVER' } }))) {
+      throw Errors.bad('DELIVERY_PHOTO_REQUIRED', 'Take a photo of the parcel being handed over first');
+    }
     // Isku day kasta waa la "xiraa" KA HOR hubinta (atomic) — requests isku mar ah 5-ta xad kama gudbi karaan
     const reserved = await this.prisma.parcel.updateMany({ where: { id, pinFailures: { lt: MAX_PIN_FAILURES } }, data: { pinFailures: { increment: 1 } } });
     if (reserved.count === 0) throw Errors.conflict('PIN_LOCKED', 'Too many wrong PINs — verify ID and reset the PIN');

@@ -362,7 +362,7 @@ function Settings() {
 
   const done = () => setOk(t('common.saved'));
   if (!boot.data || !company) return <Loading />;
-  const NUM_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents', 'insuranceBps', 'maxDiscountBps', 'seatHoldSeconds', 'uncollectedDays', 'reservationCutoffMinutes', 'maxReservationsPerPhone', 'shareTripsWithinCity'];
+  const NUM_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents', 'insuranceBps', 'maxDiscountBps', 'seatHoldSeconds', 'uncollectedDays', 'reservationCutoffMinutes', 'maxReservationsPerPhone', 'shareTripsWithinCity', 'requireDeliveryPhoto'];
   const toValue = (k: string) => (MONEY_FIELDS.includes(k) ? parseUsd(p[k]) ?? 0 : Number(p[k]));
 
   return (

@@ -138,53 +138,54 @@ enum SequenceKind {
   TICKET
   PARCEL
   TRACKING
+  CLAIM
 }
 
 model Branch {
-  id        String   @id @default(uuid())
-  code      String   @unique // BOR, WAJ, ...
-  name      String
-  city      String
-  phones    String[]
+  id           String   @id @default(uuid())
+  code         String   @unique // BOR, WAJ, ...
+  name         String
+  city         String
+  phones       String[]
   /// Lambarka Zaad / eDahab ee laantan (macmiilku halkan ayuu lacagta u soo diraa) — rasiidka & SMS-ka
   zaadNumber   String?
   edahabNumber String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  users          User[]
-  routesFrom     Route[]       @relation("RouteFrom")
-  routesTo       Route[]       @relation("RouteTo")
-  parcelsFrom    Parcel[]      @relation("ParcelFrom")
-  parcelsTo      Parcel[]      @relation("ParcelTo")
-  bookings       Booking[]
-  payments       Payment[]
-  cashSessions   CashSession[]
-  sequences      Sequence[]
-  expenses       Expense[]
-  deposits       Deposit[]
+  users        User[]
+  routesFrom   Route[]       @relation("RouteFrom")
+  routesTo     Route[]       @relation("RouteTo")
+  parcelsFrom  Parcel[]      @relation("ParcelFrom")
+  parcelsTo    Parcel[]      @relation("ParcelTo")
+  bookings     Booking[]
+  payments     Payment[]
+  cashSessions CashSession[]
+  sequences    Sequence[]
+  expenses     Expense[]
+  deposits     Deposit[]
 
   @@map("branches")
 }
 
 model User {
-  id           String    @id @default(uuid())
-  name         String
-  phone        String    @unique
-  passwordHash String
-  role         Role
-  branchId     String? // null = SUPER_ADMIN
-  branch       Branch?   @relation(fields: [branchId], references: [id])
-  isActive     Boolean   @default(true)
-  mustChangePassword Boolean @default(false)
+  id                 String    @id @default(uuid())
+  name               String
+  phone              String    @unique
+  passwordHash       String
+  role               Role
+  branchId           String? // null = SUPER_ADMIN
+  branch             Branch?   @relation(fields: [branchId], references: [id])
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
   /// Kor u kac → dhammaan tokens-ka hore isla markiiba way dhacaan (deactivate, role, password)
-  tokenVersion Int       @default(0)
-  failedLogins Int       @default(0)
-  lockedUntil  DateTime?
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  tokenVersion       Int       @default(0)
+  failedLogins       Int       @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   driver        Driver?
   refreshTokens RefreshToken[]
@@ -300,32 +301,32 @@ model SeatHold {
 }
 
 model Booking {
-  id             String        @id @default(uuid())
-  receiptNo      String        @unique
-  tripId         String
-  trip           Trip          @relation(fields: [tripId], references: [id])
-  seatNo         String
-  passengerName  String
-  passengerPhone String
-  priceCents     Int
-  discountCents  Int           @default(0)
-  priceBreakdown Json
-  status         BookingStatus @default(CONFIRMED)
-  soldById       String
-  branchId       String
-  branch         Branch        @relation(fields: [branchId], references: [id])
-  voidReason     String?
-  voidedById     String?
-  voidedAt       DateTime?
-  idempotencyKey String?       @unique
-  printCount     Int           @default(0)
+  id                    String        @id @default(uuid())
+  receiptNo             String        @unique
+  tripId                String
+  trip                  Trip          @relation(fields: [tripId], references: [id])
+  seatNo                String
+  passengerName         String
+  passengerPhone        String
+  priceCents            Int
+  discountCents         Int           @default(0)
+  priceBreakdown        Json
+  status                BookingStatus @default(CONFIRMED)
+  soldById              String
+  branchId              String
+  branch                Branch        @relation(fields: [branchId], references: [id])
+  voidReason            String?
+  voidedById            String?
+  voidedAt              DateTime?
+  idempotencyKey        String?       @unique
+  printCount            Int           @default(0)
   transferredFromTripId String?
   /// Ballan: kursiga waa la hayaa ilaa waqtigan; kadib EXPIRED
-  reservedUntil  DateTime?
-  reservedById   String?
-  confirmedAt    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  reservedUntil         DateTime?
+  reservedById          String?
+  confirmedAt           DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   payments Payment[]
 
@@ -402,6 +403,8 @@ model Parcel {
   history       ParcelStatusHistory[]
   payments      Payment[]
   notifications Notification[]
+  media         ParcelMedia[]
+  claims        ParcelClaim[]
 
   @@index([toBranchId, status])
   @@index([fromBranchId, status])
@@ -461,21 +464,21 @@ model Payment {
 
 /// expected/counted/variance: { "USD": senti, "SLSH": shilin } — CASH kaliya
 model CashSession {
-  id           String    @id @default(uuid())
-  cashierId    String
-  branchId     String
-  branch       Branch    @relation(fields: [branchId], references: [id])
-  openedAt     DateTime  @default(now())
-  closedAt     DateTime?
+  id              String    @id @default(uuid())
+  cashierId       String
+  branchId        String
+  branch          Branch    @relation(fields: [branchId], references: [id])
+  openedAt        DateTime  @default(now())
+  closedAt        DateTime?
   /// Manager ayaa xiray (karraanigu wuu baxay sanduuqa oo furan)
   forceClosedById String?
-  openingFloat Json
-  expected     Json?
-  counted      Json?
-  variance     Json?
-  approvedById String?
-  approvedAt   DateTime?
-  note         String?
+  openingFloat    Json
+  expected        Json?
+  counted         Json?
+  variance        Json?
+  approvedById    String?
+  approvedAt      DateTime?
+  note            String?
 
   payments Payment[]
 
@@ -485,10 +488,10 @@ model CashSession {
 }
 
 model ExchangeRate {
-  date       DateTime @id @db.Date
-  usdToSlsh  Int
-  setById    String
-  createdAt  DateTime @default(now())
+  date      DateTime @id @db.Date
+  usdToSlsh Int
+  setById   String
+  createdAt DateTime @default(now())
 
   @@map("exchange_rates")
 }
@@ -530,22 +533,22 @@ model AuditLog {
 
 /// Kharashka laanta (shidaal, mushahar darawal …) — wuxuu ka baxaa sanduuqa (Payment taban, kind EXPENSE)
 model Expense {
-  id          String          @id @default(uuid())
-  branchId    String
-  branch      Branch          @relation(fields: [branchId], references: [id])
-  category    ExpenseCategory
-  description String
-  tripId      String?
-  paymentId   String          @unique
-  payment     Payment         @relation(fields: [paymentId], references: [id])
-  createdById String
-  idempotencyKey String?      @unique
+  id             String          @id @default(uuid())
+  branchId       String
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  category       ExpenseCategory
+  description    String
+  tripId         String?
+  paymentId      String          @unique
+  payment        Payment         @relation(fields: [paymentId], references: [id])
+  createdById    String
+  idempotencyKey String?         @unique
   /// Sawirka biilka / rasiidka (CashBook "Attach Bill")
-  attachmentUrl String?
-  voidedAt    DateTime?
-  voidedById  String?
-  voidReason  String?
-  createdAt   DateTime        @default(now())
+  attachmentUrl  String?
+  voidedAt       DateTime?
+  voidedById     String?
+  voidReason     String?
+  createdAt      DateTime        @default(now())
 
   @@index([branchId, createdAt])
   @@map("expenses")
@@ -553,19 +556,19 @@ model Expense {
 
 /// Lacag laga wareejiyay sanduuqa laanta → xafiiska guud / bangi. Super Admin ayaa xaqiijiya inuu helay.
 model Deposit {
-  id            String        @id @default(uuid())
-  branchId      String
-  branch        Branch        @relation(fields: [branchId], references: [id])
-  target        DepositTarget
-  reference     String?
-  note          String?
-  paymentId     String        @unique
-  payment       Payment       @relation(fields: [paymentId], references: [id])
-  createdById   String
-  idempotencyKey String?      @unique
-  confirmedById String?
-  confirmedAt   DateTime?
-  createdAt     DateTime      @default(now())
+  id             String        @id @default(uuid())
+  branchId       String
+  branch         Branch        @relation(fields: [branchId], references: [id])
+  target         DepositTarget
+  reference      String?
+  note           String?
+  paymentId      String        @unique
+  payment        Payment       @relation(fields: [paymentId], references: [id])
+  createdById    String
+  idempotencyKey String?       @unique
+  confirmedById  String?
+  confirmedAt    DateTime?
+  createdAt      DateTime      @default(now())
 
   @@index([branchId, createdAt])
   @@map("deposits")
@@ -573,18 +576,18 @@ model Deposit {
 
 /// Karraanigu void ma samayn karo — wuu codsadaa, Manager ayaa go'aamiya (BUSINESS_RULES §1).
 model VoidRequest {
-  id          String        @id @default(uuid())
-  entity      VoidEntity
-  entityId    String
-  branchId    String
-  reason      String
-  refund      Boolean       @default(true)
-  status      RequestStatus @default(PENDING)
+  id            String        @id @default(uuid())
+  entity        VoidEntity
+  entityId      String
+  branchId      String
+  reason        String
+  refund        Boolean       @default(true)
+  status        RequestStatus @default(PENDING)
   requestedById String
-  decidedById String?
-  decidedAt   DateTime?
-  decisionNote String?
-  createdAt   DateTime      @default(now())
+  decidedById   String?
+  decidedAt     DateTime?
+  decisionNote  String?
+  createdAt     DateTime      @default(now())
 
   @@index([branchId, status])
   @@index([entity, entityId])
@@ -593,19 +596,19 @@ model VoidRequest {
 
 /// Outbox-ka SMS: waa la kaydiyaa marka hore, worker ayaa diraya (retry). Internet go'ay → lama lumiyo.
 model Notification {
-  id         String             @id @default(uuid())
-  channel    String             @default("SMS")
-  to         String
-  template   String
-  body       String
-  status     NotificationStatus @default(PENDING)
-  attempts   Int                @default(0)
-  lastError  String?
-  sendAfter  DateTime           @default(now())
-  sentAt     DateTime?
-  parcelId   String?
-  parcel     Parcel?            @relation(fields: [parcelId], references: [id])
-  createdAt  DateTime           @default(now())
+  id        String             @id @default(uuid())
+  channel   String             @default("SMS")
+  to        String
+  template  String
+  body      String
+  status    NotificationStatus @default(PENDING)
+  attempts  Int                @default(0)
+  lastError String?
+  sendAfter DateTime           @default(now())
+  sentAt    DateTime?
+  parcelId  String?
+  parcel    Parcel?            @relation(fields: [parcelId], references: [id])
+  createdAt DateTime           @default(now())
 
   @@index([status, sendAfter])
   @@map("notifications")
@@ -654,22 +657,22 @@ model DriverEarning {
 
 /// Lacag darawalka la siiyay (horumar / mushahar) ama laga jaray. Sanduuqa (DRIVER_PAY) ama xafiiska (ledger).
 model DriverPayment {
-  id            String            @id @default(uuid())
-  driverId      String
-  driver        Driver            @relation(fields: [driverId], references: [id])
-  kind          DriverPaymentKind
-  amountCents   Int
+  id             String            @id @default(uuid())
+  driverId       String
+  driver         Driver            @relation(fields: [driverId], references: [id])
+  kind           DriverPaymentKind
+  amountCents    Int
   /// sanduuqa laanta
-  paymentId     String?           @unique
+  paymentId      String?           @unique
   /// buugga xafiiska (Super Admin)
-  ledgerEntryId String?           @unique
-  note          String?
-  idempotencyKey String?          @unique
-  createdById   String
-  voidedAt      DateTime?
-  voidedById    String?
-  voidReason    String?
-  createdAt     DateTime          @default(now())
+  ledgerEntryId  String?           @unique
+  note           String?
+  idempotencyKey String?           @unique
+  createdById    String
+  voidedAt       DateTime?
+  voidedById     String?
+  voidReason     String?
+  createdAt      DateTime          @default(now())
 
   @@index([driverId, createdAt])
   @@map("driver_payments")
@@ -678,30 +681,106 @@ model DriverPayment {
 /// Buugga xisaabaadka (CashBook): gelin gacan ah — dakhli kale, kharash kale, raasumaal, iibsasho …
 /// Lacagaha tigidhada/alaabta/kharashka sanduuqa si toos ah ayay buugga u galaan (payments) — halkan lama gelin.
 model LedgerEntry {
-  id             String          @id @default(uuid())
-  book           LedgerBook
-  branchId       String?
-  direction      LedgerDirection
-  category       String
-  description    String
-  currency       Currency
-  amount         Int
-  amountUsdCents Int
-  exchangeRate   Int?
-  method         PaymentMethod   @default(CASH)
-  reference      String?
-  entryDate      DateTime        @default(now())
+  id                 String          @id @default(uuid())
+  book               LedgerBook
+  branchId           String?
+  direction          LedgerDirection
+  category           String
+  description        String
+  currency           Currency
+  amount             Int
+  amountUsdCents     Int
+  exchangeRate       Int?
+  method             PaymentMethod   @default(CASH)
+  reference          String?
+  entryDate          DateTime        @default(now())
   /// P&L: kharashkan / dakhligan laan ama gaari gaar ah ayuu khuseeyaa (ikhtiyaari)
   attributedBranchId String?
-  vehicleId      String?
-  attachmentUrl  String?
-  idempotencyKey String?         @unique
-  createdById    String
-  voidedAt       DateTime?
-  voidedById     String?
-  voidReason     String?
-  createdAt      DateTime        @default(now())
+  vehicleId          String?
+  attachmentUrl      String?
+  idempotencyKey     String?         @unique
+  createdById        String
+  voidedAt           DateTime?
+  voidedById         String?
+  voidReason         String?
+  createdAt          DateTime        @default(now())
 
   @@index([book, branchId, entryDate])
   @@map("ledger_entries")
+}
+
+enum MediaStage {
+  REGISTER
+  LOAD
+  ARRIVE
+  DELIVER
+  DAMAGE
+  CLAIM
+  OTHER
+}
+
+enum MediaKind {
+  PHOTO
+  VIDEO
+}
+
+/// Caddaynta alaabta (sawir/video) marxalad kasta — lama tirtiro, lama beddelo (sha256 = caddayn aan la beddelin)
+model ParcelMedia {
+  id        String     @id @default(uuid())
+  parcelId  String
+  parcel    Parcel     @relation(fields: [parcelId], references: [id])
+  stage     MediaStage
+  kind      MediaKind
+  mimeType  String
+  path      String
+  sizeBytes Int
+  sha256    String
+  note      String?
+  branchId  String?
+  takenById String
+  claimId   String?
+  createdAt DateTime   @default(now())
+
+  @@index([parcelId, createdAt])
+  @@map("parcel_media")
+}
+
+enum ClaimType {
+  DAMAGED
+  MISSING
+  WRONG_ITEM
+  INCOMPLETE
+  LATE
+  OTHER
+}
+
+enum ClaimStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+}
+
+/// Cabashada macmiilka (alaab jabtay / lumay / qaar ka maqan) — caddaynta sawirada ayaa lagu go'aamiyaa
+model ParcelClaim {
+  id                 String      @id @default(uuid())
+  claimNo            String      @unique
+  parcelId           String
+  parcel             Parcel      @relation(fields: [parcelId], references: [id])
+  type               ClaimType
+  description        String
+  claimantName       String
+  claimantPhone      String
+  claimedAmountCents Int?
+  status             ClaimStatus @default(OPEN)
+  branchId           String
+  openedById         String
+  resolvedById       String?
+  resolvedAt         DateTime?
+  resolution         String?
+  compensationCents  Int?
+  createdAt          DateTime    @default(now())
+
+  @@index([status, createdAt])
+  @@index([parcelId])
+  @@map("parcel_claims")
 }

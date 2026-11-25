@@ -179,6 +179,10 @@ async function main() {
   if (!/^\d{4}$/.test(pin?.trim() ?? '')) fail(`PIN not shown: ${pin}`);
   await page.screenshot({ path: `${SHOTS}10-parcel-registered.png` });
   log(`parcel registered (COD) — PIN ${pin}`);
+  const photo = { name: 'alaab.jpg', mimeType: 'image/jpeg', buffer: await page.screenshot({ type: 'jpeg', quality: 70, clip: { x: 0, y: 0, width: 480, height: 360 } }) };
+  await page.locator('label', { hasText: '📷 Sawir' }).locator('input[type=file]').setInputFiles(photo);
+  await page.getByText('✓ 1 caddayn waa la kaydiyay').waitFor();
+  log('evidence: parcel photographed at registration (compressed + stamped)');
 
   // 7b. load the parcel onto the vehicle
   await page.goto(`${WEB}/parcels/outgoing`);
@@ -337,11 +341,27 @@ async function main() {
   await page.getByRole('button', { name: /Wareeji \$4\.60/ }).click();
   await page.getByText(/PIN-ka waa khaldan/).waitFor();
   log('wrong PIN refused');
+  await page.getByText('Sawirkii markii la diiwaangeliyay').waitFor();
+  await page.locator('label', { hasText: '📷 Sawir' }).locator('input[type=file]').setInputFiles(photo);
+  await page.getByText('Dhiibid').first().waitFor();
+  log('handover: registration photo shown for comparison + handover photo taken');
   await page.getByLabel('PIN-ka qaataha').fill(pin.trim());
   await page.screenshot({ path: `${SHOTS}15-deliver.png` });
   await page.getByRole('button', { name: /Wareeji \$4\.60/ }).click();
   await page.getByText(/Alaabta waa la wareejiyay/).waitFor();
   log('handed over with PIN + COD $4.60 collected');
+
+  // 9c-2. customer claims "it broke" → claim file shows the photo evidence
+  await page.goto(`${WEB}/parcels/${trackingCode}`);
+  await page.getByText('Caddaynta (sawir & video)').waitFor();
+  await page.getByRole('button', { name: '+ Cabasho cusub' }).click();
+  await page.getByLabel(/Waxa macmiilku sheegay/).fill('Kabaha mid ayaa jaban');
+  await page.getByRole('button', { name: 'Diiwaangeli cabashada' }).click();
+  await page.waitForURL(/\/claims\//);
+  await page.getByText(/WAJ-C-000001/).first().waitFor();
+  await page.getByText('Sawir markii la dhiibay').waitFor();
+  await page.screenshot({ path: `${SHOTS}20-claim-file.png`, fullPage: true });
+  log('claim opened → case file with registration + handover photos');
 
   // 9d. public pages (no login): tracking + schedule
   const pub = await browser.newContext();

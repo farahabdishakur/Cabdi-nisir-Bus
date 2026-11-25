@@ -50,6 +50,7 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 | Sanduuqa | `/cash` | SA, BM, CASHIER | 1 |
 | Warbixino | `/reports` | SA, BM | 1 |
 | Xisaabaadka (buug laan/xafiis, P&L, mushaharka darawallada) | `/books` | SA, BM | 1 |
+| Cabashooyinka (caddaynta sawir/video, go'aan) | `/claims`, `/claims/[id]` | SA, BM, CASHIER | 1 |
 | Admin (laamo, routes, gaadiid, darawal, shaqaale, noocyo, qiime, sicir) | `/admin/*` | SA (shaqaale: BM) | 1 |
 | Audit log | `/audit` | SA, BM | 1 |
 | Daabacaad (rasiid, label, manifest) | `/print/*` | SA, BM, CASHIER | 1 |
@@ -138,3 +139,4 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
   - Tests: 11 unit · **E2E 26 tallaabo** (oo ay ku jiraan offline → reload → sync, transfer, reprint, raadin, audit, tracking dadweyne) — dhammaan way gudbeen.
 - **2026-11-25** — **v0.3.0 Xisaabaadka** (`/books`, maamulayaasha): buugga laanta (toos — Cash $/SLSH/Zaad/eDahab, haraaga socda, filter akoon, biil 📎, CSV) · buugga xafiiska (Super Admin: + Lacag gashay / − Lacag baxday, qaybo, laan/baabuur, sawir biil, void) · **Faa'iido & khasaare** (dakhli, kharash, mushaharka darawalka, faa'iido saafi, baabuur kasta, CSV) · **Mushaharka darawallada** (liis + haraaga, bayaan, qaabka mushaharka, bixin/advance/goyn/abaalmarin, void, mushaharka bisha) · sanduuqa: sawirka biilka kharashka (kamarad taleefan). Tests: 11 unit · **E2E 29 tallaabo** — dhammaan way gudbeen.
 - **2026-11-25** — **Rasiidyada cusub (Receipt Voucher)** — qaabka warqadda shirkadda: tigidh (wadada + kursi sanduuq, Taariikh/Magaca macmilka/Waqtiga/Gaadhiga/Ku, Lacagta sanduuq, Saxeexa, QR yar), alaab (PIN sanduuq, COD), offline, iyo **rasiidka bixinta darawalka** (`/print/driver-payment/[id]`: la siiyay, wadarta kasbashada/bixinta, inta weli lagu leeyahay, laba saxeex) — si toos ah ayuu u furmaa marka la bixiyo. E2E 30 tallaabo — dhammaan way gudbeen.
+- **2026-11-25** — **v0.4.0 Caddaynta & cabashooyinka:** bogga alaabta: sawir/video (kamarad taleefan, la yareeyo + calaamad, horumar %), gallery marxalad kasta + daawade (SHA-256) · alaab dir: "Sawir alaabta hadda" · wareejin: sawirkii diiwaangelinta (barbar dhig) + sawirka dhiibista (waajib haddii dejinta) · `/claims` + `/claims/[id]` (faylka caddaynta, hubinta ✓/✕, go'aan maamule). E2E 33 tallaabo — dhammaan way gudbeen.

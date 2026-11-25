@@ -202,3 +202,37 @@ export interface PaymentInput {
   reference?: string;
   payerPhone?: string;
 }
+
+export type MediaStage = 'REGISTER' | 'LOAD' | 'ARRIVE' | 'DELIVER' | 'DAMAGE' | 'CLAIM' | 'OTHER';
+export interface ParcelMedia {
+  id: string;
+  parcelId: string;
+  stage: MediaStage;
+  kind: 'PHOTO' | 'VIDEO';
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  note: string | null;
+  claimId: string | null;
+  createdAt: string;
+  takenBy: string | null;
+  branchCode: string | null;
+}
+export type ClaimType = 'DAMAGED' | 'MISSING' | 'WRONG_ITEM' | 'INCOMPLETE' | 'LATE' | 'OTHER';
+export type ClaimStatus = 'OPEN' | 'ACCEPTED' | 'REJECTED';
+export interface ParcelClaim {
+  id: string;
+  claimNo: string;
+  parcelId: string;
+  type: ClaimType;
+  description: string;
+  claimantName: string;
+  claimantPhone: string;
+  claimedAmountCents: number | null;
+  status: ClaimStatus;
+  resolution: string | null;
+  compensationCents: number | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  parcel?: { id: string; trackingCode: string; status: ParcelStatus; senderName: string; receiverName: string; feeCents: number; declaredValueCents: number | null };
+}

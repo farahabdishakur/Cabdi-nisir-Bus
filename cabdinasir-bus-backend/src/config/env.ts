@@ -16,6 +16,7 @@ class Env {
   @IsOptional() @IsString() SMS_HTTP_TOKEN?: string;
   @IsOptional() @IsString() SMS_SENDER?: string;
   @IsOptional() @IsString() UPLOAD_DIR?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) MEDIA_MAX_VIDEO_MB?: number;
   @IsOptional() @IsIn(['true', 'false']) JOBS_ENABLED?: string;
   @IsOptional() @IsIn(['true', 'false']) THROTTLE_DISABLED?: string;
   @IsOptional() @IsIn(['true', 'false']) SWAGGER_ENABLED?: string;

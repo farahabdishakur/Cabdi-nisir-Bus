@@ -17,6 +17,8 @@ export interface PricingSettings {
   reservationCutoffMinutes: number;
   /** Ballamo ugu badan hal taleefan hal safar */
   maxReservationsPerPhone: number;
+  /** 1 = alaabta lama dhiibi karo ilaa sawir (marxaladda DELIVER) laga qaado — caddayn ka dhan ah cabasho been ah */
+  requireDeliveryPhoto: number;
 }
 
 export const DEFAULT_SETTINGS: PricingSettings = {
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: PricingSettings = {
   shareTripsWithinCity: 1,
   reservationCutoffMinutes: 60,
   maxReservationsPerPhone: 4,
+  requireDeliveryPhoto: 0,
 };
 
 /** Macluumaadka shirkadda ee rasiidka/label-ka ka muuqda (boodhka xafiiska). */

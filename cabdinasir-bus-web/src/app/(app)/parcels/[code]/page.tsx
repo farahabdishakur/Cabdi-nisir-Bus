@@ -2,67 +2,42 @@
 
 import { use, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, getAccessToken } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { can, isManager } from '@/lib/permissions';
 import { dateTime, phone, usd } from '@/lib/format';
-import type { Parcel } from '@/lib/types';
+import type { Parcel, ParcelClaim } from '@/lib/types';
 import { Alert, Button, Card, Checkbox, Field, Input, Loading, PageHeader } from '@/components/ui';
 import { PaidVia, ParcelStatusBadge, ReasonModal } from '@/components/domain';
+import { EvidencePanel } from '@/components/evidence';
+import { ClaimStatusBadge, OpenClaimModal } from '@/components/claims';
 
 export default function ParcelPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
   const { t, err } = useI18n();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const router = useRouter();
   const q = useQuery({ queryKey: ['parcels', 'one', code], queryFn: () => api<Parcel>(`/parcels/${encodeURIComponent(code)}`) });
   const [modal, setModal] = useState<'' | 'void' | 'request' | 'missing' | 'damaged' | 'pin' | 'correct'>('');
   const [newPin, setNewPin] = useState('');
   const [refund, setRefund] = useState(true);
   const [fix, setFix] = useState({ receiverName: '', receiverPhone: '', senderName: '', senderPhone: '' });
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [claimOpen, setClaimOpen] = useState(false);
 
   const p = q.data;
   useEffect(() => {
     if (p) setFix({ receiverName: p.receiverName, receiverPhone: p.receiverPhone, senderName: p.senderName, senderPhone: p.senderPhone });
   }, [p]);
 
-  // sawirka: token-ka header-ka ayuu u baahan yahay → blob URL
-  useEffect(() => {
-    if (!p?.photoUrl) return;
-    let url = '';
-    fetch(`/api/v1/parcels/${p.id}/photo`, { headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` } })
-      .then((r) => (r.ok ? r.blob() : null))
-      .then((b) => {
-        if (b) {
-          url = URL.createObjectURL(b);
-          setPhoto(url);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [p?.id, p?.photoUrl]);
-
   if (q.isLoading) return <Loading />;
   if (!p) return <Alert>{err(q.error)}</Alert>;
   const refresh = () => qc.invalidateQueries({ queryKey: ['parcels'] });
   const isFrom = user?.role === 'SUPER_ADMIN' || user?.branchId === p.fromBranchId;
   const closed = p.status === 'DELIVERED' || p.status === 'VOIDED';
-
-  const upload = async (file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      await api(`/parcels/${p.id}/photo`, { method: 'POST', form });
-      refresh();
-    } catch (e) {
-      setError(err(e));
-    }
-  };
 
   return (
     <div>
@@ -86,7 +61,6 @@ export default function ParcelPage({ params }: { params: Promise<{ code: string 
         }
       />
       {newPin && <div className="mb-3"><Alert tone="yellow">{t('parcel.newPin', { pin: newPin })}</Alert></div>}
-      {error && <div className="mb-3"><Alert>{error}</Alert></div>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title={<span className="flex items-center gap-2">{p.fromBranch.name} → {p.toBranch.name} <ParcelStatusBadge s={p.status} /></span>}>
@@ -115,16 +89,15 @@ export default function ParcelPage({ params }: { params: Promise<{ code: string 
             ))}
           </ol>
         </Card>
-        <Card title={t('parcel.photo')}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {photo ? <img src={photo} alt={p.trackingCode} className="mb-3 max-h-72 rounded-lg" /> : <p className="mb-3 text-sm text-gray-500">—</p>}
-          <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-gray-300 px-4 text-sm font-semibold hover:bg-gray-50">
-            📷 {t('parcel.uploadPhoto')}
-            <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-          </label>
+        <Card title={`📷 ${t('evidence.title')}`} className="lg:col-span-2">
+          <EvidencePanel parcel={p} />
+        </Card>
+        <Card title={`⚖️ ${t('claims.title')}`} className="lg:col-span-2" actions={p.status !== 'VOIDED' && <Button size="sm" variant="secondary" onClick={() => setClaimOpen(true)}>+ {t('claims.new')}</Button>}>
+          <ParcelClaims parcelId={p.id} />
         </Card>
       </div>
 
+      <OpenClaimModal parcel={p} open={claimOpen} onClose={() => setClaimOpen(false)} onDone={(c) => router.push(`/claims/${c.id}`)} />
       <ReasonModal open={modal === 'void'} title={t('booking.void')} danger onClose={() => setModal('')} onSubmit={async (reason) => { await api(`/parcels/${p.id}/void`, { method: 'POST', body: { reason, refund } }); refresh(); }}>
         <Checkbox label={t('booking.refund')} checked={refund} onChange={setRefund} />
       </ReasonModal>
@@ -145,5 +118,26 @@ export default function ParcelPage({ params }: { params: Promise<{ code: string 
         </div>
       </ReasonModal>
     </div>
+  );
+}
+
+function ParcelClaims({ parcelId }: { parcelId: string }) {
+  const { t } = useI18n();
+  const q = useQuery({ queryKey: ['claims', 'parcel', parcelId], queryFn: () => api<{ data: ParcelClaim[] }>('/claims', { query: { parcelId, limit: 50 } }) });
+  const list = q.data?.data ?? [];
+  if (!list.length) return <p className="text-sm text-gray-500">{t('claims.noneForParcel')}</p>;
+  return (
+    <ul className="flex flex-col gap-2">
+      {list.map((c) => (
+        <li key={c.id}>
+          <Link href={`/claims/${c.id}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 p-2 text-sm hover:bg-gray-50">
+            <span className="font-mono font-semibold">{c.claimNo}</span>
+            <ClaimStatusBadge s={c.status} />
+            <span>{t(`claims.types.${c.type}`)}</span>
+            <span className="text-gray-500">· {dateTime(c.createdAt)}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

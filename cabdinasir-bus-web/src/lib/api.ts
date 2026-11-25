@@ -149,3 +149,37 @@ export async function download(path: string, query: RequestOptions['query'], fil
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+/**
+ * Soo geli fayl (sawir/video) oo leh horumarka (progress %) — internet gaabis ah awgiis karraanigu wuu arkaa inta dhimman.
+ * 401 → refresh hal mar → isku day mar kale.
+ */
+export function uploadWithProgress<T>(path: string, form: FormData, onProgress?: (pct: number) => void, retried = false): Promise<T> {
+  return new Promise<T>((resolveP, rejectP) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE}${path}`);
+    xhr.withCredentials = true;
+    if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
+    xhr.onerror = () => rejectP(new ApiError('NETWORK_ERROR', 'Network error', 0));
+    xhr.onload = async () => {
+      if (xhr.status === 401 && !retried && (await refreshSession())) {
+        uploadWithProgress<T>(path, form, onProgress, true).then(resolveP, rejectP);
+        return;
+      }
+      const data = xhr.responseText ? safeJson(xhr.responseText) : undefined;
+      if (xhr.status >= 200 && xhr.status < 300) return resolveP(data as T);
+      const e = (data as { error?: { code?: string; message?: string; details?: Record<string, unknown> } } | undefined)?.error;
+      rejectP(new ApiError(e?.code ?? (xhr.status === 413 ? 'FILE_TOO_LARGE' : `HTTP_${xhr.status}`), e?.message ?? xhr.statusText, xhr.status, e?.details));
+    };
+    xhr.send(form);
+  });
+}
+
+/** Fayl ilaalisan (sawir/video/biil) → blob URL (token-ka header-ka ayuu u baahan yahay) */
+export async function fetchBlobUrl(path: string, retried = false): Promise<string> {
+  const res = await fetch(`${BASE}${path}`, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'include' });
+  if (res.status === 401 && !retried && (await refreshSession())) return fetchBlobUrl(path, true);
+  if (!res.ok) throw new ApiError(`HTTP_${res.status}`, res.statusText, res.status);
+  return URL.createObjectURL(await res.blob());
+}

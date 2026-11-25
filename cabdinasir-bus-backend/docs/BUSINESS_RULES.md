@@ -238,3 +238,11 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
    - **Kasbashadu waa toos:** safarku marka uu `ARRIVED` noqdo → kasbasho hal mar (idempotent, unique driver+trip). Mushaharka bisha: cron 1-da bil kasta (bishii hore), unique driver+period.
 4. **Bixinta darawalka:** horumaris (advance) / bixin → cash-ka sanduuqa karraaniga (waa inuu ku filan yahay) ama xafiiska guud (Super Admin); goyn (deduction) lacag ma dhaqaajiso. Haraaga = kasbasho − bixin. Void bixin: sanduuqu waa inuu furan yahay (lacag celin).
 5. **Faa'iido & khasaare (P&L):** dakhli (tigidh, alaab, kayd − celin + dakhli kale) − kharash (sanduuq + xafiis) − mushaharka darawalka (**markuu kasbaday**, ma aha markii la bixiyay). Kuma jiraan: raasumaal, deyn, iibsasho baabuur, qaadasho milkiile. Baabuur kasta: dakhliga safarradiisa − kharashka loogu qoray − mushaharka darawalka safarradaas.
+
+## 27. Caddaynta Alaabta (Sawir & Video) iyo Cabashooyinka
+1. **Marxalad kasta waa la sawiri karaa:** diiwaangelin (xaaladda alaabta markii la keenay), rar, gaadhay, dhiibid (qaataha oo haysta), dhaawac, cabasho. Sawir: JPG/PNG/WEBP ≤ 8MB (website-ku wuu yareeyaa 1600px + calaamad: koodh, waqti, laan, cid). Video: MP4/MOV/3GP/WEBM ≤ `MEDIA_MAX_VIDEO_MB` (40MB).
+2. **Nooca faylka waxaa la hubiyaa bilowgiisa (magic bytes)** — mimetype-ka client-ka laguma kalsoona.
+3. **Caddayntu lama tirtiro lamana beddelo** (DB triggers: delete + update waa xannibban). Fayl kasta SHA-256 (faraha) ayaa la kaydiyaa → caddayn ah in aan la taaban. Audit: `ADD_MEDIA`.
+4. **Dejin `requireDeliveryPhoto` (1/0):** 1 → alaab lama dhiibi karo ilaa sawir `DELIVER` laga qaado (`DELIVERY_PHOTO_REQUIRED`). Default 0 — waxaa lagula talinayaa 1.
+5. **Cabasho** (jabtay, lumay, qaar ka maqan, alaab kale, daahday, kale): karraani kasta oo laanta diraha/qaataha ah ayaa furi kara; lambar `WAJ-C-000001`; **hal cabasho furan alaab kasta** (DB index); macmiilka SMS ayaa loo diraa.
+6. **Go'aanka = maamule kaliya:** faylka cabashada wuxuu muujiyaa caddaynta oo dhan + hubinta (sawir diiwaangelin? dhiibid? PIN sax ah? jajaban kara la sheegay? imisa saac kadib dhiibista?). Aqbal (magdhow ikhtiyaari) ama diid (magdhow ma leh); hal mar; SMS go'aanka.

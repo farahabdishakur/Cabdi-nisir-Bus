@@ -1,7 +1,7 @@
 import { SequenceKind } from '@prisma/client';
 import { Tx } from '../prisma/prisma.service';
 
-const PREFIX: Record<SequenceKind, string> = { TICKET: 'T', PARCEL: 'P', TRACKING: 'CB' };
+const PREFIX: Record<SequenceKind, string> = { TICKET: 'T', PARCEL: 'P', TRACKING: 'CB', CLAIM: 'C' };
 
 /**
  * Lambar taxane ah laan kasta (CLAUDE.md §3.8). Waa in lagu wacaa transaction gudaheed:
