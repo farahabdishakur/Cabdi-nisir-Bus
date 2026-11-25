@@ -30,7 +30,10 @@ services:
 
   # Website-ka (repo cabdinasir-bus-web — waa in lagu clone-gareeyaa ../web)
   web:
-    build: ../web
+    build:
+      context: ../cabdinasir-bus-web
+      args:
+        API_URL: http://api:3000
     restart: unless-stopped
     environment:
       API_URL: http://api:3000

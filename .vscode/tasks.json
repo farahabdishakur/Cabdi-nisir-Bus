@@ -1,0 +1,32 @@
+{
+  // VS Code: Terminal → Run Task… (ama Ctrl+Shift+P → "Tasks: Run Task")
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "▶ Kici nidaamka (database + backend + website)",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.demo.yml up -d --build && echo Website: http://localhost:3001 && echo Backend: http://localhost:3000/api/docs",
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "📜 Eeg logs-ka backend-ka",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.demo.yml logs -f api",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "⏹ Jooji nidaamka",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.demo.yml down",
+      "problemMatcher": []
+    },
+    {
+      "label": "🧹 Tirtir xogta tijaabada (bilow cusub)",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.demo.yml down -v",
+      "problemMatcher": []
+    }
+  ]
+}

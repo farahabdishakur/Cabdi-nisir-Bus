@@ -263,6 +263,7 @@ async function main() {
   log('offline reload: page served from cache, still signed in');
   await ctx.setOffline(false);
   await page.goto(`${WEB}/offline`);
+  await page.getByText('Online', { exact: true }).first().waitFor(); // internet-ku wuu soo noqday (topbar)
   await page.getByRole('button', { name: /Dir hadda/ }).click();
   await page.getByText(/CB-BO1-000002/).waitFor();
   await page.screenshot({ path: `${SHOTS}18-offline-synced.png` });

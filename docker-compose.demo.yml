@@ -1,0 +1,52 @@
+# Tijaabo (demo) kombiyuutarkaaga: database + backend + website + xog tijaabo ah.
+#   Windows: laba jeer riix START-WINDOWS.bat   ·   Mac/Linux: ./start.sh
+#   Website: http://localhost:3001   ·   Backend (API docs): http://localhost:3000/api/docs
+# Production MA AHA — passwords-ka halkan ku qoran waa tijaabo kaliya.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cb
+      POSTGRES_PASSWORD: cb
+      POSTGRES_DB: cabdinasir_bus
+    volumes: [demo_pgdata:/var/lib/postgresql/data]
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cb -d cabdinasir_bus"]
+      interval: 3s
+      retries: 30
+
+  api:
+    build: ./cabdinasir-bus-backend
+    environment:
+      DATABASE_URL: postgresql://cb:cb@db:5432/cabdinasir_bus?schema=public
+      JWT_ACCESS_SECRET: demo-access-secret-change-me-0123456789abcdef
+      JWT_REFRESH_SECRET: demo-refresh-secret-change-me-0123456789abcdef
+      PORT: "3000"
+      CORS_ORIGIN: http://localhost:3001
+      SWAGGER_ENABLED: "true"
+      SMS_PROVIDER: log
+      UPLOAD_DIR: /data/uploads
+      SEED_DEMO: "true"
+      SEED_SUPER_ADMIN_PHONE: "0630000000"
+      SEED_SUPER_ADMIN_PASSWORD: "ChangeMe123!"
+    # database-ka cusboonaysii → xogta tijaabada geli (mar kasta waa ammaan — upsert) → server-ka kici
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/main.js"]
+    volumes: [demo_uploads:/data/uploads]
+    ports: ["3000:3000"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build:
+      context: ./cabdinasir-bus-web
+      args:
+        API_URL: http://api:3000
+    environment:
+      API_URL: http://api:3000
+    ports: ["3001:3001"]
+    depends_on: [api]
+
+volumes:
+  demo_pgdata:
+  demo_uploads:
