@@ -12,6 +12,7 @@ import type { Booking, PaymentInput } from '@/lib/types';
 import { Alert, Button, Checkbox, Field, Input, Modal } from './ui';
 import { BookingStatusBadge, CASH_USD, PaidVia, PaymentPicker, paymentReady, ReasonModal } from './domain';
 import { TransferModal } from './transfer-modal';
+import { PaperNoField, showPaperCopy, useTicketMode } from './paper-ticket';
 
 /** Faahfaahinta tigidhka + ficillada (bixi ballan, jooji, void / codso void, sax, daabac). */
 export function BookingModal({ booking, onClose }: { booking: Booking | null; onClose: () => void }) {
@@ -23,7 +24,9 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
   const [error, setError] = useState('');
   const [modal, setModal] = useState<'' | 'cancel' | 'void' | 'request' | 'correct' | 'transfer'>('');
   const [refund, setRefund] = useState(true);
-  const [fix, setFix] = useState({ passengerName: '', passengerPhone: '' });
+  const [fix, setFix] = useState({ passengerName: '', passengerPhone: '', paperTicketNo: '' });
+  const [paperNo, setPaperNo] = useState('');
+  const ticketMode = useTicketMode();
   const key = useRef(newKey());
   const myCity = useMyCity();
 
@@ -32,7 +35,7 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
     setError('');
     setModal('');
     key.current = newKey();
-    if (booking) setFix({ passengerName: booking.passengerName, passengerPhone: booking.passengerPhone });
+    if (booking) setFix({ passengerName: booking.passengerName, passengerPhone: booking.passengerPhone, paperTicketNo: booking.paperTicketNo ?? '' });
   }, [booking]);
 
   if (!booking) return null;
@@ -48,14 +51,15 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
   const confirm = async () => {
     setPaying(true);
     setError('');
-    const tab = pendingTab();
+    const tab = ticketMode !== 1 ? pendingTab() : null;
     try {
-      const done = await api<Booking>(`/bookings/${b.id}/confirm`, { method: 'POST', body: { payment: pay } });
+      const done = await api<Booking>(`/bookings/${b.id}/confirm`, { method: 'POST', body: { payment: pay, ...(paperNo.trim() && { paperTicketNo: paperNo.trim() }) } });
       refresh();
-      tab.go(`/print/ticket/${done.id}`);
+      if (ticketMode === 1) showPaperCopy(done);
+      else tab?.go(`/print/ticket/${done.id}`);
       onClose();
     } catch (e) {
-      tab.cancel();
+      tab?.cancel();
       setError(err(e));
     } finally {
       setPaying(false);
@@ -72,6 +76,12 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
           </dd>
           <dt className="text-gray-500">{t('booking.seat')}</dt>
           <dd className="font-bold">{b.seatNo}</dd>
+          {b.paperTicketNo && (
+            <>
+              <dt className="text-gray-500">{t('paper.no')}</dt>
+              <dd className="font-mono font-bold text-red-700">{b.paperTicketNo}</dd>
+            </>
+          )}
           <dt className="text-gray-500">{t('booking.passenger')}</dt>
           <dd>{b.passengerName}</dd>
           <dt className="text-gray-500">{t('common.phone')}</dt>
@@ -102,8 +112,9 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
         {b.status === 'RESERVED' && (
           <div className="mb-4 flex flex-col gap-3 rounded-lg bg-violet-50 p-3">
             <PaymentPicker value={pay} onChange={setPay} />
+            {ticketMode !== 0 && <PaperNoField value={paperNo} onChange={setPaperNo} required={ticketMode === 1} />}
             {error && <Alert>{error}</Alert>}
-            <Button size="lg" variant="success" onClick={confirm} loading={paying} disabled={!paymentReady(pay)}>
+            <Button size="lg" variant="success" onClick={confirm} loading={paying} disabled={!paymentReady(pay) || (ticketMode === 1 && !paperNo.trim())}>
               {t('booking.payNow')} {usd(b.priceCents)}
             </Button>
           </div>
@@ -200,13 +211,15 @@ export function BookingModal({ booking, onClose }: { booking: Booking | null; on
         title={t('booking.correct')}
         onClose={() => setModal('')}
         onSubmit={async (reason) => {
-          await api(`/bookings/${b.id}`, { method: 'PATCH', body: { ...fix, reason } });
+          const { paperTicketNo, ...rest } = fix;
+          await api(`/bookings/${b.id}`, { method: 'PATCH', body: { ...rest, ...(paperTicketNo && paperTicketNo !== (b.paperTicketNo ?? '') && { paperTicketNo }), reason } });
           refresh();
           onClose();
         }}
       >
         <Field label={t('booking.passenger')}>{(id) => <Input id={id} value={fix.passengerName} onChange={(e) => setFix({ ...fix, passengerName: e.target.value })} />}</Field>
         <Field label={t('common.phone')}>{(id) => <Input id={id} value={fix.passengerPhone} onChange={(e) => setFix({ ...fix, passengerPhone: e.target.value })} />}</Field>
+        {ticketMode !== 0 && <PaperNoField value={fix.paperTicketNo} onChange={(v) => setFix({ ...fix, paperTicketNo: v })} required={false} />}
       </ReasonModal>
     </>
   );

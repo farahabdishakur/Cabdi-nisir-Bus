@@ -109,11 +109,19 @@ async function main() {
   await page.getByLabel('Taleefan').first().fill('0634111222');
   await page.getByLabel('Magac').first().fill('Axmed Cali');
   await page.screenshot({ path: `${SHOTS}03-sell-panel.png` });
-  const [ticketTab] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('button', { name: /^Bixi \$/ }).click()]);
+  // tigidhka warqadda (gacanta): lambarka buugga → kaarka "ku qor warqadda" → daabacaad ikhtiyaari
+  await page.getByLabel(/Lambarka tigidhka warqadda/).fill('bo1-1001');
+  await page.getByRole('button', { name: /^Bixi \$/ }).click();
+  await page.getByText('Ku qor tigidhka warqadda').waitFor();
+  await page.getByText('BO1-1001').first().waitFor();
+  await page.screenshot({ path: `${SHOTS}04a-paper-copy.png` });
+  log('paper ticket: number BO1-1001 stored; "write on the paper" card shows name, bus, seat, time, amount');
+  const [ticketTab] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('button', { name: /Daabac \(ikhtiyaari\)/ }).click()]);
   await ticketTab.waitForLoadState();
   await ticketTab.getByText(/BO1-T-/).first().waitFor();
   await ticketTab.screenshot({ path: `${SHOTS}04-ticket-receipt.png`, fullPage: true });
   await ticketTab.close();
+  await page.getByRole('button', { name: /Waan qoray/ }).click();
   await page.getByRole('button', { name: /Kursi 3: La iibiyay/ }).waitFor();
   log('ticket sold (cash) + receipt printed, seat 3 now sold');
 
@@ -135,10 +143,14 @@ async function main() {
   await page.getByRole('button', { name: 'Hubi' }).click();
   await page.getByText(/lama isticmaalin/).waitFor();
   await page.screenshot({ path: `${SHOTS}06-pay-reservation-zaad.png` });
-  const [t2] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('dialog').getByRole('button', { name: /^Bixi/ }).click()]);
+  await page.getByRole('dialog').getByLabel(/Lambarka tigidhka warqadda/).fill('BO1-1002');
+  await page.getByRole('dialog').getByRole('button', { name: /^Bixi/ }).click();
+  await page.getByText('Ku qor tigidhka warqadda').waitFor();
+  const [t2] = await Promise.all([ctx.waitForEvent('page'), page.getByRole('button', { name: /Daabac \(ikhtiyaari\)/ }).click()]);
   await t2.waitForLoadState();
   await t2.getByText('ZD-E2E-001').first().waitFor();
   await t2.close();
+  await page.getByRole('button', { name: /Waan qoray/ }).click();
   await page.getByRole('button', { name: /Kursi 5: La iibiyay/ }).waitFor();
   log('reservation paid via Zaad → ticket with transaction on receipt');
 
@@ -149,6 +161,7 @@ async function main() {
   await page.getByRole('radio', { name: 'Zaad' }).click();
   await page.getByLabel(/transaction/i).fill('zd-e2e-001');
   await page.getByLabel(/laga soo diray/i).fill('0634555666');
+  await page.getByLabel(/Lambarka tigidhka warqadda/).fill('BO1-1003');
   await page.getByRole('button', { name: /^Bixi \$/ }).click();
   await page.getByText(/horay ayaa loo isticmaalay/i).first().waitFor();
   await page.screenshot({ path: `${SHOTS}07-zaad-duplicate-blocked.png` });
@@ -422,6 +435,10 @@ async function main() {
   await sp.waitForTimeout(500);
   if ((await sp.getByRole('combobox').last().inputValue()) !== '') fail('P&L all-branches selection was reset');
   log('super admin: company-wide P&L (all branches) stays selected');
+  await sp.goto(`${WEB}/print/blank-tickets?prefix=BO1&from=1001&count=4`);
+  await sp.getByText('№ BO1-1004').first().waitFor();
+  await sp.screenshot({ path: `${SHOTS}23-paper-tickets.png`, fullPage: true });
+  log('paper ticket booklet: 4 numbered tickets (stub + ticket) ready to print');
   await saCtx.close();
 
   // 10. phone layout

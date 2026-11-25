@@ -98,6 +98,7 @@ export interface Booking {
   branchId: string;
   reservedUntil: string | null;
   printCount: number;
+  paperTicketNo?: string | null;
   payments: Payment[];
   createdAt: string;
 }

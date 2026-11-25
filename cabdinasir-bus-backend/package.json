@@ -1,6 +1,6 @@
 {
   "name": "cabdinasir-bus-backend",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Cabdinasir Bus API \u2014 rakaab, kuraas, alaab iyo lacag",
   "scripts": {

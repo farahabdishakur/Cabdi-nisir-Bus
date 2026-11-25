@@ -45,6 +45,8 @@ export async function seedBase(prisma: PrismaClient) {
   const driver = await prisma.driver.create({ data: { name: 'Cali', phone: '0633' } });
   const shoes = await prisma.parcelCategory.create({ data: { nameSo: 'Kabo', nameEn: 'Shoes', baseFeeCents: 100 } });
   const banned = await prisma.parcelCategory.create({ data: { nameSo: 'Shidaal', nameEn: 'Fuel', baseFeeCents: 0, isProhibited: true } });
+  // tests-ka hore: printer (lambar warqad looma baahna); paper-ticket.e2e-spec ayaa tijaabiya ticketMode = 1
+  await prisma.pricingSetting.create({ data: { key: 'ticketMode', value: 0 } });
   return { bor, waj, users, route, vehicle, driver, shoes, banned };
 }
 

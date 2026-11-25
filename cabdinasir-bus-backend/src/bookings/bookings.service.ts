@@ -1,7 +1,7 @@
 import { DispatchService } from '../dispatch/dispatch.service';
 import { Injectable } from '@nestjs/common';
 import { BookingStatus, PaymentKind, PaymentMethod, Prisma, Role } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, Tx } from '../prisma/prisma.service';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
 import { Errors } from '../common/errors';
 import { branchFilter } from '../common/branch-scope';
@@ -39,6 +39,21 @@ export class BookingsService {
     private readonly notifications: NotificationsService,
     private readonly dispatch: DispatchService,
   ) {}
+
+  /**
+   * Tigidhka warqadda (buugga hore loo daabacay): lambarku hal mar oo keliya laan kasta — warqad lumay/la isticmaalay
+   * lama isticmaali karo mar labaad (xataa haddii tigidhkii hore la void-gareeyay).
+   */
+  private async paperNo(tx: Tx, branchId: string, raw: string | undefined, required: boolean, exceptId?: string) {
+    const no = raw?.trim().toUpperCase() || null;
+    if (!no) {
+      if (required) throw Errors.bad('PAPER_TICKET_REQUIRED', 'Enter the paper ticket number');
+      return null;
+    }
+    const used = await tx.booking.findFirst({ where: { branchId, paperTicketNo: no, ...(exceptId && { id: { not: exceptId } }) }, select: { receiptNo: true } });
+    if (used) throw Errors.conflict('PAPER_TICKET_USED', 'This paper ticket number was already used', { receiptNo: used.receiptNo, paperTicketNo: no });
+    return no;
+  }
 
   async create(user: AuthUser, dto: CreateBookingDto, idempotencyKey?: string) {
     if (idempotencyKey) {
@@ -82,10 +97,12 @@ export class BookingsService {
 
         // Lacagta & rasiidka: laanta iibisay (Boorama 2 → BO2-T-…); Super Admin → laanta safarku ka baxo
         const branch = isSuperAdmin(user) || !user.branchId ? trip.route.fromBranch : await tx.branch.findUniqueOrThrow({ where: { id: user.branchId } });
+        const paperTicketNo = await this.paperNo(tx, branch.id, dto.paperTicketNo, settings.ticketMode === 1);
         const receiptNo = await nextNumber(tx, branch.id, branch.code, 'TICKET');
         const booking = await tx.booking.create({
           data: {
             receiptNo,
+            paperTicketNo,
             tripId: trip.id,
             seatNo: dto.seatNo,
             passengerName: dto.passengerName.trim(),
@@ -138,6 +155,7 @@ export class BookingsService {
     if (q.q) {
       where.OR = [
         { receiptNo: { contains: q.q, mode: 'insensitive' } },
+        { paperTicketNo: { equals: q.q.trim().toUpperCase() } },
         { passengerPhone: { contains: q.q.replace(/\s/g, '') } },
         { passengerName: { contains: q.q, mode: 'insensitive' } },
       ];
@@ -346,10 +364,11 @@ export class BookingsService {
       }
       const total = Math.max(0, b.priceCents - discount);
       const branchId = user.branchId ?? b.branchId;
+      const paperTicketNo = await this.paperNo(tx, branchId, dto.paperTicketNo, (await this.settings.get(tx)).ticketMode === 1, id);
       const res = await tx.booking.updateMany({
         where: { id, status: 'RESERVED' },
         data: {
-          status: 'CONFIRMED', confirmedAt: new Date(), soldById: user.id, branchId,
+          status: 'CONFIRMED', confirmedAt: new Date(), soldById: user.id, branchId, paperTicketNo,
           priceCents: total, discountCents: b.priceCents - total,
         },
       });
@@ -384,10 +403,11 @@ export class BookingsService {
     const data: Prisma.BookingUpdateInput = {};
     if (dto.passengerName) data.passengerName = dto.passengerName.trim();
     if (dto.passengerPhone) data.passengerPhone = dto.passengerPhone.replace(/\s/g, '');
-    if (!Object.keys(data).length) throw Errors.bad('NOTHING_TO_CHANGE', 'No fields to correct');
+    if (!Object.keys(data).length && !dto.paperTicketNo) throw Errors.bad('NOTHING_TO_CHANGE', 'No fields to correct');
     return this.prisma.$transaction(async (tx) => {
+      if (dto.paperTicketNo) data.paperTicketNo = await this.paperNo(tx, b.branchId, dto.paperTicketNo, false, b.id);
       const updated = await tx.booking.update({ where: { id: b.id }, data, include });
-      await this.audit.log(tx, user, 'CORRECT', 'bookings', b.id, { passengerName: b.passengerName, passengerPhone: b.passengerPhone }, { ...data, reason: dto.reason });
+      await this.audit.log(tx, user, 'CORRECT', 'bookings', b.id, { passengerName: b.passengerName, passengerPhone: b.passengerPhone, paperTicketNo: b.paperTicketNo }, { ...data, reason: dto.reason });
       return updated;
     });
   }

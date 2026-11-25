@@ -356,6 +356,14 @@ const so = {
     lastDeparted: 'Bixitaankii u dambeeyay', dupDriver: 'Hal darawal laba gaari kuma qori kartid.', startButton: 'Bilow ({n} gaari)', addButton: 'Ku dar ({n})',
     overview: 'Safka gaadiidka (hadda)', next: 'Xiga',
   },
+  paper: {
+    no: 'Lambarka tigidhka warqadda', noHint: 'Lambarka ku daabacan tigidhka buugga (tusaale BO1-1001)',
+    copyTitle: 'Ku qor tigidhka warqadda', copyHint: 'Tigidhka buugga ku qor xogtan (isla kala horreynta warqadda). Nuqulka buugga (bidix) sidoo kale buuxi.',
+    printAnyway: 'Daabac (ikhtiyaari)', done: 'Waan qoray',
+    from: 'Lambarka koowaad', count: 'Imisa tigidh', pages: 'bog', stub: 'NUQULKA BUUGGA', nameShort: 'Magac', sys: 'Nidaam',
+    ticketTitle: 'TIGIDH SAFAR', printHint: 'Lambarada {first} ilaa {last}. A4 — 4 tigidh boggii. Daabacaha (print shop) u dir, ama printer-ka xafiiska.',
+    booklet: 'Buugga tigidhada warqadda', bookletHint: 'Daabac tigidhada gacanta lagu qoro (lambar taxane ah laan kasta). Lambar kasta hal mar ayaa nidaamka la gelin karaa.', open: 'Fur bogga daabacaadda',
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Nuqul #{n}',
     date: 'Taariikh', customer: 'Magaca macmilka', phone: 'Taleefan', time: 'Waqtiga', vehicle: 'Gaadhiga', from: 'Ka', to: 'Ku', seat: 'Kursi',
@@ -390,6 +398,8 @@ const so = {
   },
   paymentKind: { TICKET: 'Tigidh', PARCEL: 'Alaab', REFUND: 'Lacag celin', STORAGE: 'Kayd', EXPENSE: 'Kharash', DEPOSIT: 'Wareejin', TRANSFER_DIFF: 'Farqi beddel', DRIVER_PAY: 'Darawal' },
   settingsField: {
+    queueAutoReturn: 'Gaariga gaadhay → safka soo laabashada (1/0)',
+    ticketMode: 'Tigidhka: 0 printer · 1 warqad · 2 labadaba',
     requireDeliveryPhoto: 'Sawir waajib marka la dhiibayo (1/0)',
     fragileSurchargeCents: 'Alaab jajaban kara (+$)',
     storageFeePerDayCents: 'Kayd maalintii ($)',
@@ -402,6 +412,8 @@ const so = {
     shareTripsWithinCity: 'Laamaha magaalada ha wadaagaan safarada (1/0)',
   },
   settingsHint: {
+    queueAutoReturn: '1 = si toos ah ayuu safka u galaa',
+    ticketMode: '1 = gacanta lagu qoro (lambarka warqadda waajib)',
     requireDeliveryPhoto: '1 = alaab lama dhiibi karo sawir la\'aan',
     fragileSurchargeCents: 'Tusaale 1.00',
     storageFeePerDayCents: 'Kadib maalmaha kayd la\'aanta',
@@ -507,6 +519,8 @@ const so = {
     editUserHint: 'Doorka ama laanta marka la beddelo, qofka waa laga saarayaa (mar kale ayuu soo galayaa).',
   },
   errors: {
+    PAPER_TICKET_REQUIRED: 'Geli lambarka tigidhka warqadda.',
+    PAPER_TICKET_USED: 'Lambarkan tigidh warqad horay ayaa loo isticmaalay ({receiptNo}).',
     VEHICLE_BUSY: 'Gaarigan ama darawalkan safar socda ayuu ku jiraa.',
     ALREADY_QUEUED: 'Gaari ama darawal horay ayuu safka ugu jiray.',
     TRIP_HAS_PARCELS: 'Marka hore alaabta ka deji gaariga.',

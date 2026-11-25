@@ -30,6 +30,7 @@ export class UpdateSettingsDto {
   @IsOptional() @IsInt() @Min(1) @Max(14) maxReservationsPerPhone?: number;
   @IsOptional() @IsInt() @Min(0) @Max(1) requireDeliveryPhoto?: number;
   @IsOptional() @IsInt() @Min(0) @Max(1) queueAutoReturn?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(2) ticketMode?: number;
 }
 export class UpdateCompanyDto {
   @IsOptional() @IsString() @Length(2, 80) name?: string;

@@ -27,6 +27,7 @@ describe('Boorama 2 branches + security (e2e)', () => {
 
   beforeAll(async () => {
     await resetDb(prisma);
+    await prisma.pricingSetting.create({ data: { key: 'ticketMode', value: 0 } });
     const hash = await argon2.hash(PW);
     const bo1 = await prisma.branch.create({ data: { code: 'BO1', name: 'Boorama — Laanta 1', city: 'Boorama' } });
     const bo2 = await prisma.branch.create({ data: { code: 'BO2', name: 'Boorama — Laanta 2', city: 'Boorama' } });

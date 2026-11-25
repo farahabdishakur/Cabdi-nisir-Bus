@@ -271,3 +271,10 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 5. Gaari / darawal **hal saf oo furan** keliya (DB index) — laba saf ama safar socda isku mar ma gelin karo (`ALREADY_QUEUED`, `VEHICLE_BUSY`).
 6. **Ka saar** (darawal maqan / gaari xumaaday): gaari sugaya waqti kasta; gaariga buuxsamaya kaliya haddii aan tigidh ama alaab lagu rarin (safarka waa la joojiyaa). Safar la joojiyay → safka waa laga saaraa, kan xiga ayaa furmaa.
 7. **Maalin cusub (00:05):** kuwii shalay sugayay waa la xiraa — maalin kasta saf cusub. Gaariga weli buuxsamaya (tigidh leh) wuu sii jiraa.
+
+## 31. Tigidhka Warqadda (Gacanta Lagu Qoro)
+1. **Dejin `ticketMode`:** 0 = printer (rasiid la daabaco) · **1 = warqad (default)** — tigidh buug ah oo hore loo daabacay, gacanta lagu qoro; lambarka warqadda waa waajib · 2 = labadaba (lambar ikhtiyaari + rasiid).
+2. **Buugga:** A4, 4 tigidh boggii (website: Maamul → Dejinta → *Buugga tigidhada warqadda*). Tigidh kasta: **nuqulka buugga** (stub, buugga ayuu ku harayaa) + **tigidhka rakaabka**; lambar taxane ah laan kasta (`BO1-1001…`).
+3. **Xogta buuxda waxaa la geliyaa nidaamka** (magac, taleefan, kursi, lacag, lambarka warqadda); karraanigu warqadda wuxuu ku qoraa xogta kooban (isla kala horreynta kaarka "Ku qor tigidhka warqadda"). Daabacaaddu waa ikhtiyaari.
+4. **Lambar warqadeed hal mar oo keliya laan kasta** (DB index) — xataa haddii tigidhkii la void-gareeyo (`PAPER_TICKET_USED`). Lambar khaldan: maamulaha "sax" (audit).
+5. **Xisaab celin:** nuqulka buugga (stub) lambar kasta waa inuu nidaamka ku jiraa — lambar buugga ku jira oo nidaamka aan ku jirin = lacag maqan.

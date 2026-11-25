@@ -14,6 +14,8 @@ export class CreateBookingDto {
   /** Manager kaliya, ≤ maxDiscountBps */
   @IsOptional() @IsInt() @Min(0) @Max(10_000_000) discountCents?: number;
   @ValidateNested() @Type(() => PaymentInputDto) payment: PaymentInputDto;
+  /** Lambarka tigidhka warqadda (buugga) — waajib haddii dejinta ticketMode = 1 */
+  @IsOptional() @Matches(/^[A-Za-z0-9-]{1,20}$/) paperTicketNo?: string;
 }
 
 export class VoidBookingDto {
@@ -35,6 +37,8 @@ export class ReserveBookingDto {
 export class ConfirmReservationDto {
   @IsOptional() @IsInt() @Min(0) @Max(10_000_000) discountCents?: number;
   @ValidateNested() @Type(() => PaymentInputDto) payment: PaymentInputDto;
+  /** Lambarka tigidhka warqadda (buugga) — waajib haddii dejinta ticketMode = 1 */
+  @IsOptional() @Matches(/^[A-Za-z0-9-]{1,20}$/) paperTicketNo?: string;
 }
 
 export class CancelReservationDto {
@@ -44,6 +48,7 @@ export class CancelReservationDto {
 export class CorrectBookingDto {
   @IsOptional() @IsString() @Length(2, 80) passengerName?: string;
   @IsOptional() @Matches(PHONE_RE) passengerPhone?: string;
+  @IsOptional() @Matches(/^[A-Za-z0-9-]{1,20}$/) paperTicketNo?: string;
   @IsString() @Length(3, 300) reason: string;
 }
 

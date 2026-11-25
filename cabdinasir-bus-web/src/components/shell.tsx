@@ -1,6 +1,7 @@
 'use client';
 
 import { BrandMark } from './brand';
+import { PaperCopyHost } from './paper-ticket';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -199,6 +200,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 p-3 sm:p-6">{children}</main>
+        <PaperCopyHost />
       </div>
     </div>
   );

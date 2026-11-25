@@ -374,7 +374,7 @@ function Settings() {
 
   const done = () => setOk(t('common.saved'));
   if (!boot.data || !company) return <Loading />;
-  const NUM_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents', 'insuranceBps', 'maxDiscountBps', 'seatHoldSeconds', 'uncollectedDays', 'reservationCutoffMinutes', 'maxReservationsPerPhone', 'shareTripsWithinCity', 'requireDeliveryPhoto'];
+  const NUM_FIELDS = ['fragileSurchargeCents', 'storageFeePerDayCents', 'insuranceBps', 'maxDiscountBps', 'seatHoldSeconds', 'uncollectedDays', 'reservationCutoffMinutes', 'maxReservationsPerPhone', 'shareTripsWithinCity', 'requireDeliveryPhoto', 'queueAutoReturn', 'ticketMode'];
   const toValue = (k: string) => (MONEY_FIELDS.includes(k) ? parseUsd(p[k]) ?? 0 : Number(p[k]));
 
   return (
@@ -392,6 +392,14 @@ function Settings() {
           {NUM_FIELDS.map((k) => <Field key={k} label={t(`settingsField.${k}`)} hint={t(`settingsHint.${k}`)}>{(id) => <Input id={id} inputMode={MONEY_FIELDS.includes(k) ? 'decimal' : 'numeric'} value={p[k] ?? ''} onChange={(e) => setP({ ...p, [k]: e.target.value })} />}</Field>)}
           <div className="sm:col-span-3"><Button type="submit" loading={s.busy}>{t('common.save')}</Button></div>
         </form>
+      </Card>
+      <Card title={`✍️ ${t('paper.booklet')}`}>
+        <p className="mb-3 text-sm text-gray-600">{t('paper.bookletHint')}</p>
+        <div className="flex flex-wrap gap-2">
+          {boot.data.branches.map((b) => (
+            <Button key={b.id} type="button" variant="secondary" onClick={() => window.open(`/print/blank-tickets?prefix=${b.code}&from=1001&count=40`, '_blank')}>🖨 {b.name}</Button>
+          ))}
+        </div>
       </Card>
       <Card title={t('admin.company')}>
         <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); s.run(() => { const { name, tagline, mission, slogans, passengerRules, parcelRules, receiptFooter } = company; return api('/company', { method: 'PUT', body: { name, tagline, mission, slogans, passengerRules, parcelRules, receiptFooter } }); }, [['bootstrap']], done); }}>

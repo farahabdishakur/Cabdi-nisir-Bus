@@ -21,6 +21,8 @@ export interface PricingSettings {
   requireDeliveryPhoto: number;
   /** 1 = gaariga marka uu gaadho wuxuu si toos ah u galaa safka soo laabashada (magaalada kale) */
   queueAutoReturn: number;
+  /** Tigidhka: 0 = printer (rasiid daabac) · 1 = warqad gacanta lagu qoro (lambarka warqadda waajib) · 2 = labadaba (lambar ikhtiyaari) */
+  ticketMode: number;
 }
 
 export const DEFAULT_SETTINGS: PricingSettings = {
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: PricingSettings = {
   maxReservationsPerPhone: 4,
   requireDeliveryPhoto: 0,
   queueAutoReturn: 1,
+  ticketMode: 1,
 };
 
 /** Macluumaadka shirkadda ee rasiidka/label-ka ka muuqda (boodhka xafiiska). */

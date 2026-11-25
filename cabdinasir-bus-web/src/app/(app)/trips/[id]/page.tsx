@@ -1,5 +1,6 @@
 'use client';
 
+import { PaperNoField, showPaperCopy, useTicketMode } from '@/components/paper-ticket';
 import Link from 'next/link';
 import { use, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -216,6 +217,8 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
   const [party, setParty] = useState({ name: '', phone: '' });
   const [pay, setPay] = useState<PaymentInput>(CASH_USD);
   const [discount, setDiscount] = useState('');
+  const [paperNo, setPaperNo] = useState('');
+  const ticketMode = useTicketMode();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [left, setLeft] = useState(0);
@@ -244,12 +247,15 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
   const submit = async () => {
     setBusy(true);
     setError('');
-    const tab = mode === 'sell' ? pendingTab() : null;
+    // warqad (1): rasiid lama daabacayo — karraanigu warqadda ayuu ku qoraa · printer (0) / labadaba (2): tab daabacaad
+    const tab = mode === 'sell' && ticketMode !== 1 ? pendingTab() : null;
     try {
       const body = { tripId: trip.id, seatNo: seat.seatNo, passengerName: party.name.trim(), passengerPhone: party.phone.trim() };
       if (mode === 'sell') {
-        const b = await api<Booking>('/bookings', { method: 'POST', idempotencyKey: key.current, body: { ...body, payment: pay, ...(discountCents > 0 && { discountCents }) } });
-        tab?.go(`/print/ticket/${b.id}`);
+        const b = await api<Booking>('/bookings', { method: 'POST', idempotencyKey: key.current, body: { ...body, payment: pay, ...(discountCents > 0 && { discountCents }), ...(paperNo.trim() && { paperTicketNo: paperNo.trim() }) } });
+        if (ticketMode === 1) showPaperCopy(b);
+        else tab?.go(`/print/ticket/${b.id}`);
+        setPaperNo('');
       } else {
         await api<Booking>('/bookings/reserve', { method: 'POST', idempotencyKey: key.current, body });
       }
@@ -265,7 +271,7 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
     }
   };
 
-  const ready = party.name.trim().length >= 2 && party.phone.replace(/\s/g, '').length >= 6 && (mode === 'reserve' || paymentReady(pay));
+  const ready = party.name.trim().length >= 2 && party.phone.replace(/\s/g, '').length >= 6 && (mode === 'reserve' || (paymentReady(pay) && (ticketMode !== 1 || paperNo.trim().length > 0)));
 
   return (
     <Card title={`${t('booking.seat')} ${seat.seatNo}${isFront ? ` (${t('seat.front')})` : ''}`} actions={<span className="text-xs font-semibold text-amber-700">{t('seat.holdExpires', { s: left })}</span>}>
@@ -290,6 +296,7 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
               </Field>
             )}
             <PaymentPicker value={pay} onChange={setPay} />
+            {ticketMode !== 0 && <PaperNoField value={paperNo} onChange={setPaperNo} required={ticketMode === 1} />}
             {noSession && (
               <Alert tone="yellow">
                 {t('dashboard.noSession')}{' '}

@@ -69,7 +69,7 @@ export default function BookingsPage() {
             <Table head={[t('booking.receipt'), t('common.status'), t('booking.passenger'), t('trips.route'), t('booking.seat'), t('booking.price'), t('payment.paidVia'), status === 'RESERVED' ? t('booking.reservedUntil') : t('common.date')]} empty={!list.data?.data.length}>
               {list.data?.data.map((b) => (
                 <tr key={b.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setOpen(b)}>
-                  <Td className="font-mono font-semibold">{b.receiptNo}</Td>
+                  <Td className="font-mono font-semibold">{b.receiptNo}{b.paperTicketNo && <span className="block text-xs text-red-700">✍️ {b.paperTicketNo}</span>}</Td>
                   <Td>
                     <BookingStatusBadge s={b.status} />
                   </Td>

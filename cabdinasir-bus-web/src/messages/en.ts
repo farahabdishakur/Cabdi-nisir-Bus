@@ -146,6 +146,14 @@ const en: DeepPartial<Messages> = {
     lastDeparted: 'Last departure', dupDriver: 'One driver cannot drive two vehicles.', startButton: 'Start ({n} vehicles)', addButton: 'Add ({n})',
     overview: 'Vehicle queue (now)', next: 'Next',
   },
+  paper: {
+    no: 'Paper ticket number', noHint: 'The number printed on the booklet ticket (e.g. BO1-1001)',
+    copyTitle: 'Write on the paper ticket', copyHint: 'Copy this onto the booklet ticket (same order as the paper). Fill the stub (left) too.',
+    printAnyway: 'Print (optional)', done: 'Written',
+    from: 'First number', count: 'How many tickets', pages: 'pages', stub: 'BOOK COPY', nameShort: 'Name', sys: 'System',
+    ticketTitle: 'PASSENGER TICKET', printHint: 'Numbers {first} to {last}. A4 — 4 tickets per page. Send to a print shop or use the office printer.',
+    booklet: 'Paper ticket booklet', bookletHint: 'Print handwritten tickets (serial numbers per branch). Each number can be entered in the system only once.', open: 'Open print page',
+  },
   voucher: {
     receipt: 'RECEIPT VOUCHER', parcel: 'PARCEL VOUCHER', payment: 'PAYMENT VOUCHER', copy: 'Copy #{n}',
     date: 'Date', customer: 'Customer name', phone: 'Phone', time: 'Time', vehicle: 'Vehicle', from: 'From', to: 'To', seat: 'Seat',
@@ -180,6 +188,8 @@ const en: DeepPartial<Messages> = {
   },
   paymentKind: { TICKET: 'Ticket', PARCEL: 'Parcel', REFUND: 'Refund', STORAGE: 'Storage', EXPENSE: 'Expense', DEPOSIT: 'Transfer', TRANSFER_DIFF: 'Change difference', DRIVER_PAY: 'Driver pay' },
   settingsField: {
+    queueAutoReturn: 'Arrived vehicle → return queue (1/0)',
+    ticketMode: 'Tickets: 0 printer · 1 paper · 2 both',
     requireDeliveryPhoto: 'Handover photo required (1/0)',
     fragileSurchargeCents: 'Fragile surcharge (+$)', storageFeePerDayCents: 'Storage per day ($)', insuranceBps: 'Insurance (bps)', maxDiscountBps: 'Max discount (bps)',
     seatHoldSeconds: 'Seat hold (seconds)', uncollectedDays: 'Free storage days', reservationCutoffMinutes: 'Reservation cutoff (minutes before departure)',
@@ -221,6 +231,8 @@ const en: DeepPartial<Messages> = {
     EDAHAB: 'eDahab',
   },
   settingsHint: {
+    queueAutoReturn: '1 = joins the queue automatically',
+    ticketMode: '1 = handwritten (paper number required)',
     requireDeliveryPhoto: '1 = no handover without a photo',
     fragileSurchargeCents: 'e.g. 1.00',
     storageFeePerDayCents: 'After the free storage days',
@@ -233,6 +245,8 @@ const en: DeepPartial<Messages> = {
     shareTripsWithinCity: '1 = Boorama 1 & 2 share one seat map',
   },
   errors: {
+    PAPER_TICKET_REQUIRED: 'Enter the paper ticket number.',
+    PAPER_TICKET_USED: 'This paper ticket number was already used ({receiptNo}).',
     VEHICLE_BUSY: 'This vehicle or driver is on an active trip.',
     ALREADY_QUEUED: 'A vehicle or driver is already in a queue.',
     TRIP_HAS_PARCELS: 'Unload the parcels first.',
