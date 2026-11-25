@@ -11,7 +11,15 @@ import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import EmbeddedPostgres from 'embedded-postgres';
+let EmbeddedPostgres;
+try {
+  ({ default: EmbeddedPostgres } = await import('embedded-postgres'));
+  await import(`@embedded-postgres/${process.platform === 'win32' ? 'windows' : process.platform}-${process.arch}`);
+} catch {
+  console.error('\n✗ npm install ma dhammaystirna (database-ka PostgreSQL ~100 MB weli lama soo dejin).');
+  console.error('  Xal: isla folder-kan ku qor  npm install  → SUG ilaa "added … packages" (ha riixin Ctrl + C) → kadib mar kale.\n');
+  process.exit(1);
+}
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DB_PORT = Number(process.env.LOCAL_DB_PORT ?? 5434);

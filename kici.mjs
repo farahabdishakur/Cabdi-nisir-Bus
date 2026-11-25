@@ -19,12 +19,12 @@ const apps = [
   { dir: 'cabdinasir-bus-web', bin: 'next', script: 'dev', tag: '\x1b[35m[website]\x1b[0m' },
 ];
 
-// 1. install — hubi binary-ga (install go'ay = node_modules jira laakiin ma dhammaystirna)
+// 1. install — had iyo jeer (haddii hore loo dhammaystiray: ilbiriqsiyo; install go'ay → wuu dhammaystiraa)
 for (const a of apps) {
   const cwd = path.join(root, a.dir);
-  if (existsSync(path.join(cwd, 'node_modules', '.bin', win ? `${a.bin}.cmd` : a.bin))) continue;
-  console.log(`\n📦 ${a.dir}: npm install (hal mar, 3–10 daqiiqo — sug, waxba ha taaban) ...\n`);
-  const r = spawnSync('npm', ['install', '--no-audit', '--no-fund'], { cwd, stdio: 'inherit', shell: win });
+  const first = !existsSync(path.join(cwd, 'node_modules', '.bin', win ? `${a.bin}.cmd` : a.bin));
+  console.log(`\n📦 ${a.dir}: npm install${first ? ' (markii ugu horreysay 5–15 daqiiqo — SUG, Ctrl + C ha riixin; "npm warn" waa caadi)' : ''} ...\n`);
+  const r = spawnSync('npm', ['install', '--no-audit', '--no-fund', '--prefer-offline'], { cwd, stdio: 'inherit', shell: win });
   if (r.status !== 0) {
     console.error(`\n✗ npm install ${a.dir} wuu fashilmay — internet-ka hubi oo mar kale isku day`);
     process.exit(r.status ?? 1);
