@@ -49,6 +49,7 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
 | Wareejin | `/parcels/deliver` | SA, BM, CASHIER | 1 |
 | Sanduuqa | `/cash` | SA, BM, CASHIER | 1 |
 | Warbixino | `/reports` | SA, BM | 1 |
+| Xisaabaadka (buug laan/xafiis, P&L, mushaharka darawallada) | `/books` | SA, BM | 1 |
 | Admin (laamo, routes, gaadiid, darawal, shaqaale, noocyo, qiime, sicir) | `/admin/*` | SA (shaqaale: BM) | 1 |
 | Audit log | `/audit` | SA, BM | 1 |
 | Daabacaad (rasiid, label, manifest) | `/print/*` | SA, BM, CASHIER | 1 |
@@ -135,3 +136,4 @@ Hal website oo ay ka shaqeeyaan dhammaan laamaha iyo Super Admin. Qof kasta mark
   - ***Offline mode:*** alaab diiwaangelin internet la'aan (IndexedDB, PIN client, qiyaas, rasiid isla bogga) → sync toos ah (online + daqiiqad kasta, Idempotency-Key) · bogga `/offline` · service worker (reload offline → fadhigu ma dhaco) · topbar 📴 / ⏳.
   - ***Bogagga dadweynaha (login la'aan):*** `/track` (koodh + 4 god taleefan) · `/schedule` (safarada + kuraasta bannaan + sida loo ballansado) · xiriirka laamaha + lambarada Zaad · QR-ka rasiidka alaabta → `/track`.
   - Tests: 11 unit · **E2E 26 tallaabo** (oo ay ku jiraan offline → reload → sync, transfer, reprint, raadin, audit, tracking dadweyne) — dhammaan way gudbeen.
+- **2026-11-25** — **v0.3.0 Xisaabaadka** (`/books`, maamulayaasha): buugga laanta (toos — Cash $/SLSH/Zaad/eDahab, haraaga socda, filter akoon, biil 📎, CSV) · buugga xafiiska (Super Admin: + Lacag gashay / − Lacag baxday, qaybo, laan/baabuur, sawir biil, void) · **Faa'iido & khasaare** (dakhli, kharash, mushaharka darawalka, faa'iido saafi, baabuur kasta, CSV) · **Mushaharka darawallada** (liis + haraaga, bayaan, qaabka mushaharka, bixin/advance/goyn/abaalmarin, void, mushaharka bisha) · sanduuqa: sawirka biilka kharashka (kamarad taleefan). Tests: 11 unit · **E2E 29 tallaabo** — dhammaan way gudbeen.

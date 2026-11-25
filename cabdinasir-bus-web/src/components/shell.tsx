@@ -95,6 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { href: '/cash', key: 'nav.cash', icon: '💵', show: staff && !!user.branchId },
     { href: '/void-requests', key: 'nav.voidRequests', icon: '↩️', show: staff },
     { href: '/zaad', key: 'nav.zaad', icon: '📱', show: can(user, 'reconcileZaad') },
+    { href: '/books', key: 'nav.books', icon: '📒', show: can(user, 'reports') },
     { href: '/reports', key: 'nav.reports', icon: '📊', show: can(user, 'reports') },
     { href: '/system', key: 'nav.system', icon: '🛡', show: isManager(user) },
     { href: '/admin', key: 'nav.admin', icon: '⚙️', show: isManager(user) },

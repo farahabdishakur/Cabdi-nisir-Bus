@@ -12,7 +12,7 @@ import type { CashSession, Currency, Method } from '@/lib/types';
 import { Alert, Badge, Button, Card, Field, Input, Loading, Modal, PageHeader, Select, Stat, Table, Td } from '@/components/ui';
 import { ReasonModal, ErrorAlert } from '@/components/domain';
 
-interface Expense { id: string; category: string; description: string; voidedAt: string | null; createdAt: string; payment: { amount: number; currency: Currency; method: Method } }
+interface Expense { id: string; category: string; description: string; voidedAt: string | null; createdAt: string; attachmentUrl?: string | null; payment: { amount: number; currency: Currency; method: Method } }
 interface Deposit { id: string; target: string; note: string | null; confirmedAt: string | null; createdAt: string; branch?: { name: string }; payment: { amount: number; currency: Currency } }
 
 export default function CashPage() {
@@ -129,6 +129,12 @@ function Expenses({ hasSession }: { hasSession: boolean }) {
   const list = useQuery({ queryKey: ['cash', 'expenses'], queryFn: () => api<Expense[]>('/expenses', { query: { from: todayISO() } }) });
   const [open, setOpen] = useState(false);
   const [voiding, setVoiding] = useState<Expense | null>(null);
+  const attach = async (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    await api(`/expenses/${id}/attachment`, { method: 'POST', form });
+    qc.invalidateQueries({ queryKey: ['cash', 'expenses'] });
+  };
   const [form, setForm] = useState({ category: 'FUEL', description: '', amount: '', currency: 'USD' as Currency });
   const [error, setError] = useState('');
   const key = useRef(newKey());
@@ -157,7 +163,17 @@ function Expenses({ hasSession }: { hasSession: boolean }) {
             <Td><Badge>{t(`expenseCategory.${e.category}`)}</Badge></Td>
             <Td>{e.description}</Td>
             <Td className="font-semibold">{money(-e.payment.amount, e.payment.currency)}</Td>
-            <Td>{!e.voidedAt && can(user, 'void') && <Button size="sm" variant="ghost" onClick={() => setVoiding(e)}>{t('booking.void')}</Button>}</Td>
+            <Td>
+              <div className="flex items-center gap-1">
+                {!e.voidedAt && (
+                  <label className="cursor-pointer rounded-lg px-2 py-1 text-sm hover:bg-gray-100" title={t('books.attach')}>
+                    {e.attachmentUrl ? '📎✓' : '📎'}
+                    <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(ev) => ev.target.files?.[0] && attach(e.id, ev.target.files[0])} />
+                  </label>
+                )}
+                {!e.voidedAt && can(user, 'void') && <Button size="sm" variant="ghost" onClick={() => setVoiding(e)}>{t('booking.void')}</Button>}
+              </div>
+            </Td>
           </tr>
         ))}
       </Table>

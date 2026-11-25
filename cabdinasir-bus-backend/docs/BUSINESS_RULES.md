@@ -229,3 +229,12 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 | Sanduuqa | Zaad/eDahab **kuma jiraan** lacagta gacanta (expected cash) — sanduuqa xiritaankiisa kaliya cash ayaa la tiriyaa. |
 | Celin | Void + celin → isla habkii (Zaad → Zaad) isla lambarkii laga soo diray. |
 | Barbar dhig (reconcile) | Dhammaadka maalinta Manager-ku `GET /payments/mobile` wuxuu la barbar dhigaa bayaanka Zaad/eDahab → "la hubiyay". Lacag aan bayaanka ku jirin → void + baadhis. Aan la hubin > 48 saac → digniinta integrity (SMS Super Admin). |
+
+## 26. Xisaabaadka (CashBook) & Mushaharka Darawallada
+1. **Buugga laanta waa toos** — wuxuu ka dhashaa `payments` (tigidh, alaab, kayd, celin, kharash, wareejin, bixinta darawalka). Gacan laguma qoro; khalad waxaa lagu saxaa void (lacag celin), ma aha tirtir. Akoonnada: Cash $, Cash SLSH, Zaad, eDahab — mid kasta haraaga bilowga + haraaga socda.
+2. **Buugga xafiiska guud** (Super Admin kaliya): wareejimaha laamaha ee la xaqiijiyay (IN, toos) + qoraallo gacan ah (IN: dakhli kale, raasumaal, deyn; OUT: shidaal, dayactir, kiro, mushahar, caymis, canshuur, adeegyo, iibsasho baabuur, bixin deyn, qaadasho milkiile, kale). Qoraal kasta: sabab, lacag, taariikh, ikhtiyaari laan/baabuur + sawirka biilka. Void + sabab; tirtir ma jiro (DB trigger).
+3. **Qaabka mushaharka darawalka** — hal mar ayaa la dejiyaa, wuxuu shaqeeyaa laga bilaabo `effectiveFrom`:
+   - `PER_TRIP` lacag go'an safar kasta · `PERCENT_TICKETS` % tigidhada safarka · `PERCENT_TRIP_INCOME` % tigidh + alaab · `MONTHLY_SALARY` mushahar bil.
+   - **Kasbashadu waa toos:** safarku marka uu `ARRIVED` noqdo → kasbasho hal mar (idempotent, unique driver+trip). Mushaharka bisha: cron 1-da bil kasta (bishii hore), unique driver+period.
+4. **Bixinta darawalka:** horumaris (advance) / bixin → cash-ka sanduuqa karraaniga (waa inuu ku filan yahay) ama xafiiska guud (Super Admin); goyn (deduction) lacag ma dhaqaajiso. Haraaga = kasbasho − bixin. Void bixin: sanduuqu waa inuu furan yahay (lacag celin).
+5. **Faa'iido & khasaare (P&L):** dakhli (tigidh, alaab, kayd − celin + dakhli kale) − kharash (sanduuq + xafiis) − mushaharka darawalka (**markuu kasbaday**, ma aha markii la bixiyay). Kuma jiraan: raasumaal, deyn, iibsasho baabuur, qaadasho milkiile. Baabuur kasta: dakhliga safarradiisa − kharashka loogu qoray − mushaharka darawalka safarradaas.

@@ -270,6 +270,33 @@ async function main() {
   await page.screenshot({ path: `${SHOTS}12-reports-daily.png` });
   log('reports: daily close');
 
+  // 9a. Xisaabaadka: automatic cashbook, driver pay, P&L
+  await page.goto(`${WEB}/books`);
+  await page.getByText('Lacag gashay').first().waitFor();
+  await page.getByRole('cell', { name: /Tigidh/ }).first().waitFor();
+  await page.screenshot({ path: `${SHOTS}15-cashbook.png` });
+  log('cashbook filled automatically from tickets');
+  await page.getByRole('button', { name: 'Mushaharka darawallada' }).click();
+  await page.getByText('Lagu leeyahay').first().waitFor();
+  await page.getByRole('row').nth(1).click();
+  await page.getByText(/— Bayaanka/).waitFor();
+  await page.getByRole('button', { name: /Qaabka mushaharka/ }).click();
+  await page.getByLabel('$', { exact: true }).fill('5');
+  await page.getByRole('button', { name: 'Kaydi' }).click();
+  await page.getByText('$5.00 safar kasta').first().waitFor();
+  await page.getByRole('button', { name: /\+ Abaalmarin/ }).click();
+  await page.getByLabel(/Abaalmarin \(\$\)/).fill('2');
+  await page.getByLabel(/Qoraal/).last().fill('E2E bonus');
+  await page.getByRole('button', { name: 'Kaydi' }).click();
+  await page.getByText('E2E bonus').waitFor();
+  await page.screenshot({ path: `${SHOTS}16-driver-statement.png` });
+  log('driver pay: rule set + bonus on statement');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: "Faa'iido & khasaare" }).click();
+  await page.getByText("Faa'iidada baabuur kasta").waitFor();
+  await page.screenshot({ path: `${SHOTS}17-profit-loss.png` });
+  log('profit & loss page');
+
   // 9b. manager: vehicle departs
   await page.goto(`${WEB}/trips/${trip.id}`);
   await page.getByRole('button', { name: 'Gaarigu wuu baxay' }).click();
