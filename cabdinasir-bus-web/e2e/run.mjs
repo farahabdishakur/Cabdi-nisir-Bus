@@ -442,12 +442,47 @@ async function main() {
   await sp.getByRole('button', { name: 'Gaadiidka', exact: true }).click();
   await sp.getByRole('button', { name: '+ Ku dar' }).click();
   await sp.getByLabel(/Taarikada/).fill('SL-E2E-45');
+  await sp.getByLabel(/^Lambarka baska/).fill('45');
   await sp.getByRole('button', { name: 'Bas weyn 45' }).click();
   await sp.getByText(/^45/).first().waitFor();
   await sp.screenshot({ path: `${SHOTS}21-seat-editor.png` });
   await sp.getByRole('button', { name: 'Kaydi' }).click();
   await sp.getByRole('cell', { name: 'SL-E2E-45' }).waitFor();
   log('super admin: vehicle with 45 seats designed visually (template) and saved');
+  // xannib baska (sabab waajib) → calaamad + sabab → dib u fur
+  const row45 = sp.getByRole('row', { name: /SL-E2E-45/ });
+  await row45.getByRole('button', { name: /Xannib/ }).click();
+  await sp.getByLabel(/^Sababta/).fill('Ganaax booliis E2E');
+  await sp.getByRole('button', { name: /Xannib hadda/ }).click();
+  await row45.getByText('Ganaax booliis E2E').waitFor();
+  await row45.getByText('La xannibay').waitFor();
+  await sp.screenshot({ path: `${SHOTS}24-blocked-bus.png` });
+  await row45.getByRole('button', { name: /Fur/ }).click();
+  await row45.getByText('Firfircoon').waitFor();
+  log('super admin: bus 45 blocked with a reason, then unblocked');
+  // ganaax baska → ka laabo
+  await sp.getByRole('button', { name: '🚫 Ganaax', exact: true }).click();
+  await sp.getByRole('button', { name: /Ganaax cusub/ }).click();
+  await sp.getByLabel(/^Baska/).selectOption({ label: '45 · SL-E2E-45' });
+  await sp.getByLabel(/^Qadarka/).fill('20');
+  await sp.getByLabel(/^Sababta/).fill('Xawaare E2E');
+  await sp.getByLabel(/mushaharkiisa ka jar/).uncheck();
+  await sp.getByRole('button', { name: /Diiwaangeli ganaaxa/ }).click();
+  const fineRow = sp.getByRole('row', { name: /Xawaare E2E/ });
+  await fineRow.getByText('$20.00').waitFor();
+  await fineRow.getByRole('button', { name: /Ka laabo/ }).click();
+  await sp.getByLabel(/Sababta laga laabanayo/).fill('Khalad E2E');
+  await sp.getByRole('dialog').getByRole('button', { name: /Ka laabo/ }).click();
+  await fineRow.getByText('Laga laabtay').waitFor();
+  log('super admin: bus fine recorded ($20) and undone with a reason');
+  // jadwalka safarka maalinta (sida boorka shirkadda)
+  await sp.goto(`${WEB}/dispatch`);
+  const [sched] = await Promise.all([saCtx.waitForEvent('page'), sp.getByRole('button', { name: /Jadwalka/ }).click()]);
+  await sched.getByText('Jadwalka Safarka').waitFor();
+  await sched.getByText('1.', { exact: true }).first().waitFor();
+  await sched.screenshot({ path: `${SHOTS}25-schedule.png`, fullPage: true });
+  await sched.close();
+  log('daily travel schedule: numbered buses with driver name + phone, ready to print/share');
   await sp.goto(`${WEB}/books`);
   await sp.getByText("Faa'iidada baabuur kasta").waitFor();
   await sp.getByRole('combobox').last().selectOption('');

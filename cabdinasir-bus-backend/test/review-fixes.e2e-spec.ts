@@ -173,7 +173,7 @@ describe('Security review fixes (e2e)', () => {
     });
     await new Promise((r) => setTimeout(r, 300));
     const u = await prisma.user.findUniqueOrThrow({ where: { phone: '0612' } });
-    await borManager.patch(`/users/${u.id}`, { isActive: false }).expect(200);
+    await borManager.patch(`/users/${u.id}`, { isActive: false, blockReason: 'Test block' }).expect(200);
     await new Promise((r) => setTimeout(r, 6500));
     req.destroy();
     expect(ended).toBe(true);

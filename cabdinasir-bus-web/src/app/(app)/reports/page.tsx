@@ -8,12 +8,12 @@ import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { isSuperAdmin } from '@/lib/permissions';
 import { useBootstrap } from '@/lib/queries';
-import { dateTime, money, slsh, time, todayISO, usd } from '@/lib/format';
-import type { Currency, Method } from '@/lib/types';
+import { dateTime, money, phone, slsh, time, todayISO, usd } from '@/lib/format';
+import type { Currency, Method, TripStatus } from '@/lib/types';
 import { Alert, Badge, Button, Card, Input, Loading, PageHeader, Stat, Table, Td } from '@/components/ui';
-import { BranchSelect, ErrorAlert } from '@/components/domain';
+import { BranchSelect, ErrorAlert, TripStatusBadge } from '@/components/domain';
 
-type Tab = 'daily' | 'revenue' | 'trips' | 'cashiers' | 'integrity';
+type Tab = 'daily' | 'revenue' | 'trips' | 'drivers' | 'cashiers' | 'integrity';
 
 export default function ReportsPage() {
   const { t } = useI18n();
@@ -26,13 +26,14 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('tab');
-    if (p === 'integrity' || p === 'revenue' || p === 'trips' || p === 'cashiers') setTab(p);
+    if (p === 'integrity' || p === 'revenue' || p === 'trips' || p === 'drivers' || p === 'cashiers') setTab(p);
   }, []);
 
   const tabs: [Tab, string][] = [
     ['daily', t('reports.dailyClose')],
     ['revenue', t('reports.revenue')],
     ['trips', t('reports.tripsProfit')],
+    ['drivers', `🧑‍✈️ ${t('reports.drivers')}`],
     ['cashiers', t('reports.cashiers')],
     ['integrity', t('reports.integrity')],
   ];
@@ -52,6 +53,7 @@ export default function ReportsPage() {
       {tab === 'daily' && <DailyClose day={from} branchId={branchId} />}
       {tab === 'revenue' && <Revenue q={q} />}
       {tab === 'trips' && <TripsProfit q={q} />}
+      {tab === 'drivers' && <DriverTrips q={q} />}
       {tab === 'cashiers' && <Cashiers q={q} />}
       {tab === 'integrity' && <Integrity branchId={branchId} />}
     </div>
@@ -173,6 +175,50 @@ function TripsProfit({ q }: { q: Q }) {
         ))}
       </Table>
     </Card>
+  );
+}
+
+interface DriverTripsData {
+  drivers: { driverId: string; driver: string; driverPhone: string; trips: number; passengers: number; vehicles: string[]; lastDepartedAt: string | null }[];
+  trips: { tripId: string; driverId: string; driver: string; driverPhone: string; fleetNo: string | null; vehicle: string; route: string; status: TripStatus; departureAt: string; departedAt: string | null; arrivedAt: string | null; passengers: number }[];
+}
+
+/** Darawal kasta: safaradii uu wadey · baska · wakhtiga la qorsheeyay / baxay / gaadhay (BUSINESS_RULES §33) */
+function DriverTrips({ q }: { q: Q }) {
+  const { t } = useI18n();
+  const download = useDownload();
+  const [driverId, setDriverId] = useState('');
+  const r = useQuery({ queryKey: ['reports', 'driver-trips', q], queryFn: () => api<DriverTripsData>('/reports/driver-trips', { query: q }) });
+  if (r.error) return <ErrorAlert error={r.error} />;
+  if (r.isLoading || !r.data) return <Loading />;
+  const trips = r.data.trips.filter((x) => !driverId || x.driverId === driverId);
+  return (
+    <div className="flex flex-col gap-4">
+      <Card title={`🧑‍✈️ ${t('reports.drivers')} (${r.data.drivers.length})`} actions={<Button size="sm" variant="secondary" onClick={() => download('/reports/driver-trips', { ...q, format: 'csv' }, `drivers-${q.from}.csv`)}>{t('common.downloadCsv')}</Button>}>
+        <Table head={[t('common.name'), t('common.phone'), t('dashboard.trips'), t('trips.passengers'), t('schedule.bus'), t('reports.lastDeparted'), '']} empty={!r.data.drivers.length}>
+          {r.data.drivers.map((d) => (
+            <tr key={d.driverId} className={driverId === d.driverId ? 'bg-amber-50' : ''}>
+              <Td className="font-semibold">{d.driver}</Td>
+              <Td><a href={`tel:${d.driverPhone}`} className="text-blue-700">{phone(d.driverPhone)}</a></Td>
+              <Td className="font-bold">{d.trips}</Td><Td>{d.passengers}</Td><Td>{d.vehicles.join(', ')}</Td><Td>{d.lastDepartedAt ? dateTime(d.lastDepartedAt) : '—'}</Td>
+              <Td><Button size="sm" variant="ghost" onClick={() => setDriverId(driverId === d.driverId ? '' : d.driverId)}>{driverId === d.driverId ? t('reports.showAll') : t('reports.showTrips')}</Button></Td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
+      <Card title={`${t('dashboard.trips')} (${trips.length})`}>
+        <Table head={[t('trips.driver'), t('schedule.bus'), t('trips.route'), t('reports.planned'), t('reports.departed'), t('reports.arrived'), t('trips.passengers'), t('common.status')]} empty={!trips.length}>
+          {trips.map((x) => (
+            <tr key={x.tripId}>
+              <Td className="font-semibold">{x.driver}</Td>
+              <Td><span className="font-black text-navy">{x.fleetNo ?? ''}</span> <span className="font-mono text-xs text-gray-500">{x.vehicle}</span></Td>
+              <Td>{x.route}</Td><Td>{dateTime(x.departureAt)}</Td><Td>{x.departedAt ? time(x.departedAt) : '—'}</Td><Td>{x.arrivedAt ? time(x.arrivedAt) : '—'}</Td>
+              <Td>{x.passengers}</Td><Td><TripStatusBadge s={x.status} /></Td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
+    </div>
   );
 }
 

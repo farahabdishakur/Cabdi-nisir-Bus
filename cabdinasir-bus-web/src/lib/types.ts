@@ -38,8 +38,12 @@ export interface Vehicle {
   capacity: number;
   seatLayout: { rows: (string | null)[][]; front?: string[] };
   isActive: boolean;
+  /** Lambarka baska ee shirkadda ("02", "13", "3G") */
+  fleetNo?: string | null;
+  blockReason?: string | null;
+  blockedAt?: string | null;
   defaultDriverId?: string | null;
-  defaultDriver?: { id: string; name: string } | null;
+  defaultDriver?: { id: string; name: string; phone?: string } | null;
 }
 
 export interface Driver {
@@ -50,6 +54,8 @@ export interface Driver {
   branchId: string | null;
   userId: string | null;
   isActive: boolean;
+  blockReason?: string | null;
+  blockedAt?: string | null;
 }
 
 export interface Trip {
@@ -253,16 +259,17 @@ export interface DispatchEntry {
   removedReason: string | null;
   loadingAt: string | null;
   departedAt: string | null;
-  vehicle: { id: string; plate: string; model: string; capacity: number };
+  vehicle: { id: string; plate: string; fleetNo?: string | null; model: string; capacity: number };
   driver: { id: string; name: string; phone: string };
   trip: { id: string; status: TripStatus; departureAt: string; taken: number; capacity: number; full: boolean } | null;
 }
 export interface DispatchCandidate {
   vehicleId: string;
   plate: string;
+  fleetNo?: string | null;
   model: string;
   capacity: number;
-  defaultDriver: { id: string; name: string } | null;
+  defaultDriver: { id: string; name: string; phone?: string } | null;
   lastDepartedAt: string | null;
 }
 export interface DispatchBoard {
@@ -274,5 +281,10 @@ export interface DispatchBoard {
 }
 export interface DispatchOverview {
   date: string;
-  routes: { route: { id: string; from: Branch; to: Branch }; loading: { plate: string; driver: string; tripId: string | null; taken: number; capacity: number }[]; stats: DispatchBoard['stats']; next: string[] }[];
+  routes: { route: { id: string; from: Branch; to: Branch }; loading: { plate: string; fleetNo?: string | null; driver: string; driverPhone?: string; tripId: string | null; taken: number; capacity: number }[]; stats: DispatchBoard['stats']; next: string[] }[];
+}
+
+/** "13 · SL-1234" — lambarka baska marka hore (jadwalka), kadib taarikada */
+export function busLabel(v: { plate: string; fleetNo?: string | null }): string {
+  return v.fleetNo ? `${v.fleetNo} · ${v.plate}` : v.plate;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { QuickOpenSession } from '@/components/quick-session';
 import Link from 'next/link';
 import { EvidenceCapture } from '@/components/evidence';
 import { useEffect, useRef, useState } from 'react';
@@ -282,7 +283,7 @@ export default function NewParcelPage() {
               <Button variant={payer === 'RECEIVER' ? 'navy' : 'secondary'} onClick={() => setPayer('RECEIVER')}>{t('parcel.payerReceiver')}</Button>
             </div>
             {payer === 'SENDER' && <PaymentPicker value={pay} onChange={setPay} />}
-            {noSession && <div className="mt-3"><Alert tone="yellow">{t('dashboard.noSession')} <Link href="/cash" className="font-bold underline">{t('dashboard.openSession')}</Link></Alert></div>}
+            {noSession && <div className="mt-3"><QuickOpenSession /></div>}
           </Card>
           {!online && <Alert tone="yellow">📴 {t('offline.banner')}</Alert>}
           {error && <Alert>{error}</Alert>}

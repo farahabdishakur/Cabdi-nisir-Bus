@@ -19,11 +19,13 @@ export function ClaimStatusBadge({ s }: { s: ClaimStatus }) {
 export function OpenClaimModal({ parcel, open, onClose, onDone }: { parcel: { id: string; receiverName: string; receiverPhone: string }; open: boolean; onClose: () => void; onDone: (c: ParcelClaim) => void }) {
   const { t, err } = useI18n();
   const qc = useQueryClient();
-  const [f, setF] = useState({ type: 'DAMAGED' as ClaimType, description: '', claimantName: '', claimantPhone: '', amount: '' });
+  const blank = { type: 'DAMAGED' as ClaimType, description: '', claimantName: parcel.receiverName, claimantPhone: parcel.receiverPhone, amount: '' };
+  const [f, setF] = useState(blank);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // foomka waxaa la nadiifiyaa marka la XIRO (ma aha marka la furo) — qoraalka la bilaabay ma lumo haddii render-ku daaho
   useEffect(() => {
-    if (open) {
+    if (!open) {
       setF({ type: 'DAMAGED', description: '', claimantName: parcel.receiverName, claimantPhone: parcel.receiverPhone, amount: '' });
       setError('');
     }

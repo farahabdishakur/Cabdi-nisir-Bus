@@ -286,3 +286,15 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 4. **Sync** (`POST /sync/bookings`, Idempotency-Key): waqtiga dhabta ah ee iibka (`offlineCreatedAt`) ayaa la kaydiyaa; waqti ka badan 2 maalmood ama mustaqbal → `OFFLINE_TIME_INVALID`.
 5. **Kursi la qaatay intii offline la ahaa** (iib online ah) → rakaabka waxaa la siiyaa kursi kale (qoondada laanta marka hore, kadib kursi kasta) — karraanigu wuu arkaa (`seatChangedFrom`) oo rakaabka ayuu u sheegaa. Kursi la'aan → `NO_SEAT_AVAILABLE` (lacagta celi).
 6. **Gaari baxay:** iibkii ka horreeyay bixitaanka (`offlineCreatedAt ≤ manifestLockedAt`) waa la qoraa; iibkii ka dambeeyay waa la diidaa (`TRIP_CLOSED_FOR_SALE`).
+
+## 33. Xannibaad, Ganaax, Lambarka Baska & Darawalka
+1. **Xannib (block):** bas, darawal ama shaqaale — `isActive=false` waxay u baahan tahay **sabab** (`BLOCK_REASON_REQUIRED`); `blockReason` + `blockedAt` ayaa la kaydiyaa, audit-ka ayaa haya taariikhda. **Fur** → sababta waa la tirtiraa.
+   - Bas: Super Admin · Darawal: maamulaha laantiisa / Super Admin · Shaqaale: sida maamulka shaqaalaha (maamule → karraani/darawal laantiisa).
+   - Bas/darawal la xannibay: safka maanta (WAITING) waa laga saaraa (`BLOCKED: sabab`); safar & saf cusub lama gelin karo. Safar soo socda haddii uu leeyahay → marka hore beddel (`VEHICLE_HAS_TRIPS`, `DRIVER_HAS_TRIPS`).
+   - Shaqaale la xannibay: tokens-kiisa isla markiiba way dhacaan, login ma samayn karo.
+2. **Ganaax baska** (Super Admin): bas + lacag + sabab. Ikhtiyaari: **darawalka mushaharkiisa laga jaro** (`DriverPayment DEDUCTION`, lacag sanduuq kama baxdo). Wax lama tirtiro (DB trigger) — **ka laabasho** = void + sabab; ka jaridda darawalkana waa la void-gareeyaa (haraagiisa dib ayuu u helaa).
+3. **Lambarka baska** (`fleetNo` — albaabka ku qoran: 02, 13, 3G): mid kasta hal bas (`FLEET_NO_USED`). Wuxuu ka muuqdaa safka, safarada, jadwalka iyo warbixinada — weheliya magaca + taleefanka darawalka.
+4. **Jadwalka safarka maalinta** (daabac / sawir la wadaago): kala horreynta 1…N — kuwa baxay (wakhtiga), kan buuxsamaya, kuwa sugaya — bas kasta darawalkiisa iyo taleefankiisa (qof kasta wuu arkaa kan xiga).
+5. **Bas soo galay:** karraaniga magaalada wuxuu safka dabadiisa ku dari karaa **hal bas** oo soo gaadhay; liis dhan (bilowga maalinta) iyo kala horreynta = maamule.
+6. **Warbixinta darawalka:** darawal kasta — safaradiisa, basaska, wakhtiga la qorsheeyay / baxay (`manifestLockedAt`) / gaadhay (`arrivedAt`), rakaabka.
+7. **Sanduuqa xiran** marka la iibinayo: isla bogga iibka (tigidh / alaab) ayaa laga furaa — lacagta bilowga waa ikhtiyaari.

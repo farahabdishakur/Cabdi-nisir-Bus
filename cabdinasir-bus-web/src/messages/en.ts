@@ -207,6 +207,7 @@ const en: DeepPartial<Messages> = {
   },
   company: { logo: 'Company logo', logoHint: 'PNG or JPG, max 1MB. Shown on receipts, login and customer pages.', uploadLogo: 'Upload logo', noLogo: 'No logo', removeLogo: 'Remove', tagline: 'Tagline', mission: 'Mission', slogans: 'Slogans', passengerRules: 'Passenger rules', parcelRules: 'Parcel rules', receiptFooter: 'Receipt footer', oneLine: 'One line = one rule' },
   reports: {
+    drivers: 'Drivers', lastDeparted: 'Last trip', showAll: 'All', showTrips: 'Trips', planned: 'Planned', departed: 'Departed', arrived: 'Arrived',
     title: 'Reports', dailyClose: 'Daily close', revenue: 'Revenue', tripsProfit: 'Trip profit', integrity: 'Integrity check',
     cashiers: 'Cashier performance', income: 'Income', expenses: 'Expenses', net: 'Net', deposits: 'Transfers', tickets: 'Tickets',
     parcelsSent: 'Parcels sent', delivered: 'Delivered', profit: 'Profit', issuesNone: 'All good ✓', failedSms: 'Failed SMS',
@@ -223,6 +224,7 @@ const en: DeepPartial<Messages> = {
     message: 'Message', retry: 'Retry', uptime: 'Uptime', jobsOff: 'Background jobs are off (JOBS_ENABLED).', smsFailed: '{n} SMS failed — check the SMS provider.',
   },
   admin: {
+    fines: '🚫 Fines', fleetNo: 'Bus number', fleetNoHint: 'Painted on the door: 02, 13, 3G',
     defaultDriver: 'Default driver', defaultDriverHint: 'The daily queue picks this driver automatically',
     seatLayoutHint: 'Pick a template or click cells to place seats',
     allCompany: 'Whole company',
@@ -254,7 +256,32 @@ const en: DeepPartial<Messages> = {
     maxReservationsPerPhone: 'Prevents fake reservations',
     shareTripsWithinCity: '1 = Boorama 1 & 2 share one seat map',
   },
+  block: {
+    blocked: 'Blocked', block: 'Block', unblock: 'Unblock', confirm: 'Block now',
+    hint: 'While blocked: bus → no trips or queue · driver → cannot be assigned · staff → cannot log in. You can unblock later.',
+    reason: 'Reason', reasonPh: 'E.g. fine, broken down, missing money, absent',
+  },
+  fines: {
+    title: 'Bus fines', add: 'New fine', save: 'Record fine',
+    hint: 'Fines on a bus (police, government or company). Optionally deducted from the driver\'s pay. Nothing is deleted — you can undo with a reason.',
+    total: '{n} active fines · total {amount}', bus: 'Bus', reason: 'Reason', reasonPh: 'E.g. speeding, overloading, missing papers',
+    driver: 'Driver', deducted: 'deducted from pay', recordOnly: 'record only', charge: 'Deduct from the driver\'s pay',
+    active: 'Active', undone: 'Undone', undo: 'Undo', undoReason: 'Reason for undoing', undoRefund: '{name} gets the money back',
+  },
+  schedule: {
+    print: 'Schedule (print / image)', title: 'Travel Schedule', bus: 'Bus', loading: 'Loading now', waiting: 'Waiting', slogan: 'Safe and Pleasant Journey',
+    d0: 'Sunday', d1: 'Monday', d2: 'Tuesday', d3: 'Wednesday', d4: 'Thursday', d5: 'Friday', d6: 'Saturday',
+  },
+  arrival: {
+    title: 'Bus arrived', hint: 'Pick the bus that just arrived → it joins the end of the queue (the manager can reorder).',
+    bus: 'Arrived bus', add: 'Add to queue', done: '✓ {bus} added to the queue',
+  },
+  quickSession: {
+    title: 'Your cash drawer is closed', hint: 'Paid tickets/parcels need an open drawer. Open it here — enter the cash you hold (leave empty if none).',
+    usd: 'Opening cash $ (optional)', slsh: 'SLSH (optional)', open: 'Open drawer now',
+  },
   errors: {
+    BLOCK_REASON_REQUIRED: 'Write the reason for blocking (at least 3 characters)', DRIVER_HAS_TRIPS: 'This driver has an upcoming trip — assign another driver first', FLEET_NO_USED: 'Another bus already has this number',
     NO_SEAT_AVAILABLE: 'The bus is full — move the passenger to the next bus.',
     PAPER_TICKET_REQUIRED: 'Enter the paper ticket number.',
     PAPER_TICKET_USED: 'This paper ticket number was already used ({receiptNo}).',

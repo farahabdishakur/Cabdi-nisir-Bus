@@ -44,11 +44,11 @@ describe('Dispatch queue (e2e)', () => {
     await prisma.$disconnect();
   });
 
-  it('candidates: active vehicles with their default driver; cashiers cannot manage', async () => {
+  it('candidates: active vehicles with their default driver; cashiers cannot build the roster', async () => {
     const c = await cashier.get('/dispatch/candidates').expect(200);
     expect(c.body.map((x: { plate: string }) => x.plate)).toEqual(expect.arrayContaining(['BUS-1', 'BUS-2', 'BUS-3', 'SL-1']));
     expect(c.body.find((x: { plate: string }) => x.plate === 'BUS-1').defaultDriver.name).toBe('Darawal 1');
-    expect((await cashier.post(`/dispatch/${base.route.id}/enqueue`, { items: [{ vehicleId: v[0], driverId: d[0] }] })).status).toBe(403);
+    expect((await cashier.post(`/dispatch/${base.route.id}/enqueue`, { items: [{ vehicleId: v[0], driverId: d[0] }, { vehicleId: v[1], driverId: d[1] }] })).status).toBe(403);
     expect((await wajManager.post(`/dispatch/${base.route.id}/enqueue`, { items: [{ vehicleId: v[0], driverId: d[0] }] })).status).toBe(403);
   });
 

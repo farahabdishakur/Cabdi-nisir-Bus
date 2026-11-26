@@ -15,6 +15,10 @@ class RangeDto {
   @IsOptional() @IsIn(['json', 'csv']) format?: 'json' | 'csv';
 }
 
+class DriverTripsDto extends RangeDto {
+  @IsOptional() @IsUUID() driverId?: string;
+}
+
 class DayDto {
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @IsUUID() branchId?: string;
@@ -49,6 +53,15 @@ export class ReportsController {
   async occupancy(@CurrentUser() u: AuthUser, @Query() q: RangeDto, @Res({ passthrough: true }) res: Response) {
     const d = await this.reports.occupancy(u, q);
     return send(res, q, 'occupancy', d, () => d.trips.map(({ tripId: _t, ...x }) => ({ ...x, departureAt: x.departureAt.toISOString() })));
+  }
+
+  @Get('driver-trips')
+  async driverTrips(@CurrentUser() u: AuthUser, @Query() q: DriverTripsDto, @Res({ passthrough: true }) res: Response) {
+    const d = await this.reports.driverTrips(u, q);
+    const t = (x: Date | null) => (x ? x.toISOString() : '');
+    return send(res, q, 'driver-trips', d, () =>
+      d.trips.map((x) => ({ driver: x.driver, phone: x.driverPhone, bus: x.fleetNo ?? '', plate: x.vehicle, route: x.route, status: x.status, planned: t(x.departureAt), departed: t(x.departedAt), arrived: t(x.arrivedAt), passengers: x.passengers })),
+    );
   }
 
   @Get('trips-profit')

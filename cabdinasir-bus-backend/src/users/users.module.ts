@@ -8,6 +8,7 @@ import { CurrentUser, MANAGERS, Roles } from '../common/decorators';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
 import { assertBranch, branchFilter } from '../common/branch-scope';
 import { Errors } from '../common/errors';
+import { blockData } from '../common/block';
 import { AuthModule } from '../auth/auth.module';
 import { AuthService } from '../auth/auth.service';
 
@@ -23,6 +24,8 @@ export class UpdateUserDto {
   @IsOptional() @IsEnum(Role) role?: Role;
   @IsOptional() @IsUUID() branchId?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  /** Sababta xannibaadda (waajib marka isActive=false) */
+  @IsOptional() @IsString() @Length(3, 200) blockReason?: string;
 }
 export class ResetPasswordDto {
   @IsString() @Matches(STRONG_PASSWORD, { message: STRONG_PASSWORD_MSG }) password: string;
@@ -68,7 +71,7 @@ export class UsersService {
     if (target.id === actor.id && dto.isActive === false) throw Errors.bad('CANNOT_DEACTIVATE_SELF', 'You cannot deactivate yourself');
     const u = await this.prisma.user.update({
       where: { id },
-      data: { name: dto.name, isActive: dto.isActive, role, branchId: role === Role.SUPER_ADMIN ? null : branchId },
+      data: { name: dto.name, ...blockData(dto), role, branchId: role === Role.SUPER_ADMIN ? null : branchId },
     });
     if (dto.isActive === false || dto.role || dto.branchId) await this.auth.revokeAll(id);
     return AuthService.publicUser(u);

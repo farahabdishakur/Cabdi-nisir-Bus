@@ -1,5 +1,7 @@
 'use client';
 
+import { QuickOpenSession } from '@/components/quick-session';
+import { BusNo, DriverLine } from '@/components/bus';
 import { PaperNoField, showPaperCopy, useTicketMode } from '@/components/paper-ticket';
 import Link from 'next/link';
 import { use, useEffect, useRef, useState } from 'react';
@@ -10,7 +12,7 @@ import { useI18n } from '@/lib/i18n';
 import { can } from '@/lib/permissions';
 import { useBootstrap, useCashSession, useUpcomingTrips } from '@/lib/queries';
 import { dateTime, parseUsd, time, usd } from '@/lib/format';
-import type { Booking, PaymentInput, SeatMapData, SeatState, Trip, TripStatus } from '@/lib/types';
+import { busLabel, type Booking, type PaymentInput, type SeatMapData, type SeatState, type Trip, type TripStatus } from '@/lib/types';
 import { Alert, Button, Card, Field, Input, Loading, Modal, PageHeader, Select } from '@/components/ui';
 import { CASH_USD, PartyInput, PaymentPicker, paymentReady, ReasonModal, TripStatusBadge, ErrorAlert } from '@/components/domain';
 import { SeatMap } from '@/components/seat-map';
@@ -133,8 +135,8 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <TripStatusBadge s={tr.status} />
         <span>{dateTime(tr.departureAt)}</span>
-        <span>🚐 {tr.vehicle.plate}</span>
-        <span>👤 {tr.driver.name}</span>
+        <span className="flex items-center gap-1"><BusNo no={tr.vehicle.fleetNo} /> 🚐 {tr.vehicle.plate}</span>
+        <DriverLine name={tr.driver.name} phone={tr.driver.phone} />
         {allowed.map((s) => (
           <Button
             key={s}
@@ -186,7 +188,7 @@ function DriverManifest({ trip }: { trip: Trip }) {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title={`${time(trip.departureAt)} · ${trip.route.fromBranch.name} → ${trip.route.toBranch.name}`} />
-      <div className="flex flex-wrap gap-3 text-sm"><TripStatusBadge s={trip.status} /><span>🚐 {trip.vehicle.plate}</span></div>
+      <div className="flex flex-wrap gap-3 text-sm"><TripStatusBadge s={trip.status} /><span>🚐 {busLabel(trip.vehicle)}</span></div>
       {m.error ? <ErrorAlert error={m.error} /> : m.isLoading ? <Loading /> : m.data && (
         <>
           <Card title={`${t('trips.passengers')} (${m.data.totals.passengers})`}>
@@ -297,14 +299,7 @@ function SellPanel({ trip, seat, onDone, onCancel }: { trip: Trip; seat: SeatSta
             )}
             <PaymentPicker value={pay} onChange={setPay} />
             {ticketMode !== 0 && <PaperNoField value={paperNo} onChange={setPaperNo} required={ticketMode === 1} />}
-            {noSession && (
-              <Alert tone="yellow">
-                {t('dashboard.noSession')}{' '}
-                <Link href="/cash" className="font-bold underline">
-                  {t('dashboard.openSession')}
-                </Link>
-              </Alert>
-            )}
+            {noSession && <QuickOpenSession />}
           </>
         )}
 
@@ -362,7 +357,7 @@ function MoveModal({ open, onClose, trip }: { open: boolean; onClose: () => void
               <option value="">—</option>
               {options.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {dateTime(o.departureAt)} · {o.vehicle.plate} · {o.seatsAvailable} {t('trips.free')}
+                  {dateTime(o.departureAt)} · {busLabel(o.vehicle)} · {o.seatsAvailable} {t('trips.free')}
                 </option>
               ))}
             </Select>

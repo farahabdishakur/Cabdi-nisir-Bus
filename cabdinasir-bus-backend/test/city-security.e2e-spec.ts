@@ -156,7 +156,7 @@ describe('Boorama 2 branches + security (e2e)', () => {
     const token = await login(app, '0632');
     await api(app, token).get('/auth/me').expect(200);
     const u = await prisma.user.findUniqueOrThrow({ where: { phone: '0632' } });
-    await wajMgr.patch(`/users/${u.id}`, { isActive: false }).expect(200);
+    await wajMgr.patch(`/users/${u.id}`, { isActive: false, blockReason: 'Test block' }).expect(200);
     const r = await api(app, token).get('/auth/me');
     expect(r.status).toBe(401);
     expect(r.body.error.code).toBe('SESSION_REVOKED');

@@ -8,20 +8,22 @@ import { useI18n } from '@/lib/i18n';
 import { isSuperAdmin } from '@/lib/permissions';
 import { useBootstrap } from '@/lib/queries';
 import { centsToInput, parseUsd, phone, usd } from '@/lib/format';
-import type { Branch, Category, Company, Driver, Role, Route, Vehicle } from '@/lib/types';
+import { busLabel, type Branch, type Category, type Company, type Driver, type Role, type Route, type Vehicle } from '@/lib/types';
 import { Alert, Badge, Button, Card, Checkbox, Field, Input, Loading, Modal, PageHeader, Select, Table, Td, Textarea } from '@/components/ui';
 import { BranchSelect, ErrorAlert } from '@/components/domain';
 import { SeatLayoutEditor, type SeatLayoutValue } from '@/components/seat-layout-editor';
 import { uploadWithProgress } from '@/lib/api';
+import { BlockButton, BlockStatus } from '@/components/block';
+import { Fines } from '@/components/fines';
 
-type Tab = 'branches' | 'routes' | 'vehicles' | 'drivers' | 'users' | 'categories' | 'settings';
+type Tab = 'branches' | 'routes' | 'vehicles' | 'fines' | 'drivers' | 'users' | 'categories' | 'settings';
 
 export default function AdminPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const sa = isSuperAdmin(user);
   const tabs: [Tab, boolean][] = [
-    ['users', true], ['drivers', true], ['branches', sa], ['routes', sa], ['vehicles', sa], ['categories', sa], ['settings', sa],
+    ['users', true], ['drivers', true], ['branches', sa], ['routes', sa], ['vehicles', sa], ['fines', sa], ['categories', sa], ['settings', sa],
   ];
   const [tab, setTab] = useState<Tab>('users');
   return (
@@ -35,6 +37,7 @@ export default function AdminPage() {
       {tab === 'branches' && sa && <Branches />}
       {tab === 'routes' && sa && <Routes />}
       {tab === 'vehicles' && sa && <Vehicles />}
+      {tab === 'fines' && sa && <Fines />}
       {tab === 'categories' && sa && <Categories />}
       {tab === 'settings' && sa && <Settings />}
     </div>
@@ -78,7 +81,7 @@ function FormModal({ open, title, onClose, onSave, busy, error, children, wide }
 
 // ------------------------------------------------------------------ users
 
-interface UserRow { id: string; name: string; phone: string; role: Role; branchId: string | null; isActive: boolean; lastLoginAt: string | null }
+interface UserRow { id: string; name: string; phone: string; role: Role; branchId: string | null; isActive: boolean; blockReason?: string | null; blockedAt?: string | null; lastLoginAt: string | null }
 
 function Users() {
   const { t } = useI18n();
@@ -105,11 +108,11 @@ function Users() {
               <Td>{phone(u.phone)}</Td>
               <Td>{t(`roles.${u.role}`)}</Td>
               <Td>{branchName(u.branchId)}</Td>
-              <Td>{u.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
+              <Td><BlockStatus isActive={u.isActive} blockReason={u.blockReason} blockedAt={u.blockedAt} /></Td>
               <Td>
                 {u.id !== user?.id && (
                   <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => s.run(() => api(`/users/${u.id}`, { method: 'PATCH', body: { isActive: !u.isActive } }), [['admin', 'users']])}>{u.isActive ? t('common.inactive') : t('common.active')}</Button>
+                    <BlockButton name={u.name} isActive={u.isActive} endpoint={`/users/${u.id}`} queryKeys={[['admin', 'users']]} />
                     <Button size="sm" variant="ghost" onClick={() => setEditU(u)}>{t('common.edit')}</Button>
                     <Button size="sm" variant="ghost" onClick={() => { setReset(u); setPw(''); }}>{t('admin.resetPassword')}</Button>
                   </div>
@@ -163,15 +166,15 @@ function Drivers() {
           {list.data?.map((d) => (
             <tr key={d.id}>
               <Td className="font-semibold">{d.name}</Td><Td>{phone(d.phone)}</Td><Td className={d.branchId ? '' : 'text-amber-700'}>{branchName(d.branchId)}</Td><Td>{d.licenseNo ?? '—'}</Td><Td>{d.userId ? `✓ ${accountName(d.userId) ?? ''}` : '—'}</Td>
-              <Td>{d.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
-              <Td><Button size="sm" variant="ghost" onClick={() => setEdit(d)}>{t('common.edit')}</Button></Td>
+              <Td><BlockStatus isActive={d.isActive} blockReason={d.blockReason} blockedAt={d.blockedAt} /></Td>
+              <Td><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => setEdit(d)}>{t('common.edit')}</Button><BlockButton name={d.name} isActive={d.isActive} endpoint={`/drivers/${d.id}`} queryKeys={[['drivers']]} /></div></Td>
             </tr>
           ))}
         </Table>
       )}
       <FormModal open={!!edit} title={t('admin.drivers')} onClose={() => setEdit(null)} busy={s.busy} error={s.error}
         onSave={() => s.run(() => edit?.id
-          ? api(`/drivers/${edit.id}`, { method: 'PATCH', body: { name: edit.name, phone: edit.phone, licenseNo: edit.licenseNo || undefined, isActive: edit.isActive, ...(edit.userId && { userId: edit.userId }), ...(sa && edit.branchId && { branchId: edit.branchId }) } })
+          ? api(`/drivers/${edit.id}`, { method: 'PATCH', body: { name: edit.name, phone: edit.phone, licenseNo: edit.licenseNo || undefined, ...(edit.userId && { userId: edit.userId }), ...(sa && edit.branchId && { branchId: edit.branchId }) } })
           : api('/drivers', { method: 'POST', body: { name: edit?.name, phone: edit?.phone, licenseNo: edit?.licenseNo || undefined, ...(edit?.userId && { userId: edit.userId }), ...(sa && edit?.branchId && { branchId: edit.branchId }) } }), [['drivers']], () => setEdit(null))}>
         <Field label={t('common.name')} required>{(id) => <Input id={id} value={edit?.name ?? ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required />}</Field>
         <Field label={t('common.phone')} required>{(id) => <Input id={id} value={edit?.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} required />}</Field>
@@ -183,7 +186,6 @@ function Drivers() {
             {accounts.data?.map((a) => <option key={a.id} value={a.id}>{a.name} · {phone(a.phone)}</option>)}
           </Select>
         )}</Field>
-        {edit?.id && <Checkbox label={t('common.active')} checked={!!edit.isActive} onChange={(v) => setEdit({ ...edit, isActive: v })} />}
       </FormModal>
     </Card>
   );
@@ -280,38 +282,50 @@ function Vehicles() {
   const { t } = useI18n();
   const list = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Vehicle[]>('/vehicles') });
   const s = useSaver();
-  const [edit, setEdit] = useState<{ id?: string; plate: string; model: string; layout: SeatLayoutValue | null; isActive?: boolean; defaultDriverId?: string | null } | null>(null);
+  const [edit, setEdit] = useState<{ id?: string; plate: string; fleetNo: string; model: string; layout: SeatLayoutValue | null; defaultDriverId?: string | null } | null>(null);
   const drivers = useQuery({ queryKey: ['drivers'], queryFn: () => api<Driver[]>('/drivers') });
   const [layout, setLayout] = useState<SeatLayoutValue | null>(null);
+  // lambarka baska (1, 2 … 20, 3G) → kala horreyn dabiici ah
+  const rows = [...(list.data ?? [])].sort((a, b) => (a.fleetNo ?? '~').localeCompare(b.fleetNo ?? '~', undefined, { numeric: true }) || a.plate.localeCompare(b.plate));
   const save = () =>
     s.run(() => (edit?.id
-      ? api(`/vehicles/${edit.id}`, { method: 'PATCH', body: { model: edit.model, seatLayout: layout, isActive: edit.isActive, defaultDriverId: edit.defaultDriverId || null } })
-      : api('/vehicles', { method: 'POST', body: { plate: edit!.plate.trim(), model: edit!.model, seatLayout: layout, ...(edit!.defaultDriverId && { defaultDriverId: edit!.defaultDriverId }) } })), [['vehicles']], () => setEdit(null));
+      ? api(`/vehicles/${edit.id}`, { method: 'PATCH', body: { model: edit.model, fleetNo: edit.fleetNo.trim() || null, seatLayout: layout, defaultDriverId: edit.defaultDriverId || null } })
+      : api('/vehicles', { method: 'POST', body: { plate: edit!.plate.trim(), ...(edit!.fleetNo.trim() && { fleetNo: edit!.fleetNo.trim() }), model: edit!.model, seatLayout: layout, ...(edit!.defaultDriverId && { defaultDriverId: edit!.defaultDriverId }) } })), [['vehicles']], () => setEdit(null));
   return (
-    <Card title={t('admin.vehicles')} actions={<Button size="sm" onClick={() => setEdit({ plate: '', model: 'Toyota Hiace', layout: null })}>+ {t('common.add')}</Button>}>
-      <Table head={[t('admin.plate'), t('admin.model'), t('admin.capacity'), t('admin.defaultDriver'), t('common.status'), '']} empty={!list.data?.length}>
-        {list.data?.map((v) => (
+    <Card title={t('admin.vehicles')} actions={<Button size="sm" onClick={() => setEdit({ plate: '', fleetNo: '', model: 'Toyota Hiace', layout: null })}>+ {t('common.add')}</Button>}>
+      <Table head={[t('admin.fleetNo'), t('admin.plate'), t('admin.model'), t('admin.capacity'), t('admin.defaultDriver'), t('common.status'), '']} empty={!rows.length}>
+        {rows.map((v) => (
           <tr key={v.id}>
-            <Td className="font-mono font-bold">{v.plate}</Td><Td>{v.model}</Td><Td>{v.capacity}</Td><Td>{v.defaultDriver?.name ?? '—'}</Td>
-            <Td>{v.isActive ? <Badge tone="green">{t('common.active')}</Badge> : <Badge tone="red">{t('common.inactive')}</Badge>}</Td>
-            <Td><Button size="sm" variant="ghost" onClick={() => setEdit({ id: v.id, plate: v.plate, model: v.model, layout: v.seatLayout as SeatLayoutValue, isActive: v.isActive, defaultDriverId: v.defaultDriverId ?? null })}>{t('common.edit')}</Button></Td>
+            <Td><span className="inline-flex min-w-9 justify-center rounded-lg bg-red-600 px-2 py-0.5 text-sm font-black text-white">{v.fleetNo ?? '—'}</span></Td>
+            <Td className="font-mono font-bold">{v.plate}</Td><Td>{v.model}</Td><Td>{v.capacity}</Td>
+            <Td>{v.defaultDriver ? <span><b>{v.defaultDriver.name}</b>{v.defaultDriver.phone && <span className="block text-xs text-gray-500">📞 {phone(v.defaultDriver.phone)}</span>}</span> : '—'}</Td>
+            <Td><BlockStatus isActive={v.isActive} blockReason={v.blockReason} blockedAt={v.blockedAt} /></Td>
+            <Td>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" onClick={() => setEdit({ id: v.id, plate: v.plate, fleetNo: v.fleetNo ?? '', model: v.model, layout: v.seatLayout as SeatLayoutValue, defaultDriverId: v.defaultDriverId ?? null })}>{t('common.edit')}</Button>
+                <BlockButton name={busLabel(v)} isActive={v.isActive} endpoint={`/vehicles/${v.id}`} queryKeys={[['vehicles']]} />
+              </div>
+            </Td>
           </tr>
         ))}
       </Table>
+      {s.error && !edit && <div className="mt-2"><Alert>{s.error}</Alert></div>}
       <FormModal open={!!edit} wide title={t('admin.vehicles')} onClose={() => setEdit(null)} busy={s.busy} error={s.error} onSave={save}>
-        <Field label={t('admin.plate')} required>{(id) => <Input id={id} value={edit?.plate ?? ''} disabled={!!edit?.id} onChange={(e) => setEdit({ ...edit!, plate: e.target.value })} required />}</Field>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label={t('admin.fleetNo')} hint={t('admin.fleetNoHint')}>{(id) => <Input id={id} value={edit?.fleetNo ?? ''} maxLength={8} placeholder="13" onChange={(e) => setEdit({ ...edit!, fleetNo: e.target.value.toUpperCase() })} />}</Field>
+          <div className="col-span-2"><Field label={t('admin.plate')} required>{(id) => <Input id={id} value={edit?.plate ?? ''} disabled={!!edit?.id} onChange={(e) => setEdit({ ...edit!, plate: e.target.value })} required />}</Field></div>
+        </div>
         <Field label={t('admin.model')} required>{(id) => <Input id={id} value={edit?.model ?? ''} onChange={(e) => setEdit({ ...edit!, model: e.target.value })} required />}</Field>
         <Field label={t('admin.defaultDriver')} hint={t('admin.defaultDriverHint')}>{(id) => (
           <Select id={id} value={edit?.defaultDriverId ?? ''} onChange={(e) => setEdit({ ...edit!, defaultDriverId: e.target.value || null })}>
             <option value="">—</option>
-            {drivers.data?.filter((d) => d.isActive).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            {drivers.data?.filter((d) => d.isActive).map((d) => <option key={d.id} value={d.id}>{d.name} · {phone(d.phone)}</option>)}
           </Select>
         )}</Field>
         <div>
           <p className="mb-1 text-sm font-medium">{t('admin.seatLayout')}</p>
           {edit && <SeatLayoutEditor key={edit.id ?? 'new'} value={edit.layout} onChange={setLayout} />}
         </div>
-        {edit?.id && <Checkbox label={t('common.active')} checked={!!edit.isActive} onChange={(v) => setEdit({ ...edit, isActive: v })} />}
       </FormModal>
     </Card>
   );

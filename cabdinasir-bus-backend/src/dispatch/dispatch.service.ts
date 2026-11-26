@@ -66,7 +66,7 @@ export class DispatchService {
     const route = await this.route(routeId);
     const entries = await this.prisma.dispatchEntry.findMany({
       where: { routeId, OR: [{ serviceDate: date }, { status: 'LOADING' }] },
-      include: { vehicle: { select: { id: true, plate: true, model: true, capacity: true } }, driver: { select: { id: true, name: true, phone: true } } },
+      include: { vehicle: { select: { id: true, plate: true, fleetNo: true, model: true, capacity: true } }, driver: { select: { id: true, name: true, phone: true } } },
       orderBy: [{ position: 'asc' }],
     });
     const tripIds = entries.map((e) => e.tripId).filter((x): x is string => !!x);
@@ -101,7 +101,7 @@ export class DispatchService {
    */
   async candidates() {
     const [vehicles, open, busy, last] = await Promise.all([
-      this.prisma.vehicle.findMany({ where: { isActive: true }, include: { defaultDriver: { select: { id: true, name: true, isActive: true } } }, orderBy: { plate: 'asc' } }),
+      this.prisma.vehicle.findMany({ where: { isActive: true }, include: { defaultDriver: { select: { id: true, name: true, phone: true, isActive: true } } }, orderBy: { plate: 'asc' } }),
       this.prisma.dispatchEntry.findMany({ where: { status: { in: OPEN } }, select: { vehicleId: true, driverId: true } }),
       this.prisma.trip.findMany({ where: { status: { in: BUSY_TRIP } }, select: { vehicleId: true, driverId: true } }),
       this.prisma.dispatchEntry.groupBy({ by: ['vehicleId'], where: { status: 'DEPARTED' }, _max: { departedAt: true } }),
@@ -113,7 +113,7 @@ export class DispatchService {
     return vehicles
       .filter((v) => !blockedV.has(v.id))
       .sort((a, b) => lastAt(a.id) - lastAt(b.id) || a.plate.localeCompare(b.plate))
-      .map((v) => ({ vehicleId: v.id, plate: v.plate, model: v.model, capacity: v.capacity, defaultDriver: v.defaultDriver?.isActive && !blockedD.has(v.defaultDriver.id) ? v.defaultDriver : null, lastDepartedAt: lastAt(v.id) ? new Date(lastAt(v.id)) : null }));
+      .map((v) => ({ vehicleId: v.id, plate: v.plate, fleetNo: v.fleetNo, model: v.model, capacity: v.capacity, defaultDriver: v.defaultDriver?.isActive && !blockedD.has(v.defaultDriver.id) ? v.defaultDriver : null, lastDepartedAt: lastAt(v.id) ? new Date(lastAt(v.id)) : null }));
   }
 
   /** Dhammaan wadooyinka (Super Admin / dashboard): gaariga hadda buuxsamaya + inta sugaysa */
@@ -123,7 +123,13 @@ export class DispatchService {
     for (const r of routes) {
       const b = await this.board(r.id, date);
       const loading = b.entries.filter((e) => e.status === 'LOADING');
-      out.push({ route: b.route, loading: loading.map((e) => ({ plate: e.vehicle.plate, driver: e.driver.name, tripId: e.tripId, taken: e.trip?.taken ?? 0, capacity: e.vehicle.capacity })), stats: b.stats, next: b.entries.filter((e) => e.status === 'WAITING').slice(0, 3).map((e) => e.vehicle.plate) });
+      const label = (e: (typeof b.entries)[number]) => (e.vehicle.fleetNo ? `${e.vehicle.fleetNo} · ${e.vehicle.plate}` : e.vehicle.plate);
+      out.push({
+        route: b.route,
+        loading: loading.map((e) => ({ plate: label(e), fleetNo: e.vehicle.fleetNo, driver: e.driver.name, driverPhone: e.driver.phone, tripId: e.tripId, taken: e.trip?.taken ?? 0, capacity: e.vehicle.capacity })),
+        stats: b.stats,
+        next: b.entries.filter((e) => e.status === 'WAITING').slice(0, 3).map((e) => `${label(e)} (${e.driver.name})`),
+      });
     }
     return { date, routes: out.filter((r) => r.loading.length || r.stats.waiting || r.stats.departed) };
   }
@@ -133,7 +139,9 @@ export class DispatchService {
   /** Bilow / ku dar: gaadiidka maanta (kala horreynta la doortay) — kuwa hore ee safka ku jira waa la ilaaliyaa */
   async enqueue(user: AuthUser, routeId: string, items: RosterItem[], note?: string) {
     const route = await this.route(routeId);
-    this.assertManager(user, route.fromBranchId);
+    // "Bas soo galay": karraaniga magaalada wuxuu safka dabadiisa ku dari karaa HAL bas oo soo gaadhay; liis dhan = maamule
+    const arrival = user.role === Role.CASHIER && items.length === 1 && this.dir.sameCity(user.branchId, route.fromBranchId);
+    if (!arrival) this.assertManager(user, route.fromBranchId);
     if (!route.isActive) throw Errors.bad('ROUTE_INACTIVE', 'Route is inactive');
     if (!items.length) throw Errors.bad('VALIDATION_ERROR', 'Choose at least one vehicle');
     const date = businessDate();

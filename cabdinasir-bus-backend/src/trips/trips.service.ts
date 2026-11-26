@@ -175,6 +175,7 @@ export class TripsService {
         await this.moveParcels(tx, user, id, ParcelStatus.LOADED, ParcelStatus.IN_TRANSIT, 'Vehicle departed');
       }
       if (to === 'ARRIVED') {
+        data.arrivedAt = new Date();
         // safarka waa dhammaaday → kasbashada darawalka si toos ah (xeerkiisa: safar / boqolley)
         await this.driverPay.accrueTrip(tx, id);
       }

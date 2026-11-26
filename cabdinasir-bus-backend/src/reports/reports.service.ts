@@ -243,6 +243,44 @@ export class ReportsService {
    * Faa'iidada safar kasta: tigidhada (+farqi −celin) + alaabta la raray − kharashka safarka (shidaal, darawal …).
    * Mulkiiluhu wuxuu arkaa safarada khasaaraha ah.
    */
+  /** Darawal kasta: safaradii uu wadey (bas, wakhtiga la qorsheeyay / dhab ah ee baxay / gaadhay, rakaab) — BUSINESS_RULES §33 */
+  async driverTrips(user: AuthUser, q: RangeQuery & { driverId?: string }) {
+    const r = this.range(q);
+    const branchId = branchFilter(user, q.branchId);
+    const trips = await this.prisma.trip.findMany({
+      where: { departureAt: { gte: r.start, lt: r.end }, status: { not: 'CANCELLED' }, driverId: q.driverId, route: branchId ? { fromBranchId: branchId } : undefined },
+      include: { vehicle: { select: { plate: true, fleetNo: true } }, driver: { select: { id: true, name: true, phone: true } }, route: { include: { fromBranch: true, toBranch: true } } },
+      orderBy: { departureAt: 'asc' },
+      take: 2000,
+    });
+    const pax = await this.prisma.booking.groupBy({ by: ['tripId'], where: { tripId: { in: trips.map((t) => t.id) }, status: { in: ['CONFIRMED', 'BOARDED'] } }, _count: true });
+    const rows = trips.map((t) => ({
+      tripId: t.id,
+      driverId: t.driver.id,
+      driver: t.driver.name,
+      driverPhone: t.driver.phone,
+      fleetNo: t.vehicle.fleetNo,
+      vehicle: t.vehicle.plate,
+      route: `${t.route.fromBranch.name} → ${t.route.toBranch.name}`,
+      status: t.status,
+      departureAt: t.departureAt,
+      departedAt: t.manifestLockedAt,
+      arrivedAt: t.arrivedAt,
+      passengers: pax.find((p) => p.tripId === t.id)?._count ?? 0,
+    }));
+    const byDriver = new Map<string, { driverId: string; driver: string; driverPhone: string; trips: number; passengers: number; vehicles: Set<string>; lastDepartedAt: Date | null }>();
+    for (const x of rows) {
+      const d = byDriver.get(x.driverId) ?? { driverId: x.driverId, driver: x.driver, driverPhone: x.driverPhone, trips: 0, passengers: 0, vehicles: new Set<string>(), lastDepartedAt: null };
+      d.trips++;
+      d.passengers += x.passengers;
+      d.vehicles.add(x.fleetNo ?? x.vehicle);
+      if (x.departedAt && (!d.lastDepartedAt || x.departedAt > d.lastDepartedAt)) d.lastDepartedAt = x.departedAt;
+      byDriver.set(x.driverId, d);
+    }
+    const drivers = [...byDriver.values()].map((d) => ({ ...d, vehicles: [...d.vehicles] })).sort((a, b) => b.trips - a.trips);
+    return { from: r.from, to: r.to, drivers, trips: rows };
+  }
+
   async tripsProfit(user: AuthUser, q: RangeQuery) {
     const r = this.range(q);
     const branchId = branchFilter(user, q.branchId);

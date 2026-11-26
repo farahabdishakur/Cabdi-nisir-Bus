@@ -1,5 +1,6 @@
 'use client';
 
+import { BusNo, DriverLine } from '@/components/bus';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -72,9 +73,10 @@ export default function TripsPage() {
                   <p className="font-semibold text-gray-900">
                     {tr.route.fromBranch.name} → {tr.route.toBranch.name}
                   </p>
-                  <p className="text-sm text-gray-500">
-                    {tr.vehicle.plate} · {tr.driver.name}
+                  <p className="flex items-center gap-1.5 text-sm text-gray-500">
+                    <BusNo no={tr.vehicle.fleetNo} /> {tr.vehicle.plate}
                   </p>
+                  <DriverLine small name={tr.driver.name} phone={tr.driver.phone} />
                 </div>
                 <TripStatusBadge s={tr.status} />
               </div>

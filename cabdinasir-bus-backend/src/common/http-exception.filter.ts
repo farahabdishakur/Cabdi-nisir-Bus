@@ -22,6 +22,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (e.code === 'P2002' && /mobile_ref|reference/.test(String(e.meta?.target ?? '') + e.message)) {
         return { status: HttpStatus.CONFLICT, body: { code: 'MOBILE_REFERENCE_USED', message: 'This Zaad/eDahab transaction was already used' } };
       }
+      if (e.code === 'P2002' && /fleetNo/.test(String(e.meta?.target ?? '') + e.message)) {
+        return { status: HttpStatus.CONFLICT, body: { code: 'FLEET_NO_USED', message: 'This bus number is already used' } };
+      }
       if (e.code === 'P2002') {
         return {
           status: HttpStatus.CONFLICT,

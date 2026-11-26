@@ -446,6 +446,7 @@ const so = {
     oneLine: 'Sadar kasta = hal shuruud',
   },
   reports: {
+    drivers: 'Darawallada', lastDeparted: 'Safarkii ugu dambeeyay', showAll: 'Dhammaan', showTrips: 'Safarada', planned: 'La qorsheeyay', departed: 'Baxay', arrived: 'Gaadhay',
     title: 'Warbixino',
     dailyClose: 'Xiritaanka maalinta',
     revenue: 'Dakhliga',
@@ -489,6 +490,7 @@ const so = {
     smsFailed: '{n} SMS ayaa fashilmay — hubi provider-ka SMS.',
   },
   admin: {
+    fines: '🚫 Ganaax', fleetNo: 'Lambarka baska', fleetNoHint: 'Albaabka ku qoran: 02, 13, 3G',
     defaultDriver: 'Darawalka caadiga ah', defaultDriverHint: 'Safka maalinta wuxuu si toos ah u doortaa darawalkan',
     allCompany: 'Shirkadda oo dhan',
     driverBranchHint: 'Laanta maamusha oo bixisa darawalkan',
@@ -528,7 +530,32 @@ const so = {
     accountHint: 'Akoon DRIVER ah (Shaqaalaha) — si darawalku manifest-kiisa taleefanka ugu arko',
     editUserHint: 'Doorka ama laanta marka la beddelo, qofka waa laga saarayaa (mar kale ayuu soo galayaa).',
   },
+  block: {
+    blocked: 'La xannibay', block: 'Xannib', unblock: 'Fur (ka qaad xannibaadda)', confirm: 'Xannib hadda',
+    hint: 'Inta uu xannibanyahay: bas → safar & saf lama gelin karo · darawal → safar looma qoondeyn karo · shaqaale → ma soo gali karo. Dib waad u furi kartaa.',
+    reason: 'Sababta', reasonPh: 'Tusaale: ganaax, xumaaday, lacag maqan, maqan',
+  },
+  fines: {
+    title: 'Ganaaxyada baska', add: 'Ganaax cusub', save: 'Diiwaangeli ganaaxa',
+    hint: 'Ganaax baska lagu qoray (booliis, dowladda ama shirkadda). Haddii aad doorato, darawalka mushaharkiisa ayaa laga jarayaa. Wax lama tirtiro — waad ka laaban kartaa (sabab qoran).',
+    total: '{n} ganaax firfircoon · wadar {amount}', bus: 'Baska', reason: 'Sababta', reasonPh: 'Tusaale: xawaare, rakaab badan, waraaqo la\'aan',
+    driver: 'Darawalka', deducted: 'mushaharka laga jaray', recordOnly: 'diiwaan kaliya', charge: 'Darawalka mushaharkiisa ka jar',
+    active: 'Firfircoon', undone: 'Laga laabtay', undo: 'Ka laabo', undoReason: 'Sababta laga laabanayo', undoRefund: 'lacagta {name} waa loo celinayaa',
+  },
+  schedule: {
+    print: 'Jadwalka (daabac / sawir)', title: 'Jadwalka Safarka', bus: 'Baska', loading: 'Hadda wuu buuxsamayaa', waiting: 'Sugaya', slogan: 'Safar Wacan Iyo Ammaan Ah',
+    d0: 'Axad', d1: 'Isniin', d2: 'Talaado', d3: 'Arbaco', d4: 'Khamiis', d5: 'Jimce', d6: 'Sabti',
+  },
+  arrival: {
+    title: 'Bas soo galay', hint: 'Baska hadda soo gaadhay dooro → safka dabadiisa ayuu galayaa (kala horreynta maamulaha ayaa beddeli kara).',
+    bus: 'Baska soo galay', add: 'Ku dar safka', done: '✓ {bus} safka waa lagu daray',
+  },
+  quickSession: {
+    title: 'Sanduuqaagu (khasnadda) waa xiran yahay', hint: 'Tigidh/alaab lacag leh lama iibin karo ilaa sanduuqa la furo. Halkan ka fur — lacagta gacantaada ku jirta geli (haddii aysan jirin, banaan ka tag).',
+    usd: 'Lacagta bilowga $ (ikhtiyaari)', slsh: 'SLSH (ikhtiyaari)', open: 'Fur sanduuqa hadda',
+  },
   errors: {
+    BLOCK_REASON_REQUIRED: 'Qor sababta xannibaadda (ugu yaraan 3 xaraf)', DRIVER_HAS_TRIPS: 'Darawalkan safar soo socda ayuu leeyahay — marka hore darawal kale u qoondee', FLEET_NO_USED: 'Lambarkan baska bas kale ayaa haysta',
     NO_SEAT_AVAILABLE: 'Gaarigu wuu buuxsamay — rakaabka u wareeji gaariga xiga.',
     PAPER_TICKET_REQUIRED: 'Geli lambarka tigidhka warqadda.',
     PAPER_TICKET_USED: 'Lambarkan tigidh warqad horay ayaa loo isticmaalay ({receiptNo}).',

@@ -1,6 +1,6 @@
 {
   "name": "cabdinasir-bus-web",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Cabdinasir Bus — website-ka shaqaalaha (tigidh, ballan, alaab, sanduuq, warbixino)",
   "scripts": {

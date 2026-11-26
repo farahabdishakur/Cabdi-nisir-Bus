@@ -86,7 +86,7 @@ async function demo(branches: { id: string; code: string; city: string }[]) {
     rows: [['D', null, '1', '2'], ['3', '4', null, '5'], ['6', '7', null, '8'], ['9', '10', null, '11'], ['12', '13', '14', null]],
     front: ['1', '2'],
   };
-  await prisma.vehicle.upsert({ where: { plate: 'SL-DEMO-1' }, create: { plate: 'SL-DEMO-1', model: 'Toyota Hiace', seatLayout: layout, capacity: 14 }, update: {} });
+  await prisma.vehicle.upsert({ where: { plate: 'SL-DEMO-1' }, create: { plate: 'SL-DEMO-1', fleetNo: '02', model: 'Toyota Hiace', seatLayout: layout, capacity: 14 }, update: {} });
   if ((await prisma.driver.count()) === 0) await prisma.driver.create({ data: { name: 'Darawal Tijaabo', phone: '0635000001' } });
   // Basas 10 qof ah (safka gaadiidka): gaari kasta darawalkiisa caadiga ah
   const bus10 = { rows: [['D', null, null, null, null], ['1', '2', null, '3', '4'], ['5', '6', null, '7', '8'], ['9', '10', null, null, null]], front: [] };
@@ -94,7 +94,7 @@ async function demo(branches: { id: string; code: string; city: string }[]) {
   for (let i = 0; i < names.length; i++) {
     const phone = `063510000${i + 1}`;
     const drv = (await prisma.driver.findFirst({ where: { phone } })) ?? (await prisma.driver.create({ data: { name: names[i], phone, branchId: bo1.id } }));
-    await prisma.vehicle.upsert({ where: { plate: `BUS-${i + 1}` }, create: { plate: `BUS-${i + 1}`, model: 'Bas 10 qof', seatLayout: bus10, capacity: 10, defaultDriverId: drv.id }, update: {} });
+    await prisma.vehicle.upsert({ where: { plate: `BUS-${i + 1}` }, create: { plate: `BUS-${i + 1}`, fleetNo: String([13, 16, 1, 18][i] ?? i + 20), model: 'Bas 10 qof', seatLayout: bus10, capacity: 10, defaultDriverId: drv.id }, update: {} });
   }
   const sa = await prisma.user.findFirstOrThrow({ where: { role: Role.SUPER_ADMIN } });
   const today = new Date(new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10));

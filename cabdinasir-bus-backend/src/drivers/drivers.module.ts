@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, MANAGERS, Roles, STAFF } from '../common/decorators';
 import { AuthUser, isSuperAdmin } from '../common/auth-user';
 import { Errors } from '../common/errors';
+import { blockData, removeFromQueue } from '../common/block';
 
 export class CreateDriverDto {
   @IsString() @Length(2, 80) name: string;
@@ -18,6 +19,8 @@ export class CreateDriverDto {
 }
 export class UpdateDriverDto extends PartialType(CreateDriverDto) {
   @IsOptional() @IsBoolean() isActive?: boolean;
+  /** Sababta xannibaadda (waajib marka isActive=false) */
+  @IsOptional() @IsString() @Length(3, 200) blockReason?: string;
 }
 
 /**
@@ -48,9 +51,16 @@ export class DriversService {
     }
     const branchId = isSuperAdmin(user) && dto.branchId !== undefined ? dto.branchId : d.branchId;
     if (dto.userId) await this.checkUser(dto.userId, branchId);
-    return this.prisma.driver.update({
-      where: { id },
-      data: { name: dto.name, phone: dto.phone, licenseNo: dto.licenseNo, userId: dto.userId, isActive: dto.isActive, branchId },
+    const block = blockData(dto);
+    if (block.isActive === false && (await this.prisma.trip.count({ where: { driverId: id, status: { in: ['SCHEDULED', 'BOARDING'] } } }))) {
+      throw Errors.conflict('DRIVER_HAS_TRIPS', 'Driver has upcoming trips — assign another driver first');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      if (block.isActive === false) await removeFromQueue(tx, { driverId: id }, block.blockReason!);
+      return tx.driver.update({
+        where: { id },
+        data: { name: dto.name, phone: dto.phone, licenseNo: dto.licenseNo, userId: dto.userId, ...block, branchId },
+      });
     });
   }
 
