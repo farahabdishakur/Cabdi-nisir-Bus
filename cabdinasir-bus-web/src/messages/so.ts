@@ -45,6 +45,7 @@ const so = {
     optional: 'ikhtiyaari',
   },
   nav: {
+    account: 'Akoonkayga',
     dispatch: 'Safka gaadiidka',
     claims: 'Cabashooyinka',
     dashboard: 'Bogga hore',
@@ -554,7 +555,14 @@ const so = {
     title: 'Sanduuqaagu (khasnadda) waa xiran yahay', hint: 'Tigidh/alaab lacag leh lama iibin karo ilaa sanduuqa la furo. Halkan ka fur — lacagta gacantaada ku jirta geli (haddii aysan jirin, banaan ka tag).',
     usd: 'Lacagta bilowga $ (ikhtiyaari)', slsh: 'SLSH (ikhtiyaari)', open: 'Fur sanduuqa hadda',
   },
+  account: {
+    title: 'Akoonkayga', loginPhone: 'Taleefanka aad ku gasho', changePassword: 'Beddel password-ka', savePassword: 'Kaydi password-ka cusub',
+    passwordDone: '✓ Password-ka waa la beddelay. Qalabka kale waa laga saaray — password-ka cusub ku gal.',
+    changePhone: 'Beddel lambarka taleefanka (username)', phoneHint: 'Lambarkan ayaad mar dambe ku soo galaysaa', newPhone: 'Lambarka cusub', savePhone: 'Kaydi lambarka cusub',
+    phoneDone: '✓ Lambarka waa la beddelay → mar dambe ku gal {phone}',
+  },
   errors: {
+    PHONE_USED: 'Lambarkan akoon kale ayaa isticmaala.', SAME_PHONE: 'Kani waa lambarkaaga hadda.',
     BLOCK_REASON_REQUIRED: 'Qor sababta xannibaadda (ugu yaraan 3 xaraf)', DRIVER_HAS_TRIPS: 'Darawalkan safar soo socda ayuu leeyahay — marka hore darawal kale u qoondee', FLEET_NO_USED: 'Lambarkan baska bas kale ayaa haysta',
     NO_SEAT_AVAILABLE: 'Gaarigu wuu buuxsamay — rakaabka u wareeji gaariga xiga.',
     PAPER_TICKET_REQUIRED: 'Geli lambarka tigidhka warqadda.',

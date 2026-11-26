@@ -25,3 +25,12 @@ export class ChangePasswordDto {
   @IsString() @Matches(STRONG_PASSWORD, { message: STRONG_PASSWORD_MSG })
   newPassword: string;
 }
+
+/** Lambarka taleefanka (username-ka login-ka) beddel — password-ka hadda ayaa xaqiijiya */
+export class ChangePhoneDto {
+  @IsString() @IsNotEmpty()
+  currentPassword: string;
+
+  @IsString() @Matches(/^\+?[0-9 ]{4,20}$/, { message: 'Phone must be 4-20 digits' })
+  newPhone: string;
+}

@@ -298,3 +298,4 @@ Macmiilku lacagta wuxuu u soo diraa **lambarka Zaad/eDahab ee laanta** (laan kas
 5. **Bas soo galay:** karraaniga magaalada wuxuu safka dabadiisa ku dari karaa **hal bas** oo soo gaadhay; liis dhan (bilowga maalinta) iyo kala horreynta = maamule.
 6. **Warbixinta darawalka:** darawal kasta — safaradiisa, basaska, wakhtiga la qorsheeyay / baxay (`manifestLockedAt`) / gaadhay (`arrivedAt`), rakaabka.
 7. **Sanduuqa xiran** marka la iibinayo: isla bogga iibka (tigidh / alaab) ayaa laga furaa — lacagta bilowga waa ikhtiyaari.
+8. **Akoonkayga:** qof kasta wuxuu beddeli karaa password-kiisa iyo taleefanka uu ku galo (username) — password-ka hadda waa waajib; lambar akoon kale haysto lama qaadan karo (`PHONE_USED`); qalabka kale waa laga saaraa. Maamuluhu taleefanka karraaniga/darawalka laantiisa wuu beddeli karaa (Super Admin: qof kasta).

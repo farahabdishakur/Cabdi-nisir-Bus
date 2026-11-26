@@ -3,7 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { ChangePasswordDto, LoginDto, RefreshDto } from './auth.dto';
+import { ChangePasswordDto, ChangePhoneDto, LoginDto, RefreshDto } from './auth.dto';
 import { CurrentUser, Public } from '../common/decorators';
 import { AuthUser } from '../common/auth-user';
 
@@ -62,6 +62,17 @@ export class AuthController {
   @HttpCode(200)
   async changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto, @Res({ passthrough: true }) res: Response) {
     const t = await this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+    this.setCookie(res, t.refreshToken, t.refreshExpiresAt);
+    return t;
+  }
+
+  /** Taleefanka login-ka beddel (password-ka hadda waajib) → tokens cusub, qalabka kale waa laga saaray */
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('change-phone')
+  @HttpCode(200)
+  async changePhone(@CurrentUser() user: AuthUser, @Body() dto: ChangePhoneDto, @Res({ passthrough: true }) res: Response) {
+    const t = await this.auth.changePhone(user.id, dto.currentPassword, dto.newPhone);
     this.setCookie(res, t.refreshToken, t.refreshExpiresAt);
     return t;
   }

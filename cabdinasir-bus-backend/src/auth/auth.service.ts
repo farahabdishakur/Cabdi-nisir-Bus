@@ -134,6 +134,17 @@ export class AuthService {
     return this.issueTokens(await this.prisma.user.findUniqueOrThrow({ where: { id: userId } }));
   }
 
+  async changePhone(userId: string, current: string, newPhone: string) {
+    const phone = newPhone.replace(/\s/g, '');
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!(await argon2.verify(user.passwordHash, current))) throw Errors.bad('WRONG_PASSWORD', 'Current password is wrong');
+    if (phone === user.phone) throw Errors.bad('SAME_PHONE', 'This is already your phone number');
+    if (await this.prisma.user.findUnique({ where: { phone } })) throw Errors.conflict('PHONE_USED', 'Another account uses this phone number');
+    await this.prisma.user.update({ where: { id: userId }, data: { phone } });
+    await this.revokeAll(userId);
+    return this.issueTokens(await this.prisma.user.findUniqueOrThrow({ where: { id: userId } }));
+  }
+
   static publicUser(u: User & { branch?: unknown }) {
     const { passwordHash: _p, failedLogins: _f, lockedUntil: _l, ...rest } = u;
     return rest;

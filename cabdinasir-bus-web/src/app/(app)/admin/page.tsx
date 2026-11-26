@@ -132,8 +132,9 @@ function Users() {
         {sa && form.role !== 'SUPER_ADMIN' && <Field label={t('common.branch')}>{(id) => <BranchSelect id={id} value={form.branchId} onChange={(v) => setForm({ ...form, branchId: v })} branches={boot.data?.branches ?? []} allLabel="—" />}</Field>}
       </FormModal>
       <FormModal open={!!editU} title={`${t('common.edit')}: ${editU?.name ?? ''}`} onClose={() => setEditU(null)} busy={s.busy} error={s.error}
-        onSave={() => s.run(() => api(`/users/${editU!.id}`, { method: 'PATCH', body: { name: editU!.name, role: editU!.role, ...(sa && editU!.role !== 'SUPER_ADMIN' && editU!.branchId && { branchId: editU!.branchId }) } }), [['admin', 'users']], () => setEditU(null))}>
+        onSave={() => s.run(() => api(`/users/${editU!.id}`, { method: 'PATCH', body: { name: editU!.name, phone: editU!.phone, role: editU!.role, ...(sa && editU!.role !== 'SUPER_ADMIN' && editU!.branchId && { branchId: editU!.branchId }) } }), [['admin', 'users']], () => setEditU(null))}>
         <Field label={t('common.name')} required>{(id) => <Input id={id} value={editU?.name ?? ''} onChange={(e) => setEditU({ ...editU!, name: e.target.value })} required />}</Field>
+        <Field label={t('account.loginPhone')} required>{(id) => <Input id={id} inputMode="tel" value={editU?.phone ?? ''} onChange={(e) => setEditU({ ...editU!, phone: e.target.value })} required />}</Field>
         <Field label={t('admin.role')}>{(id) => <Select id={id} value={editU?.role ?? 'CASHIER'} onChange={(e) => setEditU({ ...editU!, role: e.target.value as Role })}>{roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}</Select>}</Field>
         {sa && editU?.role !== 'SUPER_ADMIN' && <Field label={t('common.branch')}>{(id) => <BranchSelect id={id} value={editU?.branchId ?? ''} onChange={(v) => setEditU({ ...editU!, branchId: v })} branches={boot.data?.branches ?? []} allLabel="—" />}</Field>}
         <Alert tone="yellow">{t('admin.editUserHint')}</Alert>

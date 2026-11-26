@@ -16,6 +16,7 @@ const en: DeepPartial<Messages> = {
     language: 'Af-Soomaali', required: 'Required', saved: 'Saved', done: 'Done', optional: 'optional',
   },
   nav: {
+    account: 'My account',
     dispatch: 'Vehicle queue',
     claims: 'Claims',
     dashboard: 'Home', trips: 'Trips', bookings: 'Tickets & reservations', parcelsNew: 'Send parcel', parcels: 'Parcels',
@@ -280,7 +281,14 @@ const en: DeepPartial<Messages> = {
     title: 'Your cash drawer is closed', hint: 'Paid tickets/parcels need an open drawer. Open it here — enter the cash you hold (leave empty if none).',
     usd: 'Opening cash $ (optional)', slsh: 'SLSH (optional)', open: 'Open drawer now',
   },
+  account: {
+    title: 'My account', loginPhone: 'Login phone', changePassword: 'Change password', savePassword: 'Save new password',
+    passwordDone: '✓ Password changed. Other devices were signed out — use the new password.',
+    changePhone: 'Change phone number (username)', phoneHint: 'You will sign in with this number from now on', newPhone: 'New number', savePhone: 'Save new number',
+    phoneDone: '✓ Number changed → sign in with {phone} from now on',
+  },
   errors: {
+    PHONE_USED: 'Another account uses this number.', SAME_PHONE: 'This is already your number.',
     BLOCK_REASON_REQUIRED: 'Write the reason for blocking (at least 3 characters)', DRIVER_HAS_TRIPS: 'This driver has an upcoming trip — assign another driver first', FLEET_NO_USED: 'Another bus already has this number',
     NO_SEAT_AVAILABLE: 'The bus is full — move the passenger to the next bus.',
     PAPER_TICKET_REQUIRED: 'Enter the paper ticket number.',

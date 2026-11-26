@@ -21,6 +21,8 @@ export class CreateUserDto {
 }
 export class UpdateUserDto {
   @IsOptional() @IsString() @Length(2, 80) name?: string;
+  /** Taleefanka login-ka (Super Admin / maamule) — qofka tokens-kiisa waa la dhacayaa */
+  @IsOptional() @IsString() @Matches(/^\+?[0-9 ]{4,20}$/) phone?: string;
   @IsOptional() @IsEnum(Role) role?: Role;
   @IsOptional() @IsUUID() branchId?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
@@ -69,11 +71,14 @@ export class UsersService {
     const branchId = dto.branchId ?? target.branchId ?? undefined;
     if (dto.role || dto.branchId) this.checkRoleBranch(actor, role, branchId);
     if (target.id === actor.id && dto.isActive === false) throw Errors.bad('CANNOT_DEACTIVATE_SELF', 'You cannot deactivate yourself');
+    const phone = dto.phone?.replace(/\s/g, '');
+    const phoneChanged = !!phone && phone !== target.phone;
+    if (phoneChanged && (await this.prisma.user.findUnique({ where: { phone } }))) throw Errors.conflict('PHONE_USED', 'Another account uses this phone number');
     const u = await this.prisma.user.update({
       where: { id },
-      data: { name: dto.name, ...blockData(dto), role, branchId: role === Role.SUPER_ADMIN ? null : branchId },
+      data: { name: dto.name, ...(phoneChanged && { phone }), ...blockData(dto), role, branchId: role === Role.SUPER_ADMIN ? null : branchId },
     });
-    if (dto.isActive === false || dto.role || dto.branchId) await this.auth.revokeAll(id);
+    if (dto.isActive === false || dto.role || dto.branchId || phoneChanged) await this.auth.revokeAll(id);
     return AuthService.publicUser(u);
   }
 

@@ -13,6 +13,8 @@ interface Auth {
   login: (phone: string, password: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** Taleefanka login-ka beddel (password-ka hadda waajib) */
+  changePhone: (currentPassword: string, newPhone: string) => Promise<void>;
 }
 
 const Ctx = createContext<Auth | null>(null);
@@ -69,7 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySession(s);
   }, []);
 
-  return <Ctx.Provider value={{ user, loading, login, logout, changePassword }}>{children}</Ctx.Provider>;
+  const changePhone = useCallback(async (currentPassword: string, newPhone: string) => {
+    const s = await api<{ accessToken: string; user: SessionUser }>('/auth/change-phone', { method: 'POST', body: { currentPassword, newPhone } });
+    applySession(s);
+  }, []);
+
+  return <Ctx.Provider value={{ user, loading, login, logout, changePassword, changePhone }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

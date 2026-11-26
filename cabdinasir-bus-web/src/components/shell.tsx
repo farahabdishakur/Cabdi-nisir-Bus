@@ -119,6 +119,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { href: '/reports', key: 'nav.reports', icon: '📊', show: can(user, 'reports') },
     { href: '/system', key: 'nav.system', icon: '🛡', show: isManager(user) },
     { href: '/admin', key: 'nav.admin', icon: '⚙️', show: isManager(user) },
+    { href: '/account', key: 'nav.account', icon: '👤', show: true },
   ];
   const active = (href: string) => (href === '/' ? path === '/' : path === href || (path.startsWith(href + '/') && !items.some((i) => i.href !== href && i.href.startsWith(href + '/') && path.startsWith(i.href))));
 
@@ -208,8 +209,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             {lang === 'so' ? 'EN' : 'SO'}
           </button>
           <InstallAppButton />
-          <Link href="/change-password" className="hidden rounded-lg px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 sm:inline">
-            {t('nav.profile')}
+          <Link href="/account" className="rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100" title={t('nav.account')}>
+            👤<span className="hidden sm:inline"> {user.name.split(' ')[0]}</span>
           </Link>
           <button className="rounded-lg px-2 py-1 text-xs font-semibold text-brand hover:bg-red-50" onClick={() => logout().then(() => router.replace('/login'))}>
             {t('nav.logout')}

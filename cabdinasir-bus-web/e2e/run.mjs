@@ -493,6 +493,23 @@ async function main() {
   await sp.getByText('№ BO1-1004').first().waitFor();
   await sp.screenshot({ path: `${SHOTS}23-paper-tickets.png`, fullPage: true });
   log('paper ticket booklet: 4 numbered tickets (stub + ticket) ready to print');
+  // Akoonkayga: password + taleefanka login-ka beddel (gudaha)
+  await sp.goto(`${WEB}/account`);
+  await sp.getByText('Taleefanka aad ku gasho').waitFor();
+  const pwCard = sp.locator('form', { has: sp.getByRole('button', { name: 'Kaydi password-ka cusub' }) });
+  await pwCard.getByLabel(/Password-ka hadda/).fill('E2eAdmin2026!');
+  await pwCard.getByLabel(/^Password cusub/).fill('E2eAdmin2027!');
+  await pwCard.getByLabel(/Ku celi password/).fill('E2eAdmin2027!');
+  await sp.getByRole('button', { name: 'Kaydi password-ka cusub' }).click();
+  await sp.getByText(/Password-ka waa la beddelay/).waitFor();
+  const phCard = sp.locator('form', { has: sp.getByRole('button', { name: 'Kaydi lambarka cusub' }) });
+  await phCard.getByLabel(/Lambarka cusub/).fill('0630000099');
+  await phCard.getByLabel(/Password-ka hadda/).fill('E2eAdmin2027!');
+  await sp.getByRole('button', { name: 'Kaydi lambarka cusub' }).click();
+  await sp.getByText(/Lambarka waa la beddelay/).waitFor();
+  await sp.getByText('063 0000099').first().waitFor();
+  await sp.screenshot({ path: `${SHOTS}26-account.png`, fullPage: true });
+  log('my account: password and login phone changed from inside');
   await saCtx.close();
 
   // 10. phone layout
