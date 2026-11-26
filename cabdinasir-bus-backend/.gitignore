@@ -6,4 +6,4 @@ coverage/
 *.tsbuildinfo
 uploads/
 uploads-test/
-.localdb/
+.localdb*/

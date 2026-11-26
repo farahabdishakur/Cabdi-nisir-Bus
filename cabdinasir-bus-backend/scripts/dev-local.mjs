@@ -6,7 +6,7 @@
  *   3. migrations → xog tijaabo (laamo, shaqaale, gaadiid) → API-ga (http://localhost:3000, watch)
  * Isticmaal: `npm run dev:local` (ama VS Code → Run → "▶ Kici dhammaan").  Jooji: Ctrl+C.
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -84,6 +84,12 @@ const startPg = async () => {
   }
 };
 let fresh = !existsSync(path.join(dataDir, 'PG_VERSION'));
+// galka database-ka wuu jiraa laakiin ma dhammaystirna (koobi go'ay / bilow hore oo go'ay) → dhinac dhig (lama tirtiro) → mid cusub
+if (fresh && existsSync(dataDir) && readdirSync(dataDir).length) {
+  const aside = `${dataDir}-khaldan-${Date.now()}`;
+  renameSync(dataDir, aside);
+  say(`Galka database-ka ma dhammaystirnayn → waa la dhinac dhigay (${path.basename(aside)}) · mid cusub ayaa la samaynayaa ...`);
+}
 if (fresh) {
   say('Database-ka ayaa la diyaarinayaa (markii ugu horreysay) ...');
   await pg.initialise();
