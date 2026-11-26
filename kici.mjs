@@ -74,11 +74,34 @@ const wait = async (url) => {
   }
   return false;
 };
+// 2 daaqadood oo GOONI ah (profile kasta login-kiisa): 👑 Super Admin + 👤 Shaqaalaha (karraani Boorama 1)
+const windows = [
+  { name: '👑 Super Admin', phone: '0630000000', profile: '.browser-superadmin' },
+  { name: '👤 Shaqaalaha (Karraani Boorama 1)', phone: '0631000002', profile: '.browser-staff' },
+];
+function openWindow(w) {
+  const url = `http://localhost:3001/login?phone=${w.phone}`;
+  const dir = path.join(root, '.vscode', w.profile);
+  const args = [`--user-data-dir=${dir}`, '--no-first-run', '--no-default-browser-check', '--new-window', url];
+  if (win) {
+    // Edge (Windows-ka wuu ku jiraa) → haddii kale Chrome → haddii kale browser-ka caadiga ah
+    const ok = ['msedge', 'chrome'].some((b) => spawnSync('cmd', ['/c', 'start', '""', b, ...args.map((a) => `"${a}"`)], { stdio: 'ignore', windowsVerbatimArguments: true }).status === 0);
+    if (!ok) spawn('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true });
+  } else if (process.platform === 'darwin') {
+    spawn('open', ['-na', 'Google Chrome', '--args', ...args], { stdio: 'ignore', detached: true }).on('error', () => spawn('open', [url]));
+  } else {
+    spawn('chromium', args, { stdio: 'ignore', detached: true }).on('error', () => undefined);
+  }
+}
 if ((await wait('http://localhost:3000/api/v1/health')) && (await wait('http://localhost:3001/login'))) {
-  const url = 'http://localhost:3001/login?phone=0630000000';
-  console.log(`\n\x1b[32m✓ DIYAAR\x1b[0m  →  ${url}`);
-  console.log('   Super Admin: 0630000000 / ChangeMe123!   ·   Karraani Boorama 1: 0631000002 / Demo1234');
+  console.log('\n\x1b[32m✓ DIYAAR\x1b[0m  →  http://localhost:3001');
+  console.log('   Laba daaqadood oo gooni ah ayaa furmaya:');
+  console.log('   👑 Super Admin ............ 0630000000 / ChangeMe123!  (markii ugu horreysay password cusub ayaa la weydiinayaa)');
+  console.log('   👤 Shaqaalaha (Boorama 1) . 0631000002 / Demo1234');
+  console.log('   Kale: Maamulaha Boorama 1 0631000001 · Boorama 2 0633000002 · Wajaale 0632000002  (password Demo1234)');
   console.log('   Daaqaddan ha xirin. Jooji: Ctrl + C\n');
-  if (win) spawn('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true });
-  else if (process.platform === 'darwin') spawn('open', [url], { stdio: 'ignore', detached: true });
+  for (const w of windows) {
+    openWindow(w);
+    await new Promise((r) => setTimeout(r, 1500));
+  }
 }

@@ -28,7 +28,7 @@ https://github.com/farahabdishakur/Cabdi-nisir-Bus/archive/refs/heads/ccr-6915eb
 npm run dev
 ```
 Wax walba isaga ayaa qabanaya: `npm install` (markii ugu horreysay 3–10 daqiiqo) → backend + database → website → browser-ka ayaa furmaya.
-Marka uu qoro **✓ DIYAAR** → http://localhost:3001 . Daaqadda ha xirin; jooji: **Ctrl + C**.
+Marka uu qoro **✓ DIYAAR** → **laba daaqadood oo gooni ah** ayaa si toos ah u furmaya (Edge): **👑 Super Admin** (`0630000000`) iyo **👤 Shaqaalaha** (karraani Boorama 1, `0631000002`) — mid kasta login-kiisa gooni ah. Daaqadda terminal-ka ha xirin; jooji: **Ctrl + C**.
 
 > `cd` looma baahna. Haddii PowerShell uu yiraahdo *"running scripts is disabled"* → `npm.cmd run dev`.
 
