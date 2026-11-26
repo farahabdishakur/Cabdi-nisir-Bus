@@ -18,7 +18,8 @@
     "openapi": "ts-node scripts/export-openapi.ts",
     "backup": "bash scripts/backup.sh",
     "dev:local": "node scripts/dev-local.mjs",
-    "demo:day": "node scripts/demo-day.mjs"
+    "demo:day": "node scripts/demo-day.mjs",
+    "reset-password": "node scripts/reset-password.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

@@ -4,6 +4,7 @@
   "description": "Hal amar: npm run dev → backend (3000) + website (3001) + browser",
   "scripts": {
     "dev": "node kici.mjs",
-    "start": "node kici.mjs"
+    "start": "node kici.mjs",
+    "reset-password": "npm --prefix cabdinasir-bus-backend run reset-password --"
   }
 }
