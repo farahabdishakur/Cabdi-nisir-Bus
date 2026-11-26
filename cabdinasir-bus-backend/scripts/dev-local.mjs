@@ -67,22 +67,43 @@ const env = {
   THROTTLE_DISABLED: fileEnv.THROTTLE_DISABLED ?? 'true',
 };
 
-// 2. database
-const pg = new EmbeddedPostgres({ databaseDir: dataDir, user: 'cb', password: 'cb', port: DB_PORT, persistent: true, onLog: () => {} });
-const fresh = !existsSync(path.join(dataDir, 'PG_VERSION'));
+// 2. database — UTF8 had iyo jeer (Windows default-kiisu waa WIN1252 → migrations "→" way diidaan)
+const newPg = () =>
+  new EmbeddedPostgres({ databaseDir: dataDir, user: 'cb', password: 'cb', port: DB_PORT, persistent: true, onLog: () => {}, initdbFlags: ['--encoding=UTF8', '--locale=C'] });
+let pg = newPg();
+const startPg = async () => {
+  try {
+    await pg.start();
+  } catch (e) {
+    // kombiyuutarku si lama filaan ah ayuu u dansaday → postmaster.pid ayaa hadhay → tirtir oo mar kale isku day
+    const lock = path.join(dataDir, 'postmaster.pid');
+    if (!existsSync(lock)) throw e;
+    say('Qufulkii hore (postmaster.pid) waa la tirtiray — mar kale ...');
+    rmSync(lock, { force: true });
+    await pg.start();
+  }
+};
+let fresh = !existsSync(path.join(dataDir, 'PG_VERSION'));
 if (fresh) {
   say('Database-ka ayaa la diyaarinayaa (markii ugu horreysay) ...');
   await pg.initialise();
 }
-try {
-  await pg.start();
-} catch (e) {
-  // kombiyuutarku si lama filaan ah ayuu u dansaday → postmaster.pid ayaa hadhay → tirtir oo mar kale isku day
-  const lock = path.join(dataDir, 'postmaster.pid');
-  if (!existsSync(lock)) throw e;
-  say('Qufulkii hore (postmaster.pid) waa la tirtiray — mar kale ...');
-  rmSync(lock, { force: true });
-  await pg.start();
+await startPg();
+if (!fresh) {
+  // database hore oo aan UTF8 ahayn (nooca hore ee Windows) → migrations weligood ma dhammaan → xog ma leh → dib u samee
+  const c = pg.getPgClient();
+  await c.connect();
+  const r = await c.query("SELECT pg_encoding_to_char(encoding) AS enc FROM pg_database WHERE datname IN ('cabdinasir_bus','template1') ORDER BY datname");
+  await c.end();
+  if (r.rows.some((x) => x.enc !== 'UTF8')) {
+    say(`Database-kii hore wuxuu ahaa ${r.rows.map((x) => x.enc).join('/')} (ma aha UTF8) — dib ayaa loo samaynayaa ...`);
+    await pg.stop().catch(() => {});
+    rmSync(dataDir, { recursive: true, force: true });
+    pg = newPg();
+    await pg.initialise();
+    await startPg();
+    fresh = true;
+  }
 }
 if (fresh) await pg.createDatabase('cabdinasir_bus');
 say(`Database: localhost:${DB_PORT} ✓`);
